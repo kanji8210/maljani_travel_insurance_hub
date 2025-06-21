@@ -52,6 +52,11 @@ class Maljani_Admin {
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
 
+		//add insurer profile CPT
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-insurer-profile-cpt.php';
+		$insurer_profile_cpt = new Insurer_Profile_CPT();
+		$insurer_profile_cpt->register_Insurer();
+
 	}
 
 	/**
