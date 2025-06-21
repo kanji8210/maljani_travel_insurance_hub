@@ -1,7 +1,7 @@
 <?php
 
 /**
- * The admin-specific functionality of the plugin.
+ * Fonctionnalités spécifiques à l'administration du plugin.
  *
  * @link       https://kipdevwp.tech
  * @since      1.0.0
@@ -11,98 +11,98 @@
  */
 
 /**
- * The admin-specific functionality of the plugin.
+ * Classe pour la gestion de l'administration du plugin.
  *
- * Defines the plugin name, version, and two examples hooks for how to
- * enqueue the admin-specific stylesheet and JavaScript.
+ * Définit le nom du plugin, la version, et les hooks pour l'administration.
  *
- * @package    Maljani
- * @subpackage Maljani/admin
  * @author     Dennis kip <denisdekemet@gmail.com>
  */
 class Maljani_Admin {
 
-	/**
-	 * The ID of this plugin.
-	 *
-	 * @since    1.0.0
-	 * @access   private
-	 * @var      string    $plugin_name    The ID of this plugin.
-	 */
-	private $plugin_name;
+    /**
+     * ID du plugin.
+     *
+     * @var string
+     */
+    private $plugin_name;
 
-	/**
-	 * The version of this plugin.
-	 *
-	 * @since    1.0.0
-	 * @access   private
-	 * @var      string    $version    The current version of this plugin.
-	 */
-	private $version;
+    /**
+     * Version du plugin.
+     *
+     * @var string
+     */
+    private $version;
 
-	/**
-	 * Initialize the class and set its properties.
-	 *
-	 * @since    1.0.0
-	 * @param      string    $plugin_name       The name of this plugin.
-	 * @param      string    $version    The version of this plugin.
-	 */
-	public function __construct( $plugin_name, $version ) {
+    /**
+     * Constructeur : initialise les propriétés.
+     *
+     * @param string $plugin_name Nom du plugin.
+     * @param string $version     Version du plugin.
+     */
+    public function __construct( $plugin_name, $version ) {
+        $this->plugin_name = $plugin_name;
+        $this->version = $version;
+    }
 
-		$this->plugin_name = $plugin_name;
-		$this->version = $version;
+    /**
+     * Enregistre les hooks nécessaires pour l'administration.
+     *
+     * À appeler depuis la classe principale pour lier les hooks.
+     *
+     * @param Maljani_Loader $loader        Instance du loader.
+     * @param Maljani_Admin  $plugin_admin  Instance de cette classe.
+     */
+    public function register_admin_hooks( $loader, $plugin_admin ) {
+        // CPT Insurer Profile
+        $loader->add_action( 'init', $plugin_admin, 'register_insurer_profile_cpt' );
+        // CPT Policy
+        $loader->add_action( 'init', $plugin_admin, 'register_policy_cpt' );
+        // Styles et scripts admin
+        $loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
+        $loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+    }
 
-		//add insurer profile CPT
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-insurer-profile-cpt.php';
-		$insurer_profile_cpt = new Insurer_Profile_CPT();
-		$insurer_profile_cpt->register_Insurer();
+    /**
+     * Enregistre le CPT "Insurer Profile".
+     */
+    public function register_insurer_profile_cpt() {
+        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-insurer-profile-cpt.php';
+        $insurer_profile_cpt = new Insurer_Profile_CPT();
+        $insurer_profile_cpt->register_Insurer();
+    }
 
-	}
+    /**
+     * Enregistre le CPT "Policy".
+     */
+    public function register_policy_cpt() {
+        require_once plugin_dir_path( __FILE__ ) . 'class-policy-cpt.php';
+        $policy_cpt = new Policy_CPT();
+        $policy_cpt->register_policy();
+    }
 
-	/**
-	 * Register the stylesheets for the admin area.
-	 *
-	 * @since    1.0.0
-	 */
-	public function enqueue_styles() {
+    /**
+     * Enregistre les styles pour l'admin.
+     */
+    public function enqueue_styles() {
+        wp_enqueue_style(
+            $this->plugin_name,
+            plugin_dir_url( __FILE__ ) . 'css/maljani-admin.css',
+            array(),
+            $this->version,
+            'all'
+        );
+    }
 
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Maljani_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Maljani_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
-
-		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/maljani-admin.css', array(), $this->version, 'all' );
-
-	}
-
-	/**
-	 * Register the JavaScript for the admin area.
-	 *
-	 * @since    1.0.0
-	 */
-	public function enqueue_scripts() {
-
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Maljani_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Maljani_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
-
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/maljani-admin.js', array( 'jquery' ), $this->version, false );
-
-	}
-
+    /**
+     * Enregistre les scripts pour l'admin.
+     */
+    public function enqueue_scripts() {
+        wp_enqueue_script(
+            $this->plugin_name,
+            plugin_dir_url( __FILE__ ) . 'js/maljani-admin.js',
+            array( 'jquery' ),
+            $this->version,
+            false
+        );
+    }
 }
