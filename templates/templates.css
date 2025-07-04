@@ -1,0 +1,227 @@
+/* Import modern font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.maljani-container {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 32px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+    font-family: 'Inter', sans-serif;
+    color: #333;
+}
+
+.maljani-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+}
+
+.maljani-col {
+    flex: 1 1 0;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.maljani-feature-img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.maljani-feature-img:hover {
+    transform: scale(1.02);
+}
+
+.maljani-insurer {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.maljani-insurer-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e0e0e0;
+    margin-right: 14px;
+}
+
+.maljani-title {
+    margin-bottom: 14px;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #222;
+}
+
+.maljani-region {
+    color: #1f78ff;
+    font-weight: 600;
+    margin-bottom: 14px;
+    font-size: 1rem;
+}
+
+.maljani-description {
+    margin-bottom: 20px;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: #555;
+}
+
+.maljani-section {
+    margin: 36px 0 28px;
+    padding: 22px 26px;
+    background: #f6f8fa;
+    border-radius: 12px;
+    border-left: 4px solid #007bff;
+}
+
+.maljani-section h3 {
+    margin: 0 0 12px;
+    font-size: 1.25rem;
+    color: #333;
+    font-weight: 600;
+}
+
+.maljani-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 0.95rem;
+    
+}
+
+.maljani-table th,
+.maljani-table td {
+    border: 1px solid #e3e6eb;
+    padding: 10px 14px;
+    text-align: left;
+}
+
+.maljani-table th {
+    background: #f1f3f6;
+    font-weight: 600;
+    color: #444;
+}
+
+.maljani-table tr:hover {
+    background: #f9fbfc;
+}
+
+.maljani-profile {
+    max-width: 800px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.07);
+    padding: 32px 24px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.maljani-profile-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.maljani-profile {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+.maljani-profile h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #222;
+    text-align: center;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.maljani-profile-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.maljani-profile-image img {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.maljani-profile-info {
+    flex: 1;
+    min-width: 250px;
+}
+
+.maljani-insurer {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.maljani-insurer-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ccc;
+}
+
+.maljani-links a {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    background-color: #f5f5f5;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    color: #0073aa;
+    margin-right: 10px;
+    transition: background-color 0.2s ease;
+}
+
+.maljani-links a:hover {
+    background-color: #e6f0fa;
+    color: #00507a;
+}
+
+.maljani-links img {
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.description h3 {
+    font-size: 20px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #444;
+}
+
+.description p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #555;
+}

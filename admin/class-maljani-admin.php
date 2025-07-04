@@ -105,4 +105,16 @@ class Maljani_Admin {
             false
         );
     }
+
+    /**
+     * Enqueue admin scripts and styles.
+     *
+     * @param string $hook The current admin page.
+     */
+    public function enqueue_admin_scripts( $hook ) {
+        if ( 'post.php' === $hook || 'post-new.php' === $hook ) {
+            wp_enqueue_media();
+        }
+    }
 }
+
