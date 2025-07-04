@@ -61,8 +61,6 @@ class Insurer_Profile_CPT {
         echo '<input type="text" id="insurer_name" name="insurer_name" value="' . esc_attr($name) . '" style="width:100%;" /><br><br>';
 
         // Champ Profil
-        echo '<label for="insurer_profile">Profil (150 mots max) :</label><br>';
-        echo '<textarea id="insurer_profile" name="insurer_profile" rows="5" style="width:100%;">' . esc_textarea($profile) . '</textarea>';
         echo '<label for="insurer_profile">Profil :</label><br>';
         $profile = get_post_meta($post->ID, '_insurer_profile', true);
         wp_editor(
