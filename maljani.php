@@ -30,6 +30,7 @@ define( 'MALJANI_VERSION', '1.0.0' );
 
 // Inclusions principales
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-filter.php'; // <-- Ajoute cette ligne
 
 // Hooks d'activation/désactivation
 function activate_maljani() {

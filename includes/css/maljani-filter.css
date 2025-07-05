@@ -1,0 +1,105 @@
+.thumbnail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: #fafafa;
+    border-radius: 8px;
+}
+
+.thumbnail-grid .thumb-item {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+} 
+
+.thumbnail-grid .thumb-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.thumbnail-grid img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+    aspect-ratio: 4/3;
+    transition: opacity 0.3s ease;
+}
+
+.thumbnail-grid .thumb-caption {
+    padding: 10px 15px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    text-align: center;
+}
+
+/* Formulaire de filtre moderne */
+#maljani-policy-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 24px;
+    align-items: flex-end;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    padding: 22px 28px 14px 28px;
+    margin-bottom: 28px;
+}
+
+#maljani-policy-filter-form label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+    color: #222;
+    font-size: 15px;
+    margin-bottom: 0;
+    gap: 6px;
+}
+
+#maljani-policy-filter-form select,
+#maljani-policy-filter-form input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #f9fafb;
+    font-size: 15px;
+    transition: border-color 0.2s;
+    min-width: 160px;
+    outline: none;
+}
+#maljani-policy-filter-form select:focus,
+#maljani-policy-filter-form input[type="text"]:focus {
+    border-color: #0078d7;
+    background: #fff;
+}
+
+#maljani-policy-filter-form button[type="submit"] {
+    padding: 10px 24px;
+    background: linear-gradient(90deg, #0078d7 60%, #005fa3 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,120,215,0.08);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+#maljani-policy-filter-form button[type="submit"]:hover {
+    background: linear-gradient(90deg, #005fa3 60%, #0078d7 100%);
+    box-shadow: 0 4px 16px rgba(0,120,215,0.13);
+}
+
+@media (max-width: 700px) {
+    #maljani-policy-filter-form {
+        flex-direction: column;
+        gap: 14px;
+        padding: 16px 10px 10px 10px;
+    }
+    #maljani-policy-filter-form label {
+        min-width: 0;
+    }
+}
