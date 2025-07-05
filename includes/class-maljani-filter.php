@@ -24,14 +24,14 @@ class Maljani_Filter {
                 <select name="region">
                     <option value="">All</option>
                     <?php
-                    $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
+                    $regions = get_terms(array('taxonomy' => '_policy_region', 'hide_empty' => false));
                     foreach ($regions as $region) {
                         echo '<option value="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</option>';
                     }
                     ?>
                 </select>
             </label>
-            <label>Assureur :
+            <label>Insurer :
                 <select name="insurer">
                     <option value="">all</option>
                     <?php
@@ -58,7 +58,7 @@ class Maljani_Filter {
     }
 
     public function ajax_filter() {
-        $region = sanitize_text_field($_POST['region']);
+        $region = intval($_POST['region']);
         $insurer = intval($_POST['insurer']);
         $sort = ($_POST['sort_premium'] === 'desc') ? 'DESC' : 'ASC';
 
@@ -69,14 +69,14 @@ class Maljani_Filter {
 
         $meta_query = array();
 
-        if (!empty($insurer)) {
+        if ($insurer) {
             $meta_query[] = array(
                 'key' => '_policy_insurer',
                 'value' => $insurer,
                 'compare' => '='
             );
         }
-        if (!empty($region)) {
+        if ($region) {
             $meta_query[] = array(
                 'key' => '_policy_region',
                 'value' => $region,
@@ -87,35 +87,11 @@ class Maljani_Filter {
             $args['meta_query'] = $meta_query;
         }
 
-        $tax_query = array();
-        if (!empty($_POST['region'])) {
-            $tax_query[] = array(
-                'taxonomy' => 'policy_region',
-                'field' => 'term_id',
-                'terms' => intval($_POST['region'])
-            );
-        }
-        if (!empty($tax_query)) {
-            $args['tax_query'] = $tax_query;
-        }
-
         $args['orderby'] = 'meta_value_num';
         $args['meta_key'] = '_policy_min_premium';
         $args['order'] = $sort;
 
-        $query = new WP_Query($args);
-
-        if ($query->have_posts()) {
-            echo '<ul class="maljani-policy-list">';
-            while ($query->have_posts()) {
-                $query->the_post();
-                $premium = get_post_meta(get_the_ID(), '_policy_min_premium', true);
-                echo '<li><a href="' . get_permalink() . '">' . get_the_title() . '</a> - Prime : ' . esc_html($premium) . '</li>';
-            }
-            echo '</ul>';
-        } else {
-            echo '<p>Please widen you criteria, No policy was fund.</p>';
-        }
+        $this->render_policy_list($args);
         wp_die();
     }
     public function enqueue_scripts() {
@@ -150,8 +126,9 @@ class Maljani_Filter {
         //var_dump($query);
 
         if ($query->have_posts()) {
+            echo '<h2>Policies found</h2>';
             echo '<div class="thumbnail-grid">';
-            echo '<h2>Policies</h2>';
+            
             while ($query->have_posts()) {
                 $query->the_post();
                 $this->render_policy_item(get_the_ID());
@@ -181,7 +158,7 @@ class Maljani_Filter {
         }
 
         // Régions
-        $regions = get_the_terms($policy_id, 'policy_region');
+        $regions = get_the_terms($policy_id, '_policy_region');
         $region_names = $regions && !is_wp_error($regions) ? wp_list_pluck($regions, 'name') : array();
 
         // Excerpt
