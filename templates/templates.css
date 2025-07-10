@@ -28,7 +28,7 @@
 
 .maljani-feature-img {
     max-width: 100%;
-    max-height: 400px;
+    max-height:300;
     border-radius: 16px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     object-fit: cover;
@@ -80,7 +80,7 @@
     padding: 22px 26px;
     background: #f6f8fa;
     border-radius: 12px;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid #69727c;
 }
 
 .maljani-section h3 {
@@ -224,4 +224,41 @@
     font-size: 15px;
     line-height: 1.6;
     color: #555;
+}
+
+.maljani-premium-calc-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.maljani-premium-calc-form input[type="date"] {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 1em;
+    background: #fafbfc;
+    min-width: 120px;
+}
+.maljani-premium-sep {
+    color: #888;
+    font-size: 1.2em;
+}
+.maljani-premium-btn {
+    background: #f5f5f5;
+    color: #0073aa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.maljani-premium-btn:hover {
+    background: #eaf6fa;
+    color: #005177;
+}
+.maljani-premium-result {
+    font-size: 1.05em;
+    margin-top: 8px;
 }

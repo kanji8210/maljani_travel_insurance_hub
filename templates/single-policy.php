@@ -71,9 +71,21 @@ get_header(); ?>
             $description = get_post_meta(get_the_ID(), '_policy_description', true);
             if ($description) {
                 echo '<div class="maljani-description">' . esc_html($description) . '</div>';
+
             }
             ?>
+<div class="maljani-section">
+    <div>  <p>Calculate Premium</p></div>
+    <form id="maljani-premium-calc" class="maljani-premium-calc-form" autocomplete="off">
+        <input type="date" name="departure" required placeholder="Departure">
+        <span class="maljani-premium-sep">→</span>
+        <input type="date" name="return" required placeholder="Return">
+        <button type="submit" class="maljani-premium-btn">Check</button>
+    </form>
+    <div id="maljani-premium-result" class="maljani-premium-result"></div>
+</div>
         </div>
+        
     </div>
 
     <!-- Le reste du contenu dans des div séparés -->
@@ -104,17 +116,9 @@ get_header(); ?>
     <div class="maljani-section">
         <?php
         $premiums = get_post_meta(get_the_ID(), '_policy_day_premiums', true);
+        echo '<pre>'; print_r($premiums); echo '</pre>'; // Pour debug : tu dois voir un tableau
         if ($premiums && is_array($premiums)) {
-            echo '<h3>Day Premiums</h3>';
-            echo '<table class="maljani-table"><tr><th>From</th><th>To</th><th>Premium</th></tr>';
-            foreach ($premiums as $row) {
-                echo '<tr>';
-                echo '<td>' . esc_html($row['from']) . '</td>';
-                echo '<td>' . esc_html($row['to']) . '</td>';
-                echo '<td>' . esc_html($row['premium']) . '</td>';
-                echo '</tr>';
-            }
-            echo '</table>';
+            echo '<script>window.maljaniPremiums = ' . json_encode($premiums) . ';</script>';
         }
         ?>
     </div>
@@ -131,5 +135,18 @@ get_header(); ?>
         ?>
     </div>
 </div>
+
+<?php
+// Enqueue le JS pour ce template
+add_action('wp_footer', function() {
+    wp_enqueue_script(
+        'maljani-template-js',
+        plugin_dir_url(__FILE__) . 'template.js',
+        array('jquery'),
+        null,
+        true
+    );
+});
+?>
 
 <?php get_footer(); ?>

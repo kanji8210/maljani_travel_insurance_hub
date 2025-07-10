@@ -66,6 +66,7 @@ class Policy_CPT {
     public function render_meta_box($post) {
         // Récupération des valeurs existantes
         $insurer_id = get_post_meta($post->ID, '_policy_insurer', true);
+        $region = get_post_meta($post->ID, '_policy_region', true);
         $description = get_post_meta($post->ID, '_policy_description', true);
         $cover_details = get_post_meta($post->ID, '_policy_cover_details', true);
         $benefits = get_post_meta($post->ID, '_policy_benefits', true);
@@ -231,4 +232,3 @@ class Policy_CPT {
         wp_send_json_error();
     }
 }
-
