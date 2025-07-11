@@ -4,7 +4,6 @@ get_header(); ?>
 <link rel="stylesheet" href="<?php echo plugin_dir_url(__FILE__); ?>templates.css?v=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-
 <div class="maljani-container">
     <div class="maljani-row">
         <!-- Colonne gauche : Feature image -->
@@ -71,24 +70,28 @@ get_header(); ?>
             $description = get_post_meta(get_the_ID(), '_policy_description', true);
             if ($description) {
                 echo '<div class="maljani-description">' . esc_html($description) . '</div>';
-
             }
             ?>
-<div class="maljani-section">
-    <div>  <p>Calculate Premium</p></div>
-    <form id="maljani-premium-calc" class="maljani-premium-calc-form" autocomplete="off">
-        <input type="date" name="departure" required placeholder="Departure">
-        <span class="maljani-premium-sep">→</span>
-        <input type="date" name="return" required placeholder="Return">
-        <button type="submit" class="maljani-premium-btn">Check</button>
-    </form>
-    <div id="maljani-premium-result" class="maljani-premium-result"></div>
-</div>
+
+            <!-- Calculateur de prime + CTA minimaliste -->
+            <div class="maljani-section">
+                <div><p>Calculate Premium</p></div>
+                <form id="maljani-premium-calc" class="maljani-premium-calc-form" autocomplete="off">
+                    <input type="date" name="departure" required placeholder="Departure">
+                    <span class="maljani-premium-sep">→</span>
+                    <input type="date" name="return" required placeholder="Return">
+                    <button type="submit" class="maljani-premium-btn">Check</button>
+                </form>
+                <div id="maljani-premium-result" class="maljani-premium-result"></div>
+            </div>
+            <a href="<?php echo esc_url( home_url('/sales-form/?policy_id=' . get_the_ID() . '&premium=' . $premium . '&days=' . $days) ); ?>" class="maljani-cta-btn">
+                <span class="dashicons dashicons-yes"></span>
+                Get this cover
+            </a>
         </div>
-        
     </div>
 
-    <!-- Le reste du contenu dans des div séparés -->
+    <!-- Sections supplémentaires -->
     <div class="maljani-section">
         <?php
         $cover_details = get_post_meta(get_the_ID(), '_policy_cover_details', true);
@@ -116,24 +119,24 @@ get_header(); ?>
     <div class="maljani-section">
         <?php
         $premiums = get_post_meta(get_the_ID(), '_policy_day_premiums', true);
-        echo '<pre>'; print_r($premiums); echo '</pre>'; // Pour debug : tu dois voir un tableau
         if ($premiums && is_array($premiums)) {
+            echo '<table class="maljani-premium-table"><thead><tr><th>From</th><th>To</th><th>Premium</th></tr></thead><tbody>';
+            foreach ($premiums as $row) {
+                echo '<tr><td>' . esc_html($row['from']) . '</td><td>' . esc_html($row['to']) . '</td><td>' . esc_html($row['premium']) . '</td></tr>';
+            }
+            echo '</tbody></table>';
             echo '<script>window.maljaniPremiums = ' . json_encode($premiums) . ';</script>';
         }
         ?>
     </div>
-
-    <div class="description">
-        <h3>Profile</h3>
-        <?php
-        $description = get_post_meta(get_the_ID(), '_insurer_profile', true);
-        if ($description) {
-            echo wpautop($description);
-        } else {
-            echo '<p>No description available.</p>';
-        }
-        ?>
-    </div>
+    <!-- CTA principal tout en bas de la page -->
+<div class="section" style="text-align:center; margin: 48px 0 0 0;">
+    <a href="<?php echo esc_url( home_url('/sales-form/?policy_id=' . get_the_ID()) ); ?>"
+       class="maljani-cta-btn maljani-cta-bottom-btn">
+        <span class="dashicons dashicons-star-filled"></span>
+        Ready to protect your trip? <strong>Get your insurance now!</strong>
+    </a>
+</div>
 </div>
 
 <?php
@@ -149,4 +152,7 @@ add_action('wp_footer', function() {
 });
 ?>
 
-<?php get_footer(); ?>
+
+
+<?php
+get_footer();
