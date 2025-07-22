@@ -1,0 +1,17 @@
+/* Masque les notifications de fichiers modifiés dans le tableau de bord WordPress */
+.update-nag.notice.notice-warning.inline.modified-files-warning,
+.updated.below-h2.modified-files-warning,
+.update-message.notice-warning.notice-alt.inline {
+    display: none !important;
+}
+
+/* Masquer les notifications spécifiques de modification de fichiers */
+.notice.notice-warning:has(p:contains("modified files")),
+.notice:contains("files were modified") {
+    display: none !important;
+}
+
+/* Pour les tableaux d'admin qui montrent les fichiers modifiés */
+table.wp-list-table tr.modified-files {
+    display: none !important;
+}

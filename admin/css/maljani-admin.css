@@ -1,4 +1,28 @@
-/**
- * All of the CSS for your admin-specific functionality should be
- * included in this file.
- */
+
+
+ .terms-cell {
+    display: none;
+}
+.maljani-sales-table th,
+        .maljani-sales-table td {
+            padding: 6px 8px;
+        }
+    
+        .maljani-sales-table select,
+        .maljani-sales-table input,
+        .maljani-sales-table textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+    
+        .maljani-sales-table .actions-cell {
+            white-space: nowrap;
+        }
+    
+        .maljani-sales-table .terms-cell {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    
+     

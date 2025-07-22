@@ -1,4 +1,5 @@
-jQuery(document).ready(function($) {
+jQuery(document).ready(function ($) {
+    console.log('Maljani Premium Calculator initialized.');
     // Feature image uploader
     $('#upload_policy_feature_img').click(function(e) {
         e.preventDefault();
@@ -61,7 +62,6 @@ jQuery(document).ready(function($) {
     // Add new region via AJAX
     $('#add_policy_region').click(function() {
         const newRegion = $('#new_policy_region').val().trim();
-        const nonce = $(this).data('nonce');
         
         if (!newRegion) {
             alert('Please enter a region name');
@@ -100,5 +100,19 @@ jQuery(document).ready(function($) {
                 $('#add_policy_region').prop('disabled', false);
             }
         });
+    });
+    
+    // Afficher la ligne d'édition au clic sur Edit
+    $('.maljani-sales-table').on('click', '.edit-sale-btn', function() {
+        var saleId = $(this).data('sale');
+        $('#sale-row-' + saleId).hide();
+        $('#sale-edit-row-' + saleId).show();
+    });
+
+    // Annuler l'édition
+    $('.maljani-sales-table').on('click', '.cancel-edit-sale-btn', function() {
+        var saleId = $(this).data('sale');
+        $('#sale-edit-row-' + saleId).hide();
+        $('#sale-row-' + saleId).show();
     });
 });

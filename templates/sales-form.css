@@ -45,3 +45,111 @@
     margin-bottom: 18px;
     font-size: 1em;
 }
+
+/* Styles pour les détails de paiement */
+.maljani-payment-details {
+    border: 2px solid #e3f2fd;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+    background: #fafeff;
+}
+
+.maljani-payment-details label {
+    color: #1976d2;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: block;
+    font-size: 16px;
+}
+
+.maljani-payment-details .payment-details-content {
+    background: #f8f9fa !important;
+    border: 1px solid #e9ecef !important;
+    border-radius: 6px !important;
+    padding: 15px !important;
+    margin: 10px 0 !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    white-space: pre-wrap !important;
+    color: #495057 !important;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.maljani-payment-details .payment-instructions-note {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 5px;
+    margin-bottom: 0;
+    padding: 8px 12px;
+    background: #e8f4f8;
+    border-left: 4px solid #2196f3;
+    border-radius: 0 4px 4px 0;
+}
+
+.maljani-form-group {
+    margin-bottom: 16px;
+}
+
+.maljani-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Style pour indiquer que la section n'est pas éditable */
+.maljani-payment-details {
+    position: relative;
+}
+
+.maljani-payment-details::before {
+    content: "🔒 Read Only";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 11px;
+    color: #6c757d;
+    background: #ffffff;
+    padding: 2px 6px;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+    .maljani-payment-details {
+        margin: 15px -10px;
+        border-radius: 0;
+    }
+    
+    .maljani-payment-details .payment-details-content {
+        font-size: 13px !important;
+        padding: 12px !important;
+    }
+}
+
+/* Styles pour le select de polices amélioré */
+.maljani-sales-form select {
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+    width: 100%;
+    transition: border-color 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.maljani-sales-form select:hover {
+    border-color: #007cba;
+}
+
+.maljani-sales-form select:focus {
+    border-color: #007cba;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}

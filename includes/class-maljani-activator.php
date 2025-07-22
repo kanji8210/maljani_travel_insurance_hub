@@ -37,11 +37,12 @@ class Maljani_Activator {
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             policy_id BIGINT UNSIGNED NOT NULL,
+            policy_number VARCHAR(64),
             region VARCHAR(191),
             premium DECIMAL(10,2),
             days INT,
             departure DATE,
-            return DATE,
+            `return` DATE,
             insured_names VARCHAR(191),
             insured_dob DATE,
             passport_number VARCHAR(64),
@@ -67,3 +68,29 @@ class Maljani_Activator {
     }
 
 }
+
+// Ajoute ce code dans un fichier chargé à chaque page admin (ex : dans class-maljani-admin-menu.php ou dans le fichier principal du plugin)
+add_action('admin_notices', function() {
+    if (!current_user_can('manage_options')) return;
+    global $wpdb;
+    $table = $wpdb->prefix . 'policy_sale';
+    if (isset($_GET['maljani_table_created'])) {
+        echo '<div class="notice notice-success is-dismissible"><p>Maljani: Table <strong>policy_sale</strong> created successfully.</p></div>';
+    } elseif ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
+        $url = add_query_arg('maljani_create_table', '1');
+        echo '<div class="notice notice-error"><p>
+            Maljani: Table <strong>policy_sale</strong> is missing. 
+            <a href="' . esc_url($url) . '">Click here to create the table</a>.
+        </p></div>';
+    }
+});
+
+// Action pour créer la table manuellement si besoin
+add_action('admin_init', function() {
+    if (isset($_GET['maljani_create_table']) && current_user_can('manage_options')) {
+        require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
+        Maljani_Activator::activate();
+        wp_redirect(remove_query_arg('maljani_create_table') . '&maljani_table_created=1');
+        exit;
+    }
+});

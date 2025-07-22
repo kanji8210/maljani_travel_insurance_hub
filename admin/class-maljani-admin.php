@@ -84,9 +84,19 @@ class Maljani_Admin {
      * Enregistre les styles pour l'admin.
      */
     public function enqueue_styles() {
+        // Style principal du plugin
         wp_enqueue_style(
             $this->plugin_name,
             plugin_dir_url( __FILE__ ) . 'css/maljani-admin.css',
+            array(),
+            $this->version,
+            'all'
+        );
+        
+        // CSS pour masquer les notifications de fichiers modifiés
+        wp_enqueue_style(
+            $this->plugin_name . '-hide-modified',
+            plugin_dir_url( __FILE__ ) . 'css/hide-modified-files.css',
             array(),
             $this->version,
             'all'

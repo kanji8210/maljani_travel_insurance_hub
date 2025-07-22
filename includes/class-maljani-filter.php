@@ -25,14 +25,15 @@ class Maljani_Filter {
         ob_start();
         try {
         ?>
-        <form id="maljani-policy-filter-form">
-            <label>Région :
-                <select name="region">
-                    <option value="">All</option>
+        <form id="maljani-policy-filter-form" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <label style="margin:0;">
+                Destination region:
+                <select name="region" style="margin-left:4px;">
+                    <option value="">All regions</option>
                     <?php
                     $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
                     if (is_wp_error($regions)) {
-                        echo '<option disabled>Erreur lors du chargement des régions</option>';
+                        echo '<option disabled>Error loading regions</option>';
                     } else {
                         foreach ($regions as $region) {
                             echo '<option value="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</option>';
@@ -41,13 +42,14 @@ class Maljani_Filter {
                     ?>
                 </select>
             </label>
-            <label>Insurer :
-                <select name="insurer">
-                    <option value="">all</option>
+            <label style="margin:0;">
+                Insurer:
+                <select name="insurer" style="margin-left:4px;">
+                    <option value="">All insurers</option>
                     <?php
                     $insurers = get_posts(array('post_type' => 'insurer_profile', 'numberposts' => -1));
                     if (empty($insurers)) {
-                        echo '<option disabled>Erreur lors du chargement des assureurs</option>';
+                        echo '<option disabled>Error loading insurers</option>';
                     } else {
                         foreach ($insurers as $insurer) {
                             echo '<option value="' . esc_attr($insurer->ID) . '">' . esc_html($insurer->post_title) . '</option>';
@@ -56,15 +58,14 @@ class Maljani_Filter {
                     ?>
                 </select>
             </label>
-    
-            <button type="submit">Filter</button>
+            <button type="submit" style="margin-left:8px;">Filter</button>
         </form>
         <div id="maljani-policy-results">
             <?php $this->render_policy_list(); ?>
         </div>
         <?php
         } catch (Exception $e) {
-            echo '<div class="error">Erreur lors de l\'affichage du formulaire : ' . esc_html($e->getMessage()) . '</div>';
+            echo '<div class="error">Error displaying filter form: ' . esc_html($e->getMessage()) . '</div>';
         }
         return ob_get_clean();
     }

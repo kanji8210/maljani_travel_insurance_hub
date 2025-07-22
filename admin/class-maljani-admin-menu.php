@@ -72,38 +72,15 @@ class Maljani_Admin_Menu {
     }
 
     public function render_settings() {
-        // Ici tu ajoutes le formulaire pour choisir la page du dashboard utilisateur
+        //render the settings page
         echo '<h1>Maljani Settings</h1>';
-        // Exemple de champ pour choisir la page du dashboard utilisateur :
-        ?>
-        <form method="post" action="options.php">
-            <?php
-            settings_fields('maljani_settings_group');
-            do_settings_sections('maljani_settings');
-            $dashboard_page = get_option('maljani_user_dashboard_page');
-            ?>
-            <table class="form-table">
-                <tr>
-                    <th scope="row">User Dashboard Page</th>
-                    <td>
-                        <?php
-                        wp_dropdown_pages([
-                            'name' => 'maljani_user_dashboard_page',
-                            'selected' => $dashboard_page,
-                            'show_option_none' => '-- Select a page --'
-                        ]);
-                        ?>
-                    </td>
-                </tr>
-            </table>
-            <?php submit_button(); ?>
-        </form>
-        <?php
+        Maljani_Settings::render_settings_page();
     }
 
     public function render_policy_sales() {
         echo '<h1>Policy Sales</h1>';
-        // Ici tu ajoutes le tableau des ventes
+        // render maljani sales page
+        Maljani_Policy_Sales_Admin::render_sales_table();
     }
 }
 new Maljani_Admin_Menu();

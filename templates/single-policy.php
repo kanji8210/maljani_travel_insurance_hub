@@ -31,9 +31,13 @@ get_header(); ?>
             if ($insurer_id) {
                 $insurer = get_post($insurer_id);
                 $insurer_name = $insurer ? $insurer->post_title : '';
-                $logo_id = get_post_thumbnail_id($insurer_id);
-                if ($logo_id) {
-                    $insurer_logo = wp_get_attachment_url($logo_id);
+                
+                // Logo : champ personnalisé ou image à la une ou image par défaut
+                $insurer_logo = get_post_meta($insurer_id, '_insurer_logo', true);
+                if (!$insurer_logo) {
+                    if (has_post_thumbnail($insurer_id)) {
+                        $insurer_logo = get_the_post_thumbnail_url($insurer_id, 'full');
+                    }
                 }
             }
             if (!$insurer_logo) {
@@ -67,13 +71,26 @@ get_header(); ?>
             ?>
 
             <?php
+            // Description
             $description = get_post_meta(get_the_ID(), '_policy_description', true);
             if ($description) {
                 echo '<div class="maljani-description">' . esc_html($description) . '</div>';
             }
+
+            // Variables nécessaires pour le CTA
+            $sale_page_id = get_option('maljani_policy_sale_page');
+            $sale_page_url = $sale_page_id ? get_permalink($sale_page_id) : home_url();
+            
+            // Debug: vérifier si la page de vente est configurée
+            if (!$sale_page_id) {
+                echo '<div style="background: #ffebee; padding: 15px; border-left: 4px solid #f44336; margin: 15px 0; border-radius: 4px;">';
+                echo '<strong>⚠️ Configuration requise:</strong><br>';
+                echo 'La page de vente n\'est pas configurée. Allez dans <strong>Plugins > Maljani Travel Insurance > Settings</strong> et sélectionnez une page pour "Policy Sale Page".';
+                echo '</div>';
+            }
             ?>
 
-            <!-- Calculateur de prime + CTA minimaliste -->
+            <!-- Bloc Calculateur + CTA juste sous la description -->
             <div class="maljani-section">
                 <div><p>Calculate Premium</p></div>
                 <form id="maljani-premium-calc" class="maljani-premium-calc-form" autocomplete="off">
@@ -83,11 +100,19 @@ get_header(); ?>
                     <button type="submit" class="maljani-premium-btn">Check</button>
                 </form>
                 <div id="maljani-premium-result" class="maljani-premium-result"></div>
+                <!-- CTA intégré -->
+                <form id="maljani-cta-form" action="<?php echo esc_url($sale_page_url); ?>" method="get" style="margin-top:16px;">
+                    <input type="hidden" name="policy_id" value="<?php echo esc_attr(get_the_ID()); ?>">
+                    <input type="hidden" name="departure" id="cta-departure">
+                    <input type="hidden" name="return" id="cta-return">
+                    <button type="submit" class="maljani-cta-btn" disabled>
+                        <span class="dashicons dashicons-star-filled"></span>
+                        Get a Quote / Buy Now
+                    </button>
+                </form>
             </div>
-            <a href="<?php echo esc_url( home_url('/sales-form/?policy_id=' . get_the_ID() . '&premium=' . $premium . '&days=' . $days) ); ?>" class="maljani-cta-btn">
-                <span class="dashicons dashicons-yes"></span>
-                Get this cover
-            </a>
+            <!-- Fin bloc calculateur + CTA -->
+
         </div>
     </div>
 
@@ -129,14 +154,6 @@ get_header(); ?>
         }
         ?>
     </div>
-    <!-- CTA principal tout en bas de la page -->
-<div class="section" style="text-align:center; margin: 48px 0 0 0;">
-    <a href="<?php echo esc_url( home_url('/sales-form/?policy_id=' . get_the_ID()) ); ?>"
-       class="maljani-cta-btn maljani-cta-bottom-btn">
-        <span class="dashicons dashicons-star-filled"></span>
-        Ready to protect your trip? <strong>Get your insurance now!</strong>
-    </a>
-</div>
 </div>
 
 <?php
@@ -152,7 +169,70 @@ add_action('wp_footer', function() {
 });
 ?>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const depInput = document.querySelector('#maljani-premium-calc input[name="departure"]');
+    const retInput = document.querySelector('#maljani-premium-calc input[name="return"]');
+    const ctaDep = document.getElementById('cta-departure');
+    const ctaRet = document.getElementById('cta-return');
+    const ctaBtn = document.querySelector('#maljani-cta-form button[type="submit"]');
+    const ctaForm = document.getElementById('maljani-cta-form');
 
+    function syncCTA() {
+        if (depInput && retInput && ctaDep && ctaRet && ctaBtn) {
+            ctaDep.value = depInput.value;
+            ctaRet.value = retInput.value;
+            // Active le bouton CTA seulement si les deux dates sont remplies
+            ctaBtn.disabled = !(depInput.value && retInput.value);
+        }
+    }
+
+    // Event listeners
+    if (depInput) depInput.addEventListener('change', syncCTA);
+    if (retInput) retInput.addEventListener('change', syncCTA);
+    
+            // Debug form submission
+            if (ctaForm) {
+                ctaForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Empêche la soumission par défaut du formulaire
+                    
+                    const policyIdInput = ctaForm.querySelector('input[name="policy_id"]');
+                    const policyId = policyIdInput ? policyIdInput.value : '';
+                    const departure = ctaDep ? ctaDep.value : '';
+                    const returnDate = ctaRet ? ctaRet.value : '';
+                    
+                    // Vérifications avant soumission
+                    if (!policyId) {
+                        alert('Erreur: ID de la politique manquant. Rechargez la page et réessayez.');
+                        return false;
+                    }
+                    
+                    if (!departure || !returnDate) {
+                        alert('Erreur: Veuillez sélectionner les dates de départ et de retour.');
+                        return false;
+                    }
+                    
+                    // Vérifier que l'URL d'action n'est pas vide ou '#'
+                    if (!ctaForm.action || ctaForm.action.endsWith('#') || ctaForm.action.endsWith('/wordpress/')) {
+                        alert('Erreur: Page de vente non configurée. Veuillez contacter l\'administrateur.');
+                        return false;
+                    }
+                    
+                    // Construire l'URL avec les paramètres de manière sécurisée
+                    const url = new URL(ctaForm.action);
+                    url.searchParams.set('policy_id', policyId);
+                    url.searchParams.set('departure', departure);
+                    url.searchParams.set('return', returnDate);
+                    
+                    // Rediriger vers la nouvelle URL
+                    window.location.href = url.toString();
+                    
+                    return false;
+                });
+            }    // Initialisation au chargement
+    syncCTA();
+});
+</script>
 
 <?php
 get_footer();
