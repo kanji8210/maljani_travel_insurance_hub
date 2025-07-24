@@ -1,6 +1,8 @@
 <?php
 /**
  * Plugin Name:       maljani travel hub
+ * GitLab Plugin URI: https://github.com/kanji8210/maljani_insuarance_agregator
+*GitLab Branch: main
  * Plugin URI:        https://github.com/kanji8210/maljani_insuarance_agregator
  * Description:       Maljani Insurance Aggregator is a modular WordPress plugin designed to streamline the management of insurers and policies within a centralized admin interface. It allows administrators to register, display, and manage custom post types for insurer profiles and insurance policies, complete with logo uploads, product listings, and detailed descriptions. Built on a scalable boilerplate architecture, it supports CRUD operations, role-based permissions, and frontend submissions. The plugin also lays the groundwork for REST API integration and dynamic premium calculations, making it ideal for organizations aiming to offer user-friendly insurance comparison tools while maintaining clean code and extendability.
  * Version:           1.0.0
@@ -36,6 +38,12 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-sales-page.ph
 require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-policy-sales.php';
 //add admin menu
 require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-admin-menu.php';
+// Add agent registration
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-agent-registration.php';
+// Add user dashboard
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-user-dashboard.php';
+// Add diagnostic tool
+require_once plugin_dir_path( __FILE__ ) . 'templates/diagnostic.php';
 
 // ==========================
 // HOOKS D'ACTIVATION/DÉSACTIVATION
@@ -55,7 +63,7 @@ register_deactivation_hook( __FILE__, 'deactivate_maljani' );
 
 // Ajoute les rôles personnalisés à l'activation
 register_activation_hook(__FILE__, function() {
-    add_role('insured', 'Insured', [
+    add_role('agent', 'Agent', [
         'read' => true,
         // Ajoute d'autres capacités si besoin
     ]);
@@ -67,7 +75,7 @@ register_activation_hook(__FILE__, function() {
 
 // Supprime les rôles personnalisés à la désactivation
 register_deactivation_hook(__FILE__, function() {
-    remove_role('insured');
+    remove_role('agent');
     remove_role('insurer');
 });
 

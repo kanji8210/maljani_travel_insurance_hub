@@ -160,3 +160,58 @@
     opacity: 0.5;
     pointer-events: none;
 }
+
+/* Region Filter Buttons */
+.region-filter-btn {
+    padding: 8px 16px !important;
+    border: 1px solid #0073aa !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    margin: 0 !important;
+}
+
+.region-filter-btn:not(.active) {
+    background: white !important;
+    color: #0073aa !important;
+}
+
+.region-filter-btn.active {
+    background: #0073aa !important;
+    color: white !important;
+}
+
+.region-filter-btn:hover {
+    background: #005177 !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.3);
+}
+
+/* Date inputs styling */
+input[type="date"] {
+    padding: 8px 12px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    transition: border-color 0.3s ease !important;
+}
+
+input[type="date"]:focus {
+    border-color: #0073aa !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1) !important;
+}
+
+/* Filter form container */
+#maljani-policy-filter-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid #e9ecef;
+}

@@ -18,9 +18,25 @@ if (!$sale) wp_die('Sale not found');
 // Policy info
 $policy_id = $sale->policy_id;
 $policy_title = get_the_title($policy_id);
-$insurer_logo = get_post_meta($policy_id, '_insurer_logo', true); // URL ou ID image
-if (is_numeric($insurer_logo)) $insurer_logo = wp_get_attachment_url($insurer_logo);
-$insurer = get_post_meta($policy_id, '_insurer', true);
+$insurer_id = get_post_meta($policy_id, '_policy_insurer', true);
+
+// Test to ensure insurer ID is found
+if (!$insurer_id) {
+    wp_die('Error: No insurer assigned to this policy. Please assign an insurer to policy ID: ' . $policy_id);
+}
+
+$insurer = '';
+$insurer_logo = '';
+if ($insurer_id) {
+    $insurer = get_post_meta($insurer_id, '_insurer_name', true);
+    $insurer_logo = get_post_meta($insurer_id, '_insurer_logo', true);
+    if (is_numeric($insurer_logo)) $insurer_logo = wp_get_attachment_url($insurer_logo);
+    
+    // Additional test to ensure insurer data exists
+    if (!$insurer) {
+        wp_die('Error: Insurer profile not found or incomplete. Insurer ID: ' . $insurer_id . ' does not have a valid name.');
+    }
+}
 $region_id = get_post_meta($policy_id, '_policy_region', true);
 $region = '';
 if ($region_id) {
@@ -353,7 +369,7 @@ $letter_html = '
     <br>
     <p>Yours faithfully,</p>
     <p><strong>Authorized Representative</strong><br>
-    AIG KENYA INSURANCE COMPANY LIMITED<br>
+    ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '<br>
     TRAVEL PROTECT</p>
 </div>
 ';
