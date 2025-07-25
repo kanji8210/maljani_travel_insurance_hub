@@ -7,7 +7,13 @@ require_once $tcpdf_path;
 
 if (!current_user_can('manage_options')) wp_die('Not allowed');
 
-$sale_id = isset($_GET['sale_id']) ? intval($_GET['sale_id']) : 0;
+$sale_id = isset($_GET['sale_id'])// Écriture du HTML principal
+$pdf->writeHTML($html, true, false, true, false, '');
+
+// Si tu as une liste d'assurés, boucle dessus. Sinon, affichfunction build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
+                             $policyholder_name, $passport_number, $sale, $insurer) {
+    $letter_html = '
+<div class="letter">';.'sale_id']) : 0;
 if (!$sale_id) wp_die('No sale ID');
 
 global $wpdb;
@@ -30,7 +36,14 @@ $insurer_logo = '';
 if ($insurer_id) {
     $insurer = get_post_meta($insurer_id, '_insurer_name', true);
     $insurer_logo = get_post_meta($insurer_id, '_insurer_logo', true);
-    if (is_numeric($insurer_logo)) $insurer_logo = wp_get_attachment_url($insurer_logo);
+    
+    // Handle both ID and URL formats for logo
+    if ($insurer_logo) {
+        if (is_numeric($insurer_logo)) {
+            $insurer_logo = wp_get_attachment_url($insurer_logo);
+        }
+        // If it's already a URL, keep it as is
+    }
     
     // Additional test to ensure insurer data exists
     if (!$insurer) {
@@ -92,22 +105,138 @@ $pdf->SetAuthor('Maljani Insurance');
 $pdf->SetTitle('Policy Document');
 $pdf->AddPage();
 
-// Styles globaux
-$html = '
-<style>
-    p { font-size:10px !important; }
-</style>
-';
+// Initialisation du HTML
+$html = '';
 
-if ($insurer_logo) {
-    $html .= '<img src="' . esc_url($insurer_logo) . '" height="50"><br>';
+// Inclusion des styles depuis le fichier CSS externe
+$css_file_path = dirname(__FILE__) . '/css/pdf_generator.css';
+$css_content = '';
+if (file_exists($css_file_path)) {
+    $css_content = file_get_contents($css_file_path);
 }
 
-$html .= '
+$html .= '<style>' . $css_content . '</style>';
+
+// Header with site logo and insurer logo
+$site_logo_url = '';
+$site_logo_debug = [];
+
+// Try multiple methods to get site logo
+// Method 1: Custom Logo from theme (using wp_get_attachment_image_src)
+$custom_logo_id = get_theme_mod('custom_logo');
+if ($custom_logo_id) {
+    $logo_data = wp_get_attachment_image_src($custom_logo_id, 'full');
+    if ($logo_data && isset($logo_data[0])) {
+        $site_logo_url = $logo_data[0];
+        $site_logo_debug[] = "Custom Logo ID: $custom_logo_id, URL: $site_logo_url (via wp_get_attachment_image_src)";
+    }
+}
+
+// Method 2: Site Icon (fallback)
+if (!$site_logo_url) {
+    $site_icon_id = get_option('site_icon');
+    if ($site_icon_id) {
+        $icon_data = wp_get_attachment_image_src($site_icon_id, 'full');
+        if ($icon_data && isset($icon_data[0])) {
+            $site_logo_url = $icon_data[0];
+            $site_logo_debug[] = "Site Icon ID: $site_icon_id, URL: $site_logo_url (via wp_get_attachment_image_src)";
+        }
+    }
+}
+
+// Method 3: Site icon URL function
+if (!$site_logo_url) {
+    $site_logo_url = get_site_icon_url(200);
+    $site_logo_debug[] = "Site Icon URL function: $site_logo_url";
+}
+
+// Method 4: WordPress admin logo (fallback)
+if (!$site_logo_url) {
+    $site_logo_url = admin_url('images/wordpress-logo.svg');
+    $site_logo_debug[] = "WordPress admin logo fallback: $site_logo_url";
+}
+
+// Improved insurer logo recovery
+$insurer_logo_final = '';
+if ($insurer_id) {
+    $logo_url = get_post_meta($insurer_id, '_insurer_logo', true);
+    if ($logo_url && !empty($logo_url)) {
+        $insurer_logo_final = $logo_url;
+    }
+}
+
+// For debugging purposes (comment out in production)
+// error_log("Site Logo Debug: " . implode(" | ", $site_logo_debug));
+// error_log("Insurer Logo Debug: " . implode(" | ", $insurer_logo_debug));
+
+// Construction du HTML - Section Header
+$html .= build_pdf_header($site_logo_url, $insurer_logo, $insurer);
+
+// Construction du HTML - Contenu principal
+$html .= build_policy_content(
+    $policyholder_name, $passport_number, $address, $telephone, $email, $pin,
+    $policy_number, $num_passengers, $insurer, $start_date, $end_date,
+    $duration_days, $product_name, $country_of_origin, $destination_area,
+    $region, $sale, $coverage
+);
+
+// Construction du HTML - Liste des assurés
+$html .= build_insured_list($policyholder_name, $passport_number, $sale, $region, $start_date, $end_date);
+
+// Construction du HTML - Termes et conditions
+$html .= build_terms_and_conditions($sale);
+
+// Fonctions pour construire les sections HTML
+function build_pdf_header($site_logo_url, $insurer_logo, $insurer) {
+    $header_html = '
+<table class="header-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td class="header-left">';
+
+    if ($site_logo_url && $site_logo_url !== '') {
+        $header_html .= '<img src="' . esc_url($site_logo_url) . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;"><br>';
+    } else {
+        // Fallback: show site name instead of logo
+        $header_html .= '<div style="font-size: 18px; font-weight: bold; color: #333; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">' . get_bloginfo('name') . '</div>';
+    }
+
+    $header_html .= '<div class="tagline">Insurance Aggregator</div>
+        </td>
+        <td class="header-right">';
+
+    if ($insurer_logo && $insurer_logo !== '') {
+        $header_html .= '<img src="' . esc_url($insurer_logo) . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;"><br>';
+    } else {
+        // Fallback: show insurer name in styled box if no logo
+        $header_html .= '<div style="border: 2px solid #333; padding: 15px; text-align: center; font-weight: bold; background: #f0f0f0;">' . esc_html($insurer ?: 'Insurance Company') . '</div><br>';
+    }
+
+    $header_html .= '<div class="insurer-name">' . esc_html($insurer ?: 'Insurance Company') . '</div>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="text-align: center; font-size: 12px; color: #666; padding-top: 5px;">
+            ' . get_bloginfo('description') . '
+        </td>
+    </tr>
+</table>
+<hr style="border: 1px solid #ddd; margin: 20px 0;">
+';
+    
+    return $header_html;
+}
+
+function build_policy_content($policyholder_name, $passport_number, $address, $telephone, $email, $pin,
+                               $policy_number, $num_passengers, $insurer, $start_date, $end_date,
+                               $duration_days, $product_name, $country_of_origin, $destination_area,
+                               $region, $sale, $coverage) {
+    $content_html = '
 <h1 style="text-align:center;">TRAVEL INSURANCE POLICY</h1>
+
+<!-- Section informations du souscripteur et de la police -->
 <table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
 <tr>
-    <!-- Première box (65%) -->
+    <!-- Informations personnelles (65%) -->
     <td style="vertical-align:top;width:65%;border:1px solid #000;padding:0;">
         <table cellpadding="0" cellspacing="0" style="width:100%;">
             <tr><td style="padding:3px;"><strong>Policyholder:</strong> ' . $policyholder_name . '</td></tr>
@@ -119,29 +248,29 @@ $html .= '
         </table>
     </td>
     <td style="width:5px;"></td>
-    <!-- Deuxième box (35%) -->
+    <!-- Informations de la police (35%) -->
     <td style="vertical-align:top;width:35%;border:1px solid #000;padding:0;">
         <table cellpadding="0" cellspacing="0" style="width:100%;">
             <tr><td style="padding:3px;"><strong>Policy Number:</strong> ' . $policy_number . '</td></tr>
             <tr><td style="padding:3px;"><strong>N. Passengers:</strong> ' . ($num_passengers ? $num_passengers : '1') . '</td></tr>
+            <tr><td style="padding:3px;"><strong>Insurer:</strong> ' . ($insurer ?: '___') . '</td></tr>
         </table>
     </td>
 </tr>
 </table>
 <br><br>
-';
 
-$html .= '
+<!-- Section détails de la couverture -->
 <table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
 <tr>
-    <!-- Box 1 -->
+    <!-- Période de couverture -->
     <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
         <strong>Coverage Period</strong><br>
         Effective from: ' . ($start_date ?: '___') . '<br>
         Expiry: ' . ($end_date ?: '___') . '
     </td>
     <td style="width:3px;"></td>
-    <!-- Box 2 -->
+    <!-- Détails de la police -->
     <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
         <strong>Policy period:</strong> ' . ($duration_days ?: '___') . ' Day(s)<br>
         <strong>Product:</strong> ' . ($product_name ?: '___') . '<br>
@@ -149,7 +278,7 @@ $html .= '
         Country of Origin: ' . ($country_of_origin ?: 'KENYA') . '
     </td>
     <td style="width:3px;"></td>
-    <!-- Box 3 -->
+    <!-- Destination et montant -->
     <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
         <strong>Destination:</strong> ' . ($destination_area ?: '___') . '<br>
         <strong>Insurer:</strong> ' . ($insurer ?: '___') . '<br>
@@ -160,9 +289,8 @@ $html .= '
 </tr>
 </table>
 <br><br>
-';
 
-$html .= '
+<!-- Zone de destination -->
 <table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
 <tr>
     <td style="border:1px solid #000;padding:6px;width:100%;">
@@ -171,10 +299,8 @@ $html .= '
 </tr>
 </table>
 <br><br>
-';
 
-//cover details
-$html .= '
+<!-- Détails de la couverture -->
 <table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
     <tr>
         <td style="border:1px solid #000;padding:6px;width:100%;">
@@ -186,10 +312,8 @@ $html .= '
     </tr>
 </table>
 <br><br>
-';
 
-//signature areas
-$html .= '
+<!-- Zone de signatures -->
 <table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
     <tr>
         <td colspan="3" style="padding:6px 30px 16px 30px;">
@@ -199,14 +323,14 @@ $html .= '
         </td>
     </tr>
     <tr>
-        <!-- Policyholder -->
+        <!-- Signature du souscripteur -->
         <td style="border:0.5px solid #000;padding:20px 30px 16px 30px;width:48%;text-align:center;">
             <strong>Policyholder Signature</strong><br>
             <span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:32px;margin:16px 0;"></span><br>
             <span style="display:inline-block;width:200px;text-align:left;">Date: ' . date('Y-m-d') . '</span>
         </td>
         <td style="width:6%"></td>
-        <!-- Insurer representative -->
+        <!-- Signature du représentant assureur -->
         <td style="border:0.5px solid #000;padding:20px 30px 16px 30px;width:48%;text-align:center;">
             <strong>Insurer Representative</strong><br>
             <span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:32px;margin:16px 0;"></span><br>
@@ -216,63 +340,18 @@ $html .= '
 </table>
 <br><br>
 ';
-
-// --- TERMS AND CONDITIONS EN 2 COLONNES ---
-$terms_content = !empty($sale->terms) ? wpautop($sale->terms) : 'No terms and conditions available.';
-
-// On découpe le texte en deux parties à peu près égales pour chaque colonne
-$terms_parts = ['', ''];
-if (!empty($sale->terms)) {
-    $terms_plain = strip_tags($sale->terms);
-    $words = preg_split('/\s+/', $terms_plain);
-    $half = ceil(count($words) / 2);
-    $col1 = implode(' ', array_slice($words, 0, $half));
-    $col2 = implode(' ', array_slice($words, $half));
-    $terms_parts[0] = wpautop($col1);
-    $terms_parts[1] = wpautop($col2);
-} else {
-    $terms_parts[0] = 'No terms and conditions available.';
-    $terms_parts[1] = '';
+    
+    return $content_html;
 }
 
-$html .= '
-<h2 style="text-align:center;margin:0;">Terms and Conditions</h2>
-<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
-    <tr>
-        <td style="vertical-align:top;width:48%;padding:6px 12px 6px 0;">
-            ' . $terms_parts[0] . '
-        </td>
-        <td style="width:4%;"></td>
-        <td style="vertical-align:top;width:48%;padding:6px 0 6px 12px;">
-            ' . $terms_parts[1] . '
-        </td>
-    </tr>
-</table>
-<br><br>
-';
+// --- TERMS AND CONDITIONS EN 2 COLONNES ---
+// Cette section a été déplacée dans la fonction build_terms_and_conditions()
 
-// === LIST OF INSURED (à placer avant Terms and Conditions) ===
-$html .= '
-<style>
-    .insured-table {
-        border: 1px solid #000;
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 11pt;
-    }
-    .insured-table th, .insured-table td {
-        border: 1px solid #000;
-        padding: 6px;
-        text-align: left;
-    }
-    .insured-title {
-        font-size: 13pt;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-</style>
+// === LIST OF INSURED ===
+// Cette section a été déplacée dans la fonction build_insured_list()
 
-<div class="insured-title">List of Insured</div>
+// Écriture du HTML principal
+$pdf->writeHTML($html, true, false, true, false, '');
 <table class="insured-table">
     <thead>
         <tr>
@@ -315,12 +394,111 @@ $html .= '
 <br><br>
 ';
 
+// Écriture du HTML principal
 $pdf->writeHTML($html, true, false, true, false, '');
 
-// Nouvelle page pour la lettre
+// Nouvelle page pour la lettre à l'ambassade
 $pdf->AddPage();
+$letter_html = build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
+                                   $policyholder_name, $passport_number, $sale, $insurer);
+$pdf->writeHTML($letter_html, true, false, true, false, '');
 
-$letter_html = '
+$pdf->Output('policy_' . $sale_id . '.pdf', 'I');
+
+// ==========================================
+// FONCTIONS POUR ORGANISER LE HTML DU PDF
+// ==========================================
+
+function build_insured_list($policyholder_name, $passport_number, $sale, $region, $start_date, $end_date) {
+    global $insured_list;
+    
+    $insured_html = '
+<div class="insured-title">List of Insured</div>
+<table class="insured-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Passport Number</th>
+            <th>Date of Birth</th>
+            <th>Destination</th>
+            <th>Cover Period</th>
+        </tr>
+    </thead>
+    <tbody>';
+
+    // Si une liste d'assurés existe, l'utiliser. Sinon, afficher l'assuré principal.
+    if (!empty($insured_list) && is_array($insured_list)) {
+        foreach ($insured_list as $insured) {
+            $insured_html .= '
+        <tr>
+            <td>' . esc_html($insured['name']) . '</td>
+            <td>' . esc_html($insured['passport']) . '</td>
+            <td>' . esc_html($insured['dob']) . '</td>
+            <td>' . esc_html($region) . '</td>
+            <td>' . esc_html($start_date) . ' - ' . esc_html($end_date) . '</td>
+        </tr>';
+        }
+    } else {
+        $insured_html .= '
+        <tr>
+            <td>' . esc_html($policyholder_name) . '</td>
+            <td>' . esc_html($passport_number) . '</td>
+            <td>' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</td>
+            <td>' . esc_html($region) . '</td>
+            <td>' . esc_html($start_date) . ' - ' . esc_html($end_date) . '</td>
+        </tr>';
+    }
+
+    $insured_html .= '
+    </tbody>
+</table>
+<br><br>
+';
+    
+    return $insured_html;
+}
+
+function build_terms_and_conditions($sale) {
+    // Préparation du contenu des termes et conditions
+    $terms_content = !empty($sale->terms) ? wpautop($sale->terms) : 'No terms and conditions available.';
+
+    // Division du texte en deux colonnes
+    $terms_parts = ['', ''];
+    if (!empty($sale->terms)) {
+        $terms_plain = strip_tags($sale->terms);
+        $words = preg_split('/\s+/', $terms_plain);
+        $half = ceil(count($words) / 2);
+        $col1 = implode(' ', array_slice($words, 0, $half));
+        $col2 = implode(' ', array_slice($words, $half));
+        $terms_parts[0] = wpautop($col1);
+        $terms_parts[1] = wpautop($col2);
+    } else {
+        $terms_parts[0] = 'No terms and conditions available.';
+        $terms_parts[1] = '';
+    }
+
+    $terms_html = '
+<h2 style="text-align:center;margin:0;">Terms and Conditions</h2>
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+    <tr>
+        <td style="vertical-align:top;width:48%;padding:6px 12px 6px 0;">
+            ' . $terms_parts[0] . '
+        </td>
+        <td style="width:4%;"></td>
+        <td style="vertical-align:top;width:48%;padding:6px 0 6px 12px;">
+            ' . $terms_parts[1] . '
+        </td>
+    </tr>
+</table>
+<br><br>
+';
+    
+    return $terms_html;
+}
+
+function build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
+                             $policyholder_name, $passport_number, $sale, $insurer) {
+    $letter_html = '
 <style>
     .letter {
         font-size: 11pt;
@@ -370,11 +548,11 @@ $letter_html = '
     <p>Yours faithfully,</p>
     <p><strong>Authorized Representative</strong><br>
     ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '<br>
-    TRAVEL PROTECT</p>
+    ' . strtoupper($product_name ?: 'TRAVEL PROTECT') . '</p>
 </div>
 ';
+    
+    return $letter_html;
+}
 
-$pdf->writeHTML($letter_html, true, false, true, false, '');
-
-$pdf->Output('policy_' . $sale_id . '.pdf', 'I');
 exit;

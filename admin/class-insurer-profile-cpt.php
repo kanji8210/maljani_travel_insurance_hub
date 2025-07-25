@@ -95,6 +95,34 @@ class Insurer_Profile_CPT {
             'use strict';
 
             $(document).ready(function() {
+                // Pour le bouton d'upload du logo de l'assureur
+                $('#upload_insurer_logo').on('click', function(e){
+                    e.preventDefault();
+                    var frame = wp.media({
+                        title: 'Sélectionner un logo',
+                        button: { text: 'Utiliser ce logo' },
+                        library: { type: 'image' },
+                        multiple: false
+                    });
+                    frame.on('select', function(){
+                        var attachment = frame.state().get('selection').first().toJSON();
+                        $('#insurer_logo_id').val(attachment.id);
+                        $('#insurer_logo_preview').attr('src', attachment.url).show();
+                        $('#remove_insurer_logo').show();
+                        // Clear URL field since we're using attachment
+                        $('#insurer_logo').val('');
+                    });
+                    frame.open();
+                });
+
+                // Pour supprimer le logo
+                $('#remove_insurer_logo').on('click', function(e){
+                    e.preventDefault();
+                    $('#insurer_logo_id').val('');
+                    $('#insurer_logo_preview').hide();
+                    $(this).hide();
+                });
+
                 // Pour le bouton d'upload de l'image à la une de l'assureur
                 $('#upload_insurer_feature_img').on('click', function(e){
                     e.preventDefault();
@@ -121,9 +149,17 @@ class Insurer_Profile_CPT {
 
     public function save_meta_boxes($post_id) {
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+        
+        // Save logo ID (attachment)
+        if (isset($_POST['insurer_logo_id'])) {
+            update_post_meta($post_id, '_insurer_logo_id', intval($_POST['insurer_logo_id']));
+        }
+        
+        // Save logo URL (alternative)
         if (isset($_POST['insurer_logo'])) {
             update_post_meta($post_id, '_insurer_logo', sanitize_text_field($_POST['insurer_logo']));
         }
+        
         if (isset($_POST['insurer_name'])) {
             update_post_meta($post_id, '_insurer_name', sanitize_text_field($_POST['insurer_name']));
         }
