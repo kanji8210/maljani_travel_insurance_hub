@@ -5,15 +5,9 @@ $tcpdf_path = dirname(__DIR__) . '/lib/TCPDF-main/tcpdf.php';
 if (!file_exists($tcpdf_path)) die('TCPDF not found at: ' . $tcpdf_path);
 require_once $tcpdf_path;
 
-if (!current_user_can('manage_options')) wp_die('Not allowed');
+// if (!current_user_can('manage_options')) wp_die('Not allowed');
 
-$sale_id = isset($_GET['sale_id'])// Écriture du HTML principal
-$pdf->writeHTML($html, true, false, true, false, '');
-
-// Si tu as une liste d'assurés, boucle dessus. Sinon, affichfunction build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
-                             $policyholder_name, $passport_number, $sale, $insurer) {
-    $letter_html = '
-<div class="letter">';.'sale_id']) : 0;
+$sale_id = isset($_GET['sale_id']) && !empty($_GET['sale_id']) ? intval($_GET['sale_id']) : 0;
 if (!$sale_id) wp_die('No sale ID');
 
 global $wpdb;
@@ -117,60 +111,43 @@ if (file_exists($css_file_path)) {
 
 $html .= '<style>' . $css_content . '</style>';
 
-// Header with site logo and insurer logo
-$site_logo_url = '';
-$site_logo_debug = [];
+// --- Logo Handling ---
+// Get server path for images, which is more reliable for TCPDF
 
-// Try multiple methods to get site logo
-// Method 1: Custom Logo from theme (using wp_get_attachment_image_src)
+// Site Logo
+$site_logo_path = '';
 $custom_logo_id = get_theme_mod('custom_logo');
 if ($custom_logo_id) {
-    $logo_data = wp_get_attachment_image_src($custom_logo_id, 'full');
-    if ($logo_data && isset($logo_data[0])) {
-        $site_logo_url = $logo_data[0];
-        $site_logo_debug[] = "Custom Logo ID: $custom_logo_id, URL: $site_logo_url (via wp_get_attachment_image_src)";
+    $site_logo_path = get_attached_file($custom_logo_id); 
+}
+if (!$site_logo_path) {
+    $site_icon_id = get_option('site_icon');
+    if ($site_icon_id) {
+        $site_logo_path = get_attached_file($site_icon_id);
     }
 }
 
-// Method 2: Site Icon (fallback)
-if (!$site_logo_url) {
-    $site_icon_id = get_option('site_icon');
-    if ($site_icon_id) {
-        $icon_data = wp_get_attachment_image_src($site_icon_id, 'full');
-        if ($icon_data && isset($icon_data[0])) {
-            $site_logo_url = $icon_data[0];
-            $site_logo_debug[] = "Site Icon ID: $site_icon_id, URL: $site_logo_url (via wp_get_attachment_image_src)";
+// Insurer Logo
+$insurer_logo_path = '';
+if ($insurer_id) {
+    $logo_id_or_url = get_post_meta($insurer_id, '_insurer_logo', true);
+    if (is_numeric($logo_id_or_url)) {
+        // It's an ID, get the path.
+        $insurer_logo_path = get_attached_file($logo_id_or_url);
+    } elseif (filter_var($logo_id_or_url, FILTER_VALIDATE_URL)) {
+        // It's a URL, try to convert it to a path.
+        $logo_post_id = attachment_url_to_postid($logo_id_or_url);
+        if ($logo_post_id) {
+            $insurer_logo_path = get_attached_file($logo_post_id);
+        } else {
+            // As a fallback, keep the URL, but it might not render in TCPDF.
+            $insurer_logo_path = $logo_id_or_url;
         }
     }
 }
 
-// Method 3: Site icon URL function
-if (!$site_logo_url) {
-    $site_logo_url = get_site_icon_url(200);
-    $site_logo_debug[] = "Site Icon URL function: $site_logo_url";
-}
-
-// Method 4: WordPress admin logo (fallback)
-if (!$site_logo_url) {
-    $site_logo_url = admin_url('images/wordpress-logo.svg');
-    $site_logo_debug[] = "WordPress admin logo fallback: $site_logo_url";
-}
-
-// Improved insurer logo recovery
-$insurer_logo_final = '';
-if ($insurer_id) {
-    $logo_url = get_post_meta($insurer_id, '_insurer_logo', true);
-    if ($logo_url && !empty($logo_url)) {
-        $insurer_logo_final = $logo_url;
-    }
-}
-
-// For debugging purposes (comment out in production)
-// error_log("Site Logo Debug: " . implode(" | ", $site_logo_debug));
-// error_log("Insurer Logo Debug: " . implode(" | ", $insurer_logo_debug));
-
 // Construction du HTML - Section Header
-$html .= build_pdf_header($site_logo_url, $insurer_logo, $insurer);
+$html .= build_pdf_header($site_logo_path, $insurer_logo_path, $insurer);
 
 // Construction du HTML - Contenu principal
 $html .= build_policy_content(
@@ -187,14 +164,14 @@ $html .= build_insured_list($policyholder_name, $passport_number, $sale, $region
 $html .= build_terms_and_conditions($sale);
 
 // Fonctions pour construire les sections HTML
-function build_pdf_header($site_logo_url, $insurer_logo, $insurer) {
+function build_pdf_header($site_logo_path, $insurer_logo_path, $insurer) {
     $header_html = '
 <table class="header-table" cellpadding="0" cellspacing="0">
     <tr>
         <td class="header-left">';
 
-    if ($site_logo_url && $site_logo_url !== '') {
-        $header_html .= '<img src="' . esc_url($site_logo_url) . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;"><br>';
+    if ($site_logo_path && file_exists($site_logo_path)) {
+        $header_html .= '<img src="' . $site_logo_path . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;"><br>';
     } else {
         // Fallback: show site name instead of logo
         $header_html .= '<div style="font-size: 18px; font-weight: bold; color: #333; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">' . get_bloginfo('name') . '</div>';
@@ -204,8 +181,8 @@ function build_pdf_header($site_logo_url, $insurer_logo, $insurer) {
         </td>
         <td class="header-right">';
 
-    if ($insurer_logo && $insurer_logo !== '') {
-        $header_html .= '<img src="' . esc_url($insurer_logo) . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;"><br>';
+    if ($insurer_logo_path && file_exists($insurer_logo_path)) {
+        $header_html .= '<img src="' . $insurer_logo_path . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;"><br>';
     } else {
         // Fallback: show insurer name in styled box if no logo
         $header_html .= '<div style="border: 2px solid #333; padding: 15px; text-align: center; font-weight: bold; background: #f0f0f0;">' . esc_html($insurer ?: 'Insurance Company') . '</div><br>';
@@ -349,50 +326,6 @@ function build_policy_content($policyholder_name, $passport_number, $address, $t
 
 // === LIST OF INSURED ===
 // Cette section a été déplacée dans la fonction build_insured_list()
-
-// Écriture du HTML principal
-$pdf->writeHTML($html, true, false, true, false, '');
-<table class="insured-table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Passport Number</th>
-            <th>Date of Birth</th>
-            <th>Destination</th>
-            <th>Cover Period</th>
-        </tr>
-    </thead>
-    <tbody>
-';
-
-// Si tu as une liste d’assurés, boucle dessus. Sinon, affiche l’assuré principal.
-if (!empty($insured_list) && is_array($insured_list)) {
-    foreach ($insured_list as $insured) {
-        $html .= '
-        <tr>
-            <td>' . esc_html($insured['name']) . '</td>
-            <td>' . esc_html($insured['passport']) . '</td>
-            <td>' . esc_html($insured['dob']) . '</td>
-            <td>' . esc_html($region) . '</td>
-            <td>' . esc_html($start_date) . ' - ' . esc_html($end_date) . '</td>
-        </tr>';
-    }
-} else {
-    $html .= '
-        <tr>
-            <td>' . esc_html($policyholder_name) . '</td>
-            <td>' . esc_html($passport_number) . '</td>
-            <td>' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</td>
-            <td>' . esc_html($region) . '</td>
-            <td>' . esc_html($start_date) . ' - ' . esc_html($end_date) . '</td>
-        </tr>';
-}
-
-$html .= '
-    </tbody>
-</table>
-<br><br>
-';
 
 // Écriture du HTML principal
 $pdf->writeHTML($html, true, false, true, false, '');
