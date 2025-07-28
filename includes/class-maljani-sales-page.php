@@ -200,31 +200,55 @@ class Maljani_Sales_Page {
         }
         $form_rendered = true;
         
+        // Get isolation manager
+        $isolation = Maljani_Style_Isolation::instance();
+        
+        // Start output buffering
+        ob_start();
+        
+        // Add critical CSS inline
+        echo $isolation->get_inline_critical_styles();
+        
         // Vérification de configuration pour page d'accueil
         if (is_front_page() && isset($_GET['maljani_sales']) && $_GET['maljani_sales']) {
-            echo '<div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">';
-            echo '<strong>Attention:</strong> Vous utilisez la page d\'accueil comme page de vente, ce qui n\'est pas recommandé. ';
-            echo 'Veuillez configurer une page dédiée avec le shortcode [maljani_policy_sale] dans les paramètres du plugin.';
-            echo '</div>';
+            echo $isolation->get_isolated_notice(
+                '<strong>Attention:</strong> Vous utilisez la page d\'accueil comme page de vente, ce qui n\'est pas recommandé. Veuillez configurer une page dédiée avec le shortcode [maljani_policy_sale] dans les paramètres du plugin.',
+                'warning'
+            );
         }
         
         // Messages de notification
         if (isset($_GET['sale_success'])) {
             if (isset($_GET['new_account'])) {
-                echo '<div class="notice notice-success" style="background:#d4edda;color:#155724;padding:12px;border-radius:6px;margin-bottom:16px;">Thank you! We have received your purchase. We will review and notify you ASAP. A new account has been created for you - check your email for login details and further instructions.</div>';
+                echo $isolation->get_isolated_notice(
+                    'Thank you! We have received your purchase. We will review and notify you ASAP. A new account has been created for you - check your email for login details and further instructions.',
+                    'success'
+                );
             } else {
-                echo '<div class="notice notice-success" style="background:#d4edda;color:#155724;padding:12px;border-radius:6px;margin-bottom:16px;">Thank you! We have received your purchase. We will review and notify you ASAP. Check your email for further instructions.</div>';
+                echo $isolation->get_isolated_notice(
+                    'Thank you! We have received your purchase. We will review and notify you ASAP. Check your email for further instructions.',
+                    'success'
+                );
             }
         }
         if (isset($_GET['sale_error'])) {
             if ($_GET['sale_error'] === 'account_creation_failed') {
-                echo '<div class="notice notice-error" style="background:#f8d7da;color:#721c24;padding:12px;border-radius:6px;margin-bottom:16px;">Purchase saved but failed to create account. Please contact support.</div>';
+                echo $isolation->get_isolated_notice(
+                    'Purchase saved but failed to create account. Please contact support.',
+                    'error'
+                );
             } else {
-                echo '<div class="notice notice-error" style="background:#f8d7da;color:#721c24;padding:12px;border-radius:6px;margin-bottom:16px;">An error occurred. Please try again.</div>';
+                echo $isolation->get_isolated_notice(
+                    'An error occurred. Please try again.',
+                    'error'
+                );
             }
         }
         if (isset($_GET['message']) && $_GET['message'] === 'account_exists') {
-            echo '<div class="notice notice-info" style="background:#d1ecf1;color:#0c5460;padding:12px;border-radius:6px;margin-bottom:16px;">Thank you! We have received your purchase. We will review and notify you ASAP. An account with this email already exists - please log in to view your policies and check your email for further instructions.</div>';
+            echo $isolation->get_isolated_notice(
+                'Thank you! We have received your purchase. We will review and notify you ASAP. An account with this email already exists - please log in to view your policies and check your email for further instructions.',
+                'info'
+            );
         }
 
         // Données utilisateur et rôles
@@ -802,7 +826,12 @@ class Maljani_Sales_Page {
         });
         </script>
         <?php
-        return ob_get_clean();
+        
+        // Get the buffered content
+        $form_content = ob_get_clean();
+        
+        // Wrap with isolation container
+        return $isolation->get_isolated_form($form_content, 'sales');
     }
 
     public function handle_form_submission() {

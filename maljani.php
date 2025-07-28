@@ -105,6 +105,14 @@ add_action('init', 'maljani_register_custom_post_types');
 // LANCEMENT DU PLUGIN PRINCIPAL
 // ==========================
 
+// Include style isolation manager
+require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-style-isolation.php';
+
+// Include style isolation test (admin only)
+if (is_admin()) {
+    require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-style-test.php';
+}
+
 // Instancie et lance la classe principale
 function run_maljani() {
     $plugin = new Maljani();

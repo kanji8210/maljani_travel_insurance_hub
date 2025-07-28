@@ -105,27 +105,48 @@
 
 ## CSS Classes for Customization
 
+### Plugin Isolation Container
 ```css
-/* Sales Form */
-.maljani-sales-form { }
-.maljani-premium-display { }
+/* Main isolation container */
+.maljani-plugin-container { }
 
-/* Dashboard */
-.maljani-dashboard { }
-.maljani-policy-list { }
+/* Sales Form - Protected from theme styles */
+.maljani-plugin-container .maljani-sales-form-container { }
+.maljani-plugin-container .maljani-premium-display { }
 
-/* Registration */
-.maljani-registration-form { }
+/* Dashboard - Theme-independent styling */
+.maljani-plugin-container .maljani-dashboard { }
+.maljani-plugin-container .maljani-policy-list { }
 
-/* Icons */
-.maljani-icon { }
-.maljani-icon-wrapper { }
-.maljani-icon-link { }
-.maljani-icon.size-small { }
-.maljani-icon.size-medium { }
-.maljani-icon.size-large { }
-.maljani-icon.size-xl { }
+/* Registration - Isolated form styles */
+.maljani-plugin-container .maljani-registration-form { }
+
+/* Icons - Style-protected display */
+.maljani-plugin-container .maljani-icon { }
+.maljani-plugin-container .maljani-icon-wrapper { }
+.maljani-plugin-container .maljani-icon-link { }
+.maljani-plugin-container .maljani-icon.size-small { }
+.maljani-plugin-container .maljani-icon.size-medium { }
+.maljani-plugin-container .maljani-icon.size-large { }
+.maljani-plugin-container .maljani-icon.size-xl { }
+
+/* Buttons - Theme-conflict protected */
+.maljani-plugin-container .maljani-btn { }
+.maljani-plugin-container .maljani-btn.secondary { }
+
+/* Notifications - Consistent styling */
+.maljani-plugin-container .maljani-notice { }
+.maljani-plugin-container .maljani-notice.success { }
+.maljani-plugin-container .maljani-notice.error { }
+.maljani-plugin-container .maljani-notice.warning { }
+.maljani-plugin-container .maljani-notice.info { }
 ```
+
+### Style Isolation Features
+- **🛡️ Complete CSS Reset** - Plugin styles protected from theme interference
+- **🎨 Consistent Design** - Same appearance across all WordPress themes  
+- **📱 Responsive Layout** - Mobile-optimized with theme independence
+- **⚡ Performance Optimized** - Critical CSS inline, non-critical loaded async
 
 ## Troubleshooting
 

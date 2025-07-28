@@ -44,6 +44,9 @@ class Maljani_Icons_Shortcode {
      * @return string Generated HTML
      */
     public function render_icon($atts) {
+        // Get isolation manager
+        $isolation = Maljani_Style_Isolation::instance();
+        
         $atts = shortcode_atts([
             'name' => 'star-filled',
             'size' => 'medium',
@@ -98,7 +101,8 @@ class Maljani_Icons_Shortcode {
             $icon_html = '<a href="' . esc_url($atts['link']) . '" class="maljani-icon-link">' . $icon_html . '</a>';
         }
 
-        return $icon_html;
+        // Use isolation manager to get properly styled icon
+        return $isolation->get_isolated_icon($atts['name'], $atts['size'], $atts['color'], $atts['style']);
     }
 
     /**

@@ -37,13 +37,34 @@
 
 ## 🎯 Shortcodes Quick Reference
 
-| Shortcode | Purpose | Documentation |
-|-----------|---------|---------------|
-| `[maljani_policy_sale]` | Insurance sales form | [SHORTCODES.md#1-maljani_policy_sale](SHORTCODES.md#1-maljani_policy_sale) |
-| `[maljani_user_dashboard]` | User dashboard | [SHORTCODES.md#3-maljani_user_dashboard](SHORTCODES.md#3-maljani_user_dashboard) |
-| `[maljani_agent_register]` | Agent registration | [SHORTCODES.md#4-maljani_agent_register](SHORTCODES.md#4-maljani_agent_register) |
-| `[maljani_icon]` | Icon display with styling | [SHORTCODES.md#5-maljani_icon](SHORTCODES.md#5-maljani_icon) |
-| `[maljani_sales_form]` | Legacy sales form | [SHORTCODES.md#2-maljani_sales_form](SHORTCODES.md#2-maljani_sales_form) |
+| Shortcode | Purpose | Documentation | Style Protection |
+|-----------|---------|---------------|------------------|
+| `[maljani_policy_sale]` | Insurance sales form | [SHORTCODES.md#1-maljani_policy_sale](SHORTCODES.md#1-maljani_policy_sale) | ✅ Isolated |
+| `[maljani_user_dashboard]` | User dashboard | [SHORTCODES.md#3-maljani_user_dashboard](SHORTCODES.md#3-maljani_user_dashboard) | ✅ Isolated |
+| `[maljani_agent_register]` | Agent registration | [SHORTCODES.md#4-maljani_agent_register](SHORTCODES.md#4-maljani_agent_register) | ✅ Isolated |
+| `[maljani_icon]` | Icon display with styling | [SHORTCODES.md#5-maljani_icon](SHORTCODES.md#5-maljani_icon) | ✅ Isolated |
+| `[maljani_sales_form]` | Legacy sales form | [SHORTCODES.md#2-maljani_sales_form](SHORTCODES.md#2-maljani_sales_form) | ✅ Isolated |
+
+## 🛡️ Style Isolation System
+
+Le plugin utilise un système d'isolation CSS avancé pour garantir que les styles ne sont pas affectés par les thèmes WordPress :
+
+### Fonctionnalités d'Isolation
+- **Reset CSS complet** avec spécificité renforcée
+- **Conteneur d'isolation** `.maljani-plugin-container`
+- **Styles protégés** avec `!important` ciblé
+- **CSS critique inline** pour rendu rapide
+- **Compatibilité thème** testée avec thèmes populaires
+
+### Avantages
+- ✅ Apparence consistante sur tous les thèmes
+- ✅ Pas de conflits avec styles de thème
+- ✅ Performance optimisée
+- ✅ Responsive design garanti
+- ✅ Maintenance simplifiée
+
+### Documentation Complète
+Consultez [STYLE-ISOLATION-GUIDE.md](STYLE-ISOLATION-GUIDE.md) pour une documentation détaillée de l'isolation des styles.
 
 ## 🛠️ Getting Started
 
