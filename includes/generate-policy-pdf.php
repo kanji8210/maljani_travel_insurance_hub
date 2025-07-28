@@ -171,24 +171,24 @@ function build_pdf_header($site_logo_path, $insurer_logo_path, $insurer) {
         <td class="header-left">';
 
     if ($site_logo_path && file_exists($site_logo_path)) {
-        $header_html .= '<img src="' . $site_logo_path . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;"><br>';
+        $header_html .= '<img src="' . $site_logo_path . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;">';
     } else {
         // Fallback: show site name instead of logo
         $header_html .= '<div style="font-size: 18px; font-weight: bold; color: #333; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">' . get_bloginfo('name') . '</div>';
     }
 
-    $header_html .= '<div class="tagline">Insurance Aggregator</div>
+    $header_html .= '<h5>Insurance Aggregator</h5>
         </td>
         <td class="header-right">';
 
     if ($insurer_logo_path && file_exists($insurer_logo_path)) {
-        $header_html .= '<img src="' . $insurer_logo_path . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;"><br>';
+        $header_html .= '<img src="' . $insurer_logo_path . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;">';
     } else {
         // Fallback: show insurer name in styled box if no logo
-        $header_html .= '<div style="border: 2px solid #333; padding: 15px; text-align: center; font-weight: bold; background: #f0f0f0;">' . esc_html($insurer ?: 'Insurance Company') . '</div><br>';
+        $header_html .= '<div style="border: 2px solid #333; padding: 15px; text-align: center; font-weight: bold; background: #f0f0f0;">' . esc_html($insurer ?: 'Insurance Company') . '</div>';
     }
 
-    $header_html .= '<div class="insurer-name">' . esc_html($insurer ?: 'Insurance Company') . '</div>
+    $header_html .= '<h5 class="insurer-name: "> Insurer : ' . esc_html($insurer ?: 'Insurance Company') . '</h5>
         </td>
     </tr>
     <tr>
@@ -332,8 +332,9 @@ $pdf->writeHTML($html, true, false, true, false, '');
 
 // Nouvelle page pour la lettre à l'ambassade
 $pdf->AddPage();
-$letter_html = build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
-                                   $policyholder_name, $passport_number, $sale, $insurer);
+$letter_html = '<style>' . $css_content . '</style>';
+$letter_html .= build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
+                                   $policyholder_name, $passport_number, $sale, $insurer, $sale_id);
 $pdf->writeHTML($letter_html, true, false, true, false, '');
 
 $pdf->Output('policy_' . $sale_id . '.pdf', 'I');
@@ -341,6 +342,27 @@ $pdf->Output('policy_' . $sale_id . '.pdf', 'I');
 // ==========================================
 // FONCTIONS POUR ORGANISER LE HTML DU PDF
 // ==========================================
+
+// Fonction pour générer un hash sécurisé pour la vérification
+function generate_verification_hash($sale_id, $policy_number, $passport_number) {
+    $secret_key = 'maljani_secure_key_2025'; // À changer en production
+    $data = $sale_id . '|' . $policy_number . '|' . $passport_number;
+    return hash('sha256', $data . $secret_key);
+}
+
+// Fonction pour générer l'URL de vérification avec QR code
+function generate_verification_url($sale_id, $policy_number, $passport_number) {
+    $hash = generate_verification_hash($sale_id, $policy_number, $passport_number);
+    $site_url = home_url(); // Utilise l'URL dynamique du site WordPress
+    $verify_url = $site_url . '/verify-policy?sale_id=' . $sale_id . '&token=' . $hash;
+    return $verify_url;
+}
+
+// Fonction pour générer l'URL du QR code via API externe
+function generate_qr_code_url($verification_url) {
+    $qr_api_url = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($verification_url);
+    return $qr_api_url;
+}
 
 function build_insured_list($policyholder_name, $passport_number, $sale, $region, $start_date, $end_date) {
     global $insured_list;
@@ -430,58 +452,88 @@ function build_terms_and_conditions($sale) {
 }
 
 function build_embassy_letter($policy_number, $start_date, $end_date, $product_name, $destination_area, 
-                             $policyholder_name, $passport_number, $sale, $insurer) {
+                             $policyholder_name, $passport_number, $sale, $insurer, $sale_id) {
+    
+    // Générer l'URL de vérification et le QR code
+    $verification_url = generate_verification_url($sale_id, $policy_number, $passport_number);
+    $qr_code_url = generate_qr_code_url($verification_url);
+    
     $letter_html = '
-<style>
-    .letter {
-        font-size: 11pt;
-        line-height: 1.6;
-        text-align: justify;
-    }
-    .letter-header {
-        font-size: 12pt;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-    .letter-table td {
-        padding: 4px;
-    }
-</style>
+
 
 <div class="letter">
     <div class="letter-header">TO: THE EMBASSY / CONSULATE</div>
-    <p><strong>RE: OVERSEAS TRAVEL INSURANCE (Policy Nº. ' . $policy_number . ')</strong></p>
-    <p>TO WHOM IT MAY CONCERN,</p>
-    <p>This letter serves to confirm that the traveller(s) named below is/are covered under our overseas travel insurance policy while traveling during the period(s) detailed below:</p>
+    <div class="policy-ref">RE: OVERSEAS TRAVEL INSURANCE (Policy Nº. ' . $policy_number . ')</div>
+    
+    <div class="intro-text">
+        <strong>TO WHOM IT MAY CONCERN,</strong><br>
+        This letter confirms that the traveller(s) below is/are covered under our overseas travel insurance policy during the specified period:
+    </div>
 
-    <table class="letter-table">
-        <tr><td><strong>Policy Number:</strong></td><td>' . $policy_number . '</td></tr>
-        <tr><td><strong>Start Date:</strong></td><td>' . $start_date . '</td></tr>
-        <tr><td><strong>End Date:</strong></td><td>' . $end_date . '</td></tr>
-        <tr><td><strong>Product:</strong></td><td>' . $product_name . '</td></tr>
-        <tr><td><strong>Territory Covered:</strong></td><td>' . $destination_area . '</td></tr>
-    </table>
+    <!-- Section détails côte à côte -->
+    <div class="details-container">
+        <div class="details-left">
+            <div class="details-title">POLICY DETAILS</div>
+            <div class="detail-row"><span class="detail-label">Policy Number:</span> ' . $policy_number . '</div>
+            <div class="detail-row"><span class="detail-label">Product:</span> ' . $product_name . '</div>
+            <div class="detail-row"><span class="detail-label">Start Date:</span> ' . $start_date . '</div>
+            <div class="detail-row"><span class="detail-label">End Date:</span> ' . $end_date . '</div>
+            <div class="detail-row"><span class="detail-label">Territory:</span> ' . $destination_area . '</div>
+            <div class="detail-row"><span class="detail-label">Insurer:</span> ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '</div>
+        </div>
+        
+        <div class="details-right">
+            <div class="details-title">INSURED PERSON(S)</div>
+            <div class="detail-row"><span class="detail-label">Name:</span> ' . $policyholder_name . '</div>
+            <div class="detail-row"><span class="detail-label">Passport:</span> ' . $passport_number . '</div>
+            <div class="detail-row"><span class="detail-label">Date of Birth:</span> ' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</div>
+            <div class="detail-row"><span class="detail-label">Country of Origin:</span> KENYA</div>
+            <div class="detail-row"><span class="detail-label">Coverage Type:</span> INDIVIDUAL</div>
+        </div>
+    </div>
 
+    <!-- Section couverture médicale -->
+    <div class="coverage-section">
+        <div class="coverage-title">MEDICAL COVERAGE LIMITS</div>
+        <div class="coverage-list">
+            • <strong>Medical Transportation/Repatriation:</strong> EUR 36,000<br>
+            • <strong>Medical Expenses Abroad:</strong> EUR 36,000<br>
+            • <strong>Emergency Medical Assistance:</strong> 24/7 Available
+        </div>
+    </div>
     <br>
-    <p><strong>Insured Person(s):</strong></p>
-    <table class="letter-table">
-        <tr><td><strong>Name:</strong></td><td>' . $policyholder_name . '</td></tr>
-        <tr><td><strong>Passport:</strong></td><td>' . $passport_number . '</td></tr>
-        <tr><td><strong>Date of Birth:</strong></td><td>' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</td></tr>
-    </table>
-
+    <div>
+    <hr></div>
     <br>
-    <p>The insured persons qualify for the Medical and Emergency Related Expenses listed in the Schedule of Covers of the Policy Certificate Nº ' . $policy_number . ' up to the following limits:</p>
-    <ul>
-        <li>Medical Transportation or Repatriation: EUR 36,000</li>
-        <li>Medical Expenses Abroad: EUR 36,000</li>
-    </ul>
+    <div class="signature-section">
+        <p><strong>Yours faithfully,</strong></p>
+        <p><strong>Authorized Representative</strong><br>
+        ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '<br>
+        <em>' . strtoupper($product_name ?: 'TRAVEL PROTECT') . '</em></p>
+    </div>
 
-    <br>
-    <p>Yours faithfully,</p>
-    <p><strong>Authorized Representative</strong><br>
-    ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '<br>
-    ' . strtoupper($product_name ?: 'TRAVEL PROTECT') . '</p>
+    <!-- Section de vérification avec QR Code -->
+    <div class="verification-section">
+        <div class="verification-title">🔒 DOCUMENT VERIFICATION</div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 65%; vertical-align: top; padding-right: 10px;">
+                    <div class="security-note">
+                        <strong>Security Instructions:</strong><br>
+                        • Scan QR Code to verify authenticity<br>
+                        • Verify URL starts with: maljaniinsurancecenter.com<br>
+                        • Check dates and names match this document<br>
+                        • For assistance: +254 XXX XXX XXX
+                    </div>
+                </td>
+                <td style="width: 35%; text-align: center; vertical-align: middle;">
+                    <div class="qr-container">
+                        <img src="' . $qr_code_url . '" alt="Verification QR Code" style="width: 90px; height: 90px;">
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
 </div>
 ';
     

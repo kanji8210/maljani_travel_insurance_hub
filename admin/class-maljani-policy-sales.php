@@ -15,6 +15,15 @@ class Maljani_Policy_Sales_Admin {
                 array(),
                 null
             );
+            
+            // Rendre la variable ajaxurl disponible en JavaScript
+            wp_localize_script('jquery', 'ajax_object', array(
+                'ajax_url' => admin_url('admin-ajax.php')
+            ));
+            
+            // Ajouter ajaxurl globalement pour le JavaScript inline
+            echo '<script type="text/javascript">var ajaxurl = "' . admin_url('admin-ajax.php') . '";</script>';
+            
         } catch (Exception $e) {
             error_log('Error registering admin style: ' . $e->getMessage());
         }
@@ -161,8 +170,8 @@ foreach ($sales as $sale) {
         →
         <input type="date" name="return" class="date-ret" data-sale="' . esc_attr($sale->id) . '" value="' . esc_attr($sale->return) . '" style="width:110px;">
     </td>';
-    // Champ premium en lecture seule
-    echo '<td><input type="text" name="premium" class="premium-field" data-sale="' . esc_attr($sale->id) . '" value="' . esc_attr($sale->premium) . '" style="width:70px;" readonly></td>';
+    // Champ premium en lecture seule avec indicateur de recalcul automatique
+    echo '<td><input type="text" name="premium" class="premium-field" data-sale="' . esc_attr($sale->id) . '" value="' . esc_attr($sale->premium) . '" style="width:70px;" readonly title="Premium will be auto-calculated when policy or dates change"><br><small style="color:#666;">Auto-calc</small></td>';
     echo '<td><select name="agent_id">';
     echo '<option value="">--</option>';
     foreach ($agents as $agent) {
@@ -229,12 +238,114 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("sale-edit-row-" + saleId).style.display = "";
         });
     });
+    
     // Annuler l\'édition
     document.querySelectorAll(".cancel-edit-sale-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
             var saleId = this.getAttribute("data-sale");
             document.getElementById("sale-edit-row-" + saleId).style.display = "none";
             document.getElementById("sale-row-" + saleId).style.display = "";
+        });
+    });
+
+    // Fonction pour calculer les jours entre deux dates
+    function calculateDays(startDate, endDate) {
+        if (!startDate || !endDate) return 0;
+        var start = new Date(startDate);
+        var end = new Date(endDate);
+        var timeDiff = end.getTime() - start.getTime();
+        var daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        return daysDiff > 0 ? daysDiff : 0;
+    }
+
+    // Fonction pour recalculer la prime
+    function recalculatePremium(saleId) {
+        var policySelect = document.querySelector(`.policy-select[data-sale="${saleId}"]`);
+        var dateDepInput = document.querySelector(`.date-dep[data-sale="${saleId}"]`);
+        var dateRetInput = document.querySelector(`.date-ret[data-sale="${saleId}"]`);
+        var premiumField = document.querySelector(`.premium-field[data-sale="${saleId}"]`);
+
+        if (!policySelect || !dateDepInput || !dateRetInput || !premiumField) return;
+
+        var policyId = policySelect.value;
+        var startDate = dateDepInput.value;
+        var endDate = dateRetInput.value;
+
+        if (!policyId || !startDate || !endDate) {
+            premiumField.value = "";
+            return;
+        }
+
+        var days = calculateDays(startDate, endDate);
+        if (days <= 0) {
+            premiumField.value = "";
+            return;
+        }
+
+        // Afficher un indicateur de chargement
+        premiumField.value = "Calculating...";
+        premiumField.style.backgroundColor = "#fff3cd";
+
+        // Appel AJAX pour récupérer la prime
+        var formData = new FormData();
+        formData.append("action", "maljani_get_policy_premium");
+        formData.append("policy_id", policyId);
+        formData.append("days", days);
+
+        fetch(ajaxurl, {
+            method: "POST",
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                premiumField.value = data.data;
+                premiumField.style.backgroundColor = "#d1edff"; // Bleu clair pour indiquer une mise à jour
+                setTimeout(() => {
+                    premiumField.style.backgroundColor = "";
+                }, 2000);
+            } else {
+                premiumField.value = "N/A";
+                premiumField.style.backgroundColor = "#f8d7da"; // Rouge clair pour erreur
+            }
+        })
+        .catch(error => {
+            console.error("Error calculating premium:", error);
+            premiumField.value = "Error";
+            premiumField.style.backgroundColor = "#f8d7da";
+        });
+    }
+
+    // Ajouter les événements pour recalcul automatique
+    document.querySelectorAll(".policy-select, .date-dep, .date-ret").forEach(function(element) {
+        element.addEventListener("change", function() {
+            var saleId = this.getAttribute("data-sale");
+            if (saleId) {
+                // Petit délai pour s\'assurer que la valeur est bien mise à jour
+                setTimeout(() => recalculatePremium(saleId), 100);
+            }
+        });
+    });
+
+    // Validation des dates (la date de retour doit être après la date de départ)
+    document.querySelectorAll(".date-dep, .date-ret").forEach(function(element) {
+        element.addEventListener("change", function() {
+            var saleId = this.getAttribute("data-sale");
+            var dateDepInput = document.querySelector(`.date-dep[data-sale="${saleId}"]`);
+            var dateRetInput = document.querySelector(`.date-ret[data-sale="${saleId}"]`);
+            
+            if (dateDepInput && dateRetInput && dateDepInput.value && dateRetInput.value) {
+                var startDate = new Date(dateDepInput.value);
+                var endDate = new Date(dateRetInput.value);
+                
+                if (endDate <= startDate) {
+                    alert("Return date must be after departure date!");
+                    if (this.classList.contains("date-ret")) {
+                        this.value = "";
+                    }
+                    return;
+                }
+            }
         });
     });
 });
