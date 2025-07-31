@@ -1,0 +1,31 @@
+# Configuration PHP pour Maljani Plugin - Bluehost
+# Placez ce fichier dans le dossier du plugin si nécessaire
+
+# Augmenter la limite de mémoire PHP
+php_value memory_limit 256M
+
+# Augmenter le temps d'exécution
+php_value max_execution_time 300
+
+# Augmenter la limite des variables d'entrée
+php_value max_input_vars 3000
+
+# Augmenter la taille des uploads
+php_value upload_max_filesize 20M
+php_value post_max_size 25M
+
+# Activer l'affichage des erreurs pour debug (à désactiver en production)
+# php_flag display_errors On
+# php_value error_reporting E_ALL
+
+# Désactiver l'affichage des erreurs en production
+php_flag display_errors Off
+php_value error_reporting 0
+
+# Configuration pour TCPDF
+php_flag allow_url_fopen On
+
+# Gestion du cache
+php_flag opcache.enable On
+php_value opcache.memory_consumption 128
+php_value opcache.max_accelerated_files 4000

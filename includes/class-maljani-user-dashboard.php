@@ -466,10 +466,16 @@ class Maljani_User_Dashboard {
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf.php?sale_id=' . $policy->id; ?>" 
-                                           target="_blank" class="btn btn-primary">
+                                        <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf-bluehost.php?sale_id=' . $policy->id; ?>" 
+                                           target="_blank" class="btn btn-primary" title="Generate PDF (Bluehost Version)">
                                             📄 PDF
                                         </a>
+                                        <?php if (current_user_can('manage_options')): ?>
+                                        <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf.php?sale_id=' . $policy->id; ?>" 
+                                           target="_blank" class="btn btn-secondary" title="Generate PDF (Original Version)" style="font-size: 10px;">
+                                            📄 OLD
+                                        </a>
+                                        <?php endif; ?>
                                         <button class="btn btn-secondary view-details" data-policy-id="<?php echo $policy->id; ?>">
                                             👁️ View
                                         </button>
@@ -783,10 +789,20 @@ class Maljani_User_Dashboard {
             
             <div class="detail-section">
                 <h4>📄 Actions</h4>
-                <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf.php?sale_id=' . $sale->id; ?>" 
+                <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf-bluehost.php?sale_id=' . $sale->id; ?>" 
                    target="_blank" class="btn btn-primary" style="margin-right:10px;">
                     📄 Download PDF
                 </a>
+                <?php if (current_user_can('manage_options')): ?>
+                <a href="<?php echo plugin_dir_url(__FILE__) . 'generate-policy-pdf.php?sale_id=' . $sale->id; ?>" 
+                   target="_blank" class="btn btn-secondary" style="margin-right:10px;font-size:12px;">
+                    📄 Original PDF
+                </a>
+                <a href="<?php echo plugin_dir_url(__FILE__) . 'diagnostic-pdf-bluehost.php'; ?>" 
+                   target="_blank" class="btn btn-info" style="margin-right:10px;font-size:12px;">
+                    🔧 Diagnostic
+                </a>
+                <?php endif; ?>
                 <button onclick="document.getElementById('policy-modal').remove();" class="btn btn-secondary">
                     Close
                 </button>
