@@ -9,51 +9,66 @@ class Maljani_Agent_Registration {
     }
 
     public function enqueue_style() {
-        wp_enqueue_style(
-            'maljani-register-style',
-            plugin_dir_url(__FILE__) . 'css/register.css',
-            [],
-            null
-        );
+        // Styles gérés par le système d'isolation - pas besoin de CSS externe
+        // wp_enqueue_style(
+        //     'maljani-register-style',
+        //     plugin_dir_url(__FILE__) . 'css/register.css',
+        //     [],
+        //     null
+        // );
     }
 
     public function render_registration_form() {
+        // Get isolation manager
+        $isolation = Maljani_Style_Isolation::instance();
+        
         // Check if there's a success message
-        $success_message = '';
         if (isset($_GET['registration']) && $_GET['registration'] === 'success') {
-            $success_message = '<div class="maljani-success-message">Registration successful! Check your email for login credentials (agents) or account has been created (insured). You will be redirected to your dashboard shortly.</div>';
+            $success_message = $isolation->get_isolated_notice(
+                'Registration successful! Check your email for login credentials (agents) or account has been created (insured). You will be redirected to your dashboard shortly.',
+                'success'
+            );
+        } else {
+            $success_message = '';
         }
         
         // Check for error messages
         $error_message = '';
         if (isset($_GET['error'])) {
+            $error_text = '';
             switch ($_GET['error']) {
                 case 'email_exists':
-                    $error_message = '<div class="maljani-error-message">Email already exists. Please use a different email.</div>';
+                    $error_text = 'Email already exists. Please use a different email.';
                     break;
                 case 'phone_exists':
-                    $error_message = '<div class="maljani-error-message">Phone number already registered. Please use a different phone number.</div>';
+                    $error_text = 'Phone number already registered. Please use a different phone number.';
                     break;
                 case 'invalid_phone':
-                    $error_message = '<div class="maljani-error-message">Invalid phone number format. Please use Kenyan format: 0XXXXXXXXX</div>';
+                    $error_text = 'Invalid phone number format. Please use Kenyan format: 0XXXXXXXXX';
                     break;
                 case 'missing_fields':
-                    $error_message = '<div class="maljani-error-message">Please fill in all required fields.</div>';
+                    $error_text = 'Please fill in all required fields.';
                     break;
                 case 'registration_failed':
-                    $error_message = '<div class="maljani-error-message">Registration failed. Please try again.</div>';
+                    $error_text = 'Registration failed. Please try again.';
                     break;
+            }
+            if ($error_text) {
+                $error_message = $isolation->get_isolated_notice($error_text, 'error');
             }
         }
 
         ob_start();
+        
+        // Add critical CSS inline
+        echo $isolation->get_inline_critical_styles();
+        
+        echo $success_message;
+        echo $error_message;
         ?>
         <div class="maljani-register-container">
             <h2>User Registration</h2>
             <p>Choose your account type and fill in the form below.</p>
-            
-            <?php echo $success_message; ?>
-            <?php echo $error_message; ?>
             
             <form method="post" class="maljani-register-form" autocomplete="off" id="maljani-register-form">
                 <div style="margin-bottom: 20px;">
@@ -138,7 +153,12 @@ class Maljani_Agent_Registration {
             </script>
         </div>
         <?php
-        return ob_get_clean();
+        
+        // Get the buffered content
+        $form_content = ob_get_clean();
+        
+        // Wrap with isolation container
+        return $isolation->get_isolated_form($form_content, 'registration');
     }
 
     public function handle_registration() {

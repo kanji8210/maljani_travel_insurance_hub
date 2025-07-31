@@ -45,7 +45,9 @@ class Maljani_User_Dashboard {
         }
         
         if ($should_enqueue) {
-            wp_enqueue_style('maljani-dashboard', plugin_dir_url(__FILE__) . 'css/dashboard.css', [], '1.0.0');
+            // Styles gérés par le système d'isolation - pas besoin de CSS externe
+            // wp_enqueue_style('maljani-dashboard', plugin_dir_url(__FILE__) . 'css/dashboard.css', [], '1.0.0');
+            
             wp_enqueue_script('maljani-dashboard', plugin_dir_url(__FILE__) . 'js/dashboard.js', ['jquery'], '1.0.0', true);
             
             // Localisation pour AJAX
@@ -76,12 +78,16 @@ class Maljani_User_Dashboard {
     }
     
     public function render_dashboard() {
+        // Get isolation manager
+        $isolation = Maljani_Style_Isolation::instance();
+        
         // Vérifier que l'utilisateur est connecté
         if (!is_user_logged_in()) {
-            return '<div class="maljani-dashboard-login-required">
-                <p>You must be logged in to view your dashboard.</p>
-                <a href="' . wp_login_url(get_permalink()) . '" class="button">Login</a>
-            </div>';
+            return $isolation->wrap_output('
+                <div class="maljani-dashboard-login-required">
+                    <p>You must be logged in to view your dashboard.</p>
+                    <a href="' . wp_login_url(get_permalink()) . '" class="maljani-btn">Login</a>
+                </div>', ['class' => 'maljani-dashboard-wrapper']);
         }
         
         $current_user = wp_get_current_user();
@@ -99,6 +105,9 @@ class Maljani_User_Dashboard {
         $this->render_notifications();
         
         ob_start();
+        
+        // Add critical CSS inline
+        echo $isolation->get_inline_critical_styles();
         ?>
         <div class="maljani-dashboard-container">
             <div class="maljani-dashboard-header">

@@ -18,23 +18,8 @@ class Maljani_Icons_Shortcode {
         // Enqueue Dashicons for frontend if not already loaded
         wp_enqueue_style('dashicons');
         
-        // Custom icon styles
-        wp_add_inline_style('dashicons', '
-            .maljani-icon {
-                display: inline-block;
-                vertical-align: middle;
-                text-decoration: none;
-            }
-            .maljani-icon.size-small { font-size: 16px; width: 16px; height: 16px; }
-            .maljani-icon.size-medium { font-size: 20px; width: 20px; height: 20px; }
-            .maljani-icon.size-large { font-size: 24px; width: 24px; height: 24px; }
-            .maljani-icon.size-xl { font-size: 32px; width: 32px; height: 32px; }
-            .maljani-icon-wrapper {
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-            }
-        ');
+        // Styles gérés par le système d'isolation - plus besoin d'inline styles
+        // Les styles d'icônes sont maintenant dans maljani-isolated.css
     }
 
     /**
@@ -101,8 +86,8 @@ class Maljani_Icons_Shortcode {
             $icon_html = '<a href="' . esc_url($atts['link']) . '" class="maljani-icon-link">' . $icon_html . '</a>';
         }
 
-        // Use isolation manager to get properly styled icon
-        return $isolation->get_isolated_icon($atts['name'], $atts['size'], $atts['color'], $atts['style']);
+        // Wrap with isolation container and return
+        return $isolation->wrap_output($icon_html, ['class' => 'maljani-icon-container']);
     }
 
     /**
