@@ -169,66 +169,37 @@ try {
         $pdf->AddPage();
         
         // Configuration de la police
-        $pdf->SetFont('helvetica', '', 12);
-        
-        // En-tête du document
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->Cell(0, 10, 'TRAVEL INSURANCE POLICY', 0, 1, 'C');
-        $pdf->Ln(5);
-        
-        // Informations de l'assureur
-        $pdf->SetFont('helvetica', 'B', 14);
-        $pdf->Cell(0, 8, $insurer, 0, 1, 'C');
-        $pdf->Ln(10);
-        
-        // Détails de la police
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->Cell(0, 8, 'POLICY DETAILS', 0, 1, 'L');
-        $pdf->Ln(3);
-        
         $pdf->SetFont('helvetica', '', 10);
         
-        // Tableau des informations
-        $policy_data = [
-            ['Policy Number:', $policy_number],
-            ['Policyholder Name:', $policyholder_name],
-            ['Passport Number:', $passport_number],
-            ['National ID/PIN:', $pin],
-            ['Address:', $address],
-            ['Telephone:', $telephone],
-            ['Email:', $email],
-            ['Product Name:', $product_name],
-            ['Destination Area:', $destination_area],
-            ['Country of Origin:', $country_of_origin],
-            ['Start Date:', $start_date],
-            ['End Date:', $end_date],
-            ['Duration (Days):', $duration_days],
-            ['Agent:', $agent_name]
-        ];
-        
-        foreach ($policy_data as $row) {
-            $pdf->Cell(60, 6, $row[0], 0, 0, 'L');
-            $pdf->Cell(0, 6, $row[1], 0, 1, 'L');
+        // Contenu HTML avec styles CSS
+        $css_file_path = dirname(__FILE__) . '/css/pdf_generator.css';
+        $css_content = '';
+        if (file_exists($css_file_path)) {
+            $css_content = file_get_contents($css_file_path);
         }
         
-        $pdf->Ln(10);
+        $html = '<style>' . $css_content . '</style>';
         
-        // Détails de couverture
-        if ($coverage) {
-            $pdf->SetFont('helvetica', 'B', 12);
-            $pdf->Cell(0, 8, 'COVERAGE DETAILS', 0, 1, 'L');
-            $pdf->Ln(3);
-            
-            $pdf->SetFont('helvetica', '', 10);
-            $pdf->MultiCell(0, 5, $coverage, 0, 'L');
-            $pdf->Ln(5);
-        }
+        // En-tête du document avec logos
+        $html .= build_pdf_header($policy_id);
         
-        // Pied de page
-        $pdf->SetY(-30);
-        $pdf->SetFont('helvetica', 'I', 8);
-        $pdf->Cell(0, 5, 'This policy is issued by ' . $insurer, 0, 1, 'C');
-        $pdf->Cell(0, 5, 'Generated on: ' . date('Y-m-d H:i:s'), 0, 1, 'C');
+        // Contenu principal de la police
+        $html .= build_policy_content($sale, $policy_title, $insurer, $region, $premium, $days, $start_date, $end_date, $agent_name);
+        
+        // Liste des assurés
+        $html .= build_insured_list($sale, $region, $start_date, $end_date);
+        
+        // Termes et conditions
+        $html .= build_terms_and_conditions($sale, $policy_id);
+        
+        // Écrire le HTML principal
+        $pdf->writeHTML($html, true, false, true, false, '');
+        
+        // Nouvelle page pour la lettre à l'ambassade
+        $pdf->AddPage();
+        $letter_html = '<style>' . $css_content . '</style>';
+        $letter_html .= build_embassy_letter($sale, $policy_title, $insurer, $region, $start_date, $end_date, $policy_number);
+        $pdf->writeHTML($letter_html, true, false, true, false, '');
         
         // Sortie du PDF
         $filename = 'Policy_' . $policy_number . '_' . date('Ymd') . '.pdf';
@@ -245,5 +216,363 @@ try {
     }
     
     wp_die('An error occurred while generating the PDF. Please contact support. Error: ' . $e->getMessage());
+}
+
+// ==========================================
+// FONCTIONS POUR CONSTRUIRE LE HTML DU PDF
+// ==========================================
+
+function build_pdf_header($policy_id) {
+    // Récupération des logos
+    $site_logo_path = '';
+    $custom_logo_id = get_theme_mod('custom_logo');
+    if ($custom_logo_id) {
+        $site_logo_path = get_attached_file($custom_logo_id); 
+    }
+    if (!$site_logo_path) {
+        $site_icon_id = get_option('site_icon');
+        if ($site_icon_id) {
+            $site_logo_path = get_attached_file($site_icon_id);
+        }
+    }
+
+    // Logo de l'assureur
+    $insurer_logo_path = '';
+    $insurer_id = get_post_meta($policy_id, '_policy_insurer', true);
+    if ($insurer_id) {
+        $logo_id_or_url = get_post_meta($insurer_id, '_insurer_logo', true);
+        if (is_numeric($logo_id_or_url)) {
+            $insurer_logo_path = get_attached_file($logo_id_or_url);
+        } elseif (filter_var($logo_id_or_url, FILTER_VALIDATE_URL)) {
+            $logo_post_id = attachment_url_to_postid($logo_id_or_url);
+            if ($logo_post_id) {
+                $insurer_logo_path = get_attached_file($logo_post_id);
+            }
+        }
+    }
+
+    $insurer = get_post_meta($insurer_id, '_insurer_name', true);
+
+    $header_html = '
+<table class="header-table" cellpadding="0" cellspacing="0">
+    <tr>
+        <td class="header-left">';
+
+    if ($site_logo_path && file_exists($site_logo_path)) {
+        $header_html .= '<img src="' . $site_logo_path . '" class="site-logo" alt="Site Logo" style="max-height: 60px; max-width: 200px;">';
+    } else {
+        $header_html .= '<div style="font-size: 18px; font-weight: bold; color: #333; border: 1px solid #ccc; padding: 10px; background: #f9f9f9;">' . get_bloginfo('name') . '</div>';
+    }
+
+    $header_html .= '<h5>Insurance Aggregator</h5>
+        </td>
+        <td class="header-right">';
+
+    if ($insurer_logo_path && file_exists($insurer_logo_path)) {
+        $header_html .= '<img src="' . $insurer_logo_path . '" class="insurer-logo" alt="Insurer Logo" style="max-height: 60px; max-width: 200px;">';
+    } else {
+        $header_html .= '<div style="border: 2px solid #333; padding: 15px; text-align: center; font-weight: bold; background: #f0f0f0;">' . esc_html($insurer ?: 'Insurance Company') . '</div>';
+    }
+
+    $header_html .= '<h5 class="insurer-name"> Insurer : ' . esc_html($insurer ?: 'Insurance Company') . '</h5>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="text-align: center; font-size: 12px; color: #666; padding-top: 5px;">
+            ' . get_bloginfo('description') . '
+        </td>
+    </tr>
+</table>
+<hr style="border: 1px solid #ddd; margin: 20px 0;">
+';
+    
+    return $header_html;
+}
+
+function build_policy_content($sale, $policy_title, $insurer, $region, $premium, $days, $start_date, $end_date, $agent_name) {
+    $coverage = get_post_meta($sale->policy_id, '_policy_cover_details', true);
+    
+    $content_html = '
+<h1 style="text-align:center;">TRAVEL INSURANCE POLICY</h1>
+
+<!-- Section informations du souscripteur et de la police -->
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+<tr>
+    <!-- Informations personnelles (65%) -->
+    <td style="vertical-align:top;width:65%;border:1px solid #000;padding:0;">
+        <table cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr><td style="padding:3px;"><strong>Policyholder:</strong> ' . esc_html($sale->insured_names) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>Passport:</strong> ' . esc_html($sale->passport_number) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>Address:</strong> ' . esc_html($sale->insured_address) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>Telephone:</strong> ' . esc_html($sale->insured_phone) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>Email:</strong> ' . esc_html($sale->insured_email) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>PIN Number:</strong> ' . esc_html($sale->national_id) . '</td></tr>
+        </table>
+    </td>
+    <td style="width:5px;"></td>
+    <!-- Informations de la police (35%) -->
+    <td style="vertical-align:top;width:35%;border:1px solid #000;padding:0;">
+        <table cellpadding="0" cellspacing="0" style="width:100%;">
+            <tr><td style="padding:3px;"><strong>Policy Number:</strong> ' . esc_html($sale->policy_number) . '</td></tr>
+            <tr><td style="padding:3px;"><strong>N. Passengers:</strong> 1</td></tr>
+            <tr><td style="padding:3px;"><strong>Insurer:</strong> ' . esc_html($insurer) . '</td></tr>
+        </table>
+    </td>
+</tr>
+</table>
+<br><br>
+
+<!-- Section détails de la couverture -->
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+<tr>
+    <!-- Période de couverture -->
+    <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
+        <strong>Coverage Period</strong><br>
+        Effective from: ' . esc_html($start_date) . '<br>
+        Expiry: ' . esc_html($end_date) . '
+    </td>
+    <td style="width:3px;"></td>
+    <!-- Détails de la police -->
+    <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
+        <strong>Policy period:</strong> ' . esc_html($days) . ' Day(s)<br>
+        <strong>Product:</strong> ' . esc_html($policy_title) . '<br>
+        INDIVIDUAL<br>
+        Country of Origin: ' . esc_html($sale->country_of_origin ?: 'KENYA') . '
+    </td>
+    <td style="width:3px;"></td>
+    <!-- Destination et montant -->
+    <td style="vertical-align:top;width:32.5%;border:1px solid #000;padding:6px;">
+        <strong>Destination:</strong> ' . esc_html($region) . '<br>
+        <strong>Insurer:</strong> ' . esc_html($insurer) . '<br>
+        <strong>Region:</strong> ' . esc_html($region) . '<br>
+        <strong>Policy Amount</strong><br>
+        GROSS PREMIUM ' . esc_html($premium) . ' USD
+    </td>
+</tr>
+</table>
+<br><br>
+
+<!-- Zone de destination -->
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+<tr>
+    <td style="border:1px solid #000;padding:6px;width:100%;">
+        <strong>Destination Area:</strong> ' . esc_html($region) . '
+    </td>
+</tr>
+</table>
+<br><br>
+
+<!-- Détails de la couverture -->
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+    <tr>
+        <td style="border:1px solid #000;padding:6px;width:100%;">
+            <h2 style="text-align:center;margin:0;">Schedule of Covers / Coverage details</h2>
+            <div style="font-size:12px;">
+                ' . (!empty($coverage) ? wpautop($coverage) : 'No coverage details available.') . '
+            </div>
+        </td>
+    </tr>
+</table>
+<br><br>
+
+<!-- Zone de signatures -->
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+    <tr>
+        <td colspan="3" style="padding:6px 30px 16px 30px;">
+            <p style="text-align:center;margin:0; font-size: 10px;">
+                By signing this document, the Policyholder expressly accepts the clauses limiting the rights of the Insured included in the attached General Conditions of the Policy. This travel policy can only be changed or cancelled before the start date of the policy period.
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <!-- Signature du souscripteur -->
+        <td style="border:0.5px solid #000;padding:20px 30px 16px 30px;width:48%;text-align:center;">
+            <strong>Policyholder Signature</strong><br>
+            <span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:32px;margin:16px 0;"></span><br>
+            <span style="display:inline-block;width:200px;text-align:left;">Date: ' . date('Y-m-d') . '</span>
+        </td>
+        <td style="width:6%"></td>
+        <!-- Signature du représentant assureur -->
+        <td style="border:0.5px solid #000;padding:20px 30px 16px 30px;width:48%;text-align:center;">
+            <strong>Insurer Representative</strong><br>
+            <span style="display:inline-block;border-bottom:1px dotted #000;width:200px;height:32px;margin:16px 0;"></span><br>
+            <span style="display:inline-block;width:200px;text-align:left;">Date: ' . date('Y-m-d') . '</span>
+        </td>
+    </tr>
+</table>
+<br><br>
+';
+    
+    return $content_html;
+}
+
+function build_insured_list($sale, $region, $start_date, $end_date) {
+    $insured_html = '
+<div class="insured-title">List of Insured</div>
+<table class="insured-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Passport Number</th>
+            <th>Date of Birth</th>
+            <th>Destination</th>
+            <th>Cover Period</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>' . esc_html($sale->insured_names) . '</td>
+            <td>' . esc_html($sale->passport_number) . '</td>
+            <td>' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</td>
+            <td>' . esc_html($region) . '</td>
+            <td>' . esc_html($start_date) . ' - ' . esc_html($end_date) . '</td>
+        </tr>
+    </tbody>
+</table>
+<br><br>
+';
+    
+    return $insured_html;
+}
+
+function build_terms_and_conditions($sale, $policy_id) {
+    $terms = get_post_meta($policy_id, '_policy_terms', true);
+    
+    // Division du texte en deux colonnes
+    $terms_parts = ['', ''];
+    if (!empty($terms)) {
+        $terms_plain = strip_tags($terms);
+        $words = preg_split('/\s+/', $terms_plain);
+        $half = ceil(count($words) / 2);
+        $col1 = implode(' ', array_slice($words, 0, $half));
+        $col2 = implode(' ', array_slice($words, $half));
+        $terms_parts[0] = wpautop($col1);
+        $terms_parts[1] = wpautop($col2);
+    } else {
+        $terms_parts[0] = 'No terms and conditions available.';
+        $terms_parts[1] = '';
+    }
+
+    $terms_html = '
+<h2 style="text-align:center;margin:0;">Terms and Conditions</h2>
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:auto;">
+    <tr>
+        <td style="vertical-align:top;width:48%;padding:6px 12px 6px 0;">
+            ' . $terms_parts[0] . '
+        </td>
+        <td style="width:4%;"></td>
+        <td style="vertical-align:top;width:48%;padding:6px 0 6px 12px;">
+            ' . $terms_parts[1] . '
+        </td>
+    </tr>
+</table>
+<br><br>
+';
+    
+    return $terms_html;
+}
+
+function build_embassy_letter($sale, $policy_title, $insurer, $region, $start_date, $end_date, $policy_number) {
+    // Générer l'URL de vérification et le QR code
+    $verification_url = generate_verification_url($sale->id, $policy_number, $sale->passport_number);
+    $qr_code_url = generate_qr_code_url($verification_url);
+    
+    $letter_html = '
+<div class="letter">
+    <div class="letter-header">TO: THE EMBASSY / CONSULATE</div>
+    <div class="policy-ref">RE: OVERSEAS TRAVEL INSURANCE (Policy Nº. ' . $policy_number . ')</div>
+    
+    <div class="intro-text">
+        <strong>TO WHOM IT MAY CONCERN,</strong><br>
+        This letter confirms that the traveller(s) below is/are covered under our overseas travel insurance policy during the specified period:
+    </div>
+
+    <!-- Section détails côte à côte -->
+    <div class="details-container">
+        <div class="details-left">
+            <div class="details-title">POLICY DETAILS</div>
+            <div class="detail-row"><span class="detail-label">Policy Number:</span> ' . $policy_number . '</div>
+            <div class="detail-row"><span class="detail-label">Product:</span> ' . $policy_title . '</div>
+            <div class="detail-row"><span class="detail-label">Start Date:</span> ' . $start_date . '</div>
+            <div class="detail-row"><span class="detail-label">End Date:</span> ' . $end_date . '</div>
+            <div class="detail-row"><span class="detail-label">Territory:</span> ' . $region . '</div>
+            <div class="detail-row"><span class="detail-label">Insurer:</span> ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '</div>
+        </div>
+        
+        <div class="details-right">
+            <div class="details-title">INSURED PERSON(S)</div>
+            <div class="detail-row"><span class="detail-label">Name:</span> ' . $sale->insured_names . '</div>
+            <div class="detail-row"><span class="detail-label">Passport:</span> ' . $sale->passport_number . '</div>
+            <div class="detail-row"><span class="detail-label">Date of Birth:</span> ' . (!empty($sale->insured_dob) ? esc_html($sale->insured_dob) : '___') . '</div>
+            <div class="detail-row"><span class="detail-label">Country of Origin:</span> KENYA</div>
+            <div class="detail-row"><span class="detail-label">Coverage Type:</span> INDIVIDUAL</div>
+        </div>
+    </div>
+
+    <!-- Section couverture médicale -->
+    <div class="coverage-section">
+        <div class="coverage-title">MEDICAL COVERAGE LIMITS</div>
+        <div class="coverage-list">
+            • <strong>Medical Transportation/Repatriation:</strong> EUR 36,000<br>
+            • <strong>Medical Expenses Abroad:</strong> EUR 36,000<br>
+            • <strong>Emergency Medical Assistance:</strong> 24/7 Available
+        </div>
+    </div>
+    <br>
+    <div>
+    <hr></div>
+    <br>
+    <div class="signature-section">
+        <p><strong>Yours faithfully,</strong></p>
+        <p><strong>Authorized Representative</strong><br>
+        ' . strtoupper($insurer ?: 'INSURANCE COMPANY') . '<br>
+        <em>' . strtoupper($policy_title ?: 'TRAVEL PROTECT') . '</em></p>
+    </div>
+
+    <!-- Section de vérification avec QR Code -->
+    <div class="verification-section">
+        <div class="verification-title">🔒 DOCUMENT VERIFICATION</div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 65%; vertical-align: top; padding-right: 10px;">
+                    <div class="security-note">
+                        <strong>Security Instructions:</strong><br>
+                        • Scan QR Code to verify authenticity<br>
+                        • Verify URL starts with: ' . parse_url(home_url(), PHP_URL_HOST) . '<br>
+                        • Check dates and names match this document<br>
+                        • For assistance: Contact support
+                    </div>
+                </td>
+                <td style="width: 35%; text-align: center; vertical-align: middle;">
+                    <div class="qr-container">
+                        <img src="' . $qr_code_url . '" alt="Verification QR Code" style="width: 90px; height: 90px;">
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+';
+    
+    return $letter_html;
+}
+
+// Fonctions utilitaires pour la vérification
+function generate_verification_hash($sale_id, $policy_number, $passport_number) {
+    $secret_key = 'maljani_secure_key_2025';
+    $data = $sale_id . '|' . $policy_number . '|' . $passport_number;
+    return hash('sha256', $data . $secret_key);
+}
+
+function generate_verification_url($sale_id, $policy_number, $passport_number) {
+    $hash = generate_verification_hash($sale_id, $policy_number, $passport_number);
+    $site_url = home_url();
+    $verify_url = $site_url . '/verify-policy?sale_id=' . $sale_id . '&token=' . $hash;
+    return $verify_url;
+}
+
+function generate_qr_code_url($verification_url) {
+    $qr_api_url = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($verification_url);
+    return $qr_api_url;
 }
 ?>

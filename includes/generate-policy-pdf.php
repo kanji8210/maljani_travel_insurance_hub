@@ -1,8 +1,38 @@
 <?php
-require_once($_SERVER['DOCUMENT_ROOT'] . '/wordpress/wp-load.php');
+// Chargement robuste de WordPress pour différents environnements
+if (!defined('ABSPATH')) {
+    // Essayer plusieurs chemins pour wp-load.php
+    $wp_load_paths = [
+        __DIR__ . '/../../../../wp-load.php',                    // Chemin relatif standard
+        $_SERVER['DOCUMENT_ROOT'] . '/wp-load.php',             // Racine du site
+        $_SERVER['DOCUMENT_ROOT'] . '/wordpress/wp-load.php',   // WordPress dans sous-dossier
+        dirname(dirname(dirname(dirname(__DIR__)))) . '/wp-load.php' // Autre chemin relatif
+    ];
+    
+    $wp_loaded = false;
+    foreach ($wp_load_paths as $path) {
+        if (file_exists($path)) {
+            require_once $path;
+            $wp_loaded = true;
+            break;
+        }
+    }
+    
+    if (!$wp_loaded) {
+        die('Error: WordPress core not found. Please check the installation path.');
+    }
+}
+
+// Augmenter les limites si possible pour éviter les erreurs de mémoire
+if (function_exists('ini_set')) {
+    ini_set('memory_limit', '256M');
+    ini_set('max_execution_time', 300);
+}
 
 $tcpdf_path = dirname(__DIR__) . '/lib/TCPDF-main/tcpdf.php';
-if (!file_exists($tcpdf_path)) die('TCPDF not found at: ' . $tcpdf_path);
+if (!file_exists($tcpdf_path)) {
+    wp_die('TCPDF library not found at: ' . $tcpdf_path . '. Please check the plugin installation.');
+}
 require_once $tcpdf_path;
 
 // if (!current_user_can('manage_options')) wp_die('Not allowed');

@@ -143,9 +143,7 @@ foreach ($sales as $sale) {
     echo '<td class="terms-cell"><span class="terms-short" style="cursor:pointer;color:#0073aa;" data-full="' . esc_attr($sale->terms) . '">' . esc_html($terms_short) . ' <span style="color:#888;">(show all)</span></span></td>';
     echo '<td class="actions-cell">
         <button type="button" class="button edit-sale-btn" data-sale="' . esc_attr($sale->id) . '">Edit</button>
-        <a href="' . plugins_url('includes/generate-policy-pdf-bluehost.php', dirname(__FILE__)) . '?sale_id=' . esc_attr($sale->id) . '" target="_blank" title="Generate PDF (Bluehost Version)">Generate PDF</a> | 
-        <a href="' . plugins_url('includes/generate-policy-pdf.php', dirname(__FILE__)) . '?sale_id=' . esc_attr($sale->id) . '" target="_blank" title="Generate PDF (Original Version)" style="font-size:12px;">Original PDF</a> | 
-        <a href="' . plugins_url('includes/diagnostic-pdf-bluehost.php', dirname(__FILE__)) . '" target="_blank" title="PDF Diagnostic" style="font-size:12px;">Diagnostic</a> | 
+        <a href="' . plugins_url('includes/generate-policy-pdf.php', dirname(__FILE__)) . '?sale_id=' . esc_attr($sale->id) . '" target="_blank">Generate PDF</a> | 
         <a href="' . esc_url(add_query_arg(['action' => 'archive_policy', 'sale_id' => $sale->id])) . '" onclick="return confirm(\'Archive this sale?\')">Archive</a>
     </td>';
     echo '</tr>';
