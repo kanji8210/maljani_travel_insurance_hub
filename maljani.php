@@ -52,11 +52,15 @@ require_once plugin_dir_path( __FILE__ ) . 'templates/diagnostic.php';
 // Appelle les classes d'activation/désactivation (pour setup DB, options, etc.)
 function activate_maljani() {
     require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-activator.php';
+    require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-policy-verification.php';
     Maljani_Activator::activate();
+    Maljani_Policy_Verification::activate();
 }
 function deactivate_maljani() {
     require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-deactivator.php';
+    require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-policy-verification.php';
     Maljani_Deactivator::deactivate();
+    Maljani_Policy_Verification::deactivate();
 }
 register_activation_hook( __FILE__, 'activate_maljani' );
 register_deactivation_hook( __FILE__, 'deactivate_maljani' );
