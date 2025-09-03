@@ -9,13 +9,13 @@ class Maljani_Agent_Registration {
     }
 
     public function enqueue_style() {
-         //Styles gérés par le système d'isolation - pas besoin de CSS externe
-         wp_enqueue_style(
-           'maljani-register-style',
-          plugin_dir_url(__FILE__) . 'css/register.css',
-          [],
-             null
-         );
+        // Styles gérés par le système d'isolation - pas besoin de CSS externe
+        // wp_enqueue_style(
+        //     'maljani-register-style',
+        //     plugin_dir_url(__FILE__) . 'css/register.css',
+        //     [],
+        //     null
+        // );
     }
 
     public function render_registration_form() {
