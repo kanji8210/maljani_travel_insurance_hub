@@ -380,6 +380,125 @@ class Maljani_Agent_Registration {
             <p><strong>Note:</strong> Since no email was provided, please manually communicate the login details to the user via phone or other means.</p>
         </body>
         </html>
+        <style> 
+        /* Maljani Registration - Simplistic Dark Blue, Grey & White */
+.maljani-register-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 32px 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(20,30,60,0.08);
+    text-align: center;
+    border: 1px solid #e3e6ee;
+}
+.maljani-register-container h2 {
+    color: #1a2340;
+    margin-bottom: 8px;
+    font-size: 2em;
+    font-weight: 700;
+}
+.maljani-register-container p {
+    color: #4a5568;
+    margin-bottom: 18px;
+}
+.maljani-register-form {
+    max-width: 400px;
+    margin: 0 auto;
+    background: #f7f9fc;
+    border-radius: 10px;
+    box-shadow: 0 1px 8px rgba(20,30,60,0.04);
+    padding: 28px 28px 18px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border: 1px solid #e3e6ee;
+}
+.maljani-register-form input[type="text"],
+.maljani-register-form input[type="email"],
+.maljani-register-form input[type="date"] {
+    border: 1px solid #bfc7d1;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 1em;
+    background: #fff;
+    color: #1a2340;
+    transition: border 0.2s;
+}
+.maljani-register-form input:focus {
+    border-color: #1a2340;
+    outline: none;
+    background: #f0f4fa;
+}
+.maljani-register-form label {
+    font-size: 1em;
+    color: #1a2340;
+    margin-bottom: 0;
+    font-weight: 500;
+}
+.maljani-register-form input[type="radio"] {
+    accent-color: #1a2340;
+    margin-right: 8px;
+}
+.maljani-register-form input[type="checkbox"] {
+    accent-color: #1a2340;
+    margin-right: 8px;
+}
+.maljani-register-form button[type="submit"] {
+    background: #1a2340;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 0;
+    font-size: 1.08em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    margin-top: 8px;
+    box-shadow: 0 2px 8px rgba(20,30,60,0.06);
+}
+.maljani-register-form button[type="submit"]:hover {
+    background: #223366;
+    color: #fff;
+}
+.maljani-register-form a {
+    color: #223366;
+    text-decoration: underline;
+    font-size: 0.97em;
+    transition: color 0.2s;
+}
+.maljani-register-form a:hover {
+    color: #1a2340;
+}
+.maljani-success-message {
+    background-color: #e6f0fa;
+    color: #1a2340;
+    border: 1px solid #bfc7d1;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 0.98em;
+    line-height: 1.5;
+}
+.maljani-error-message {
+    background-color: #fbeaea;
+    color: #a12a2a;
+    border: 1px solid #e3bcbc;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 0.98em;
+    line-height: 1.5;
+}
+@media (max-width: 600px) {
+    .maljani-register-container {
+        padding: 10px 2vw;
+    }
+    .maljani-register-form {
+        padding: 16px 4vw 12px 4vw;
+    }
+}
+    </style>
         ";
         
         $headers = array('Content-Type: text/html; charset=UTF-8');
