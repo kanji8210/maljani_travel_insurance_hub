@@ -37,7 +37,7 @@ require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-policy-sales.php
 //add admin menu
 require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-admin-menu.php';
 // Add agent registration
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-agent-registration.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-insured-reg.php';
 // Add user dashboard
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-user-dashboard.php';
 // Add icons shortcode
