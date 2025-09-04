@@ -9,7 +9,7 @@
     margin: 32px 0 0 0;
 }
 .maljani-policy-item {
-    background: #fff;
+    background-color: rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.07);
     display: flex;
