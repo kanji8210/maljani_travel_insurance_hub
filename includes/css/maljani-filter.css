@@ -234,3 +234,8 @@ input[type="date"]:focus {
     font-size: 0.98em;
     box-shadow: 0 2px 8px rgba(24,49,83,0.10);
 }
+.popup-benefits-content {
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
