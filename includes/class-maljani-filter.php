@@ -114,6 +114,13 @@ class Maljani_Filter {
 
     public function enqueue_scripts() {
         try {
+            if (is_page('votre-page-filtre')) { // Remplacez par le slug de la page filtre
+                wp_enqueue_script('maljani-filter-js', plugin_dir_url(__FILE__).'js/maljani-filter.js', array('jquery'), null, true);
+                wp_localize_script('maljani-filter-js', 'maljaniFilterAjax', array(
+                    'ajaxurl' => admin_url('admin-ajax.php')
+                ));
+            }
+
             wp_enqueue_script(
                 'maljani-filter',
                 plugin_dir_url(__FILE__) . '/js/maljani-filter.js',
@@ -212,7 +219,7 @@ class Maljani_Filter {
                 if ($insurer_logo) {
                     echo '<img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:32px;height:32px;object-fit:cover;border-radius:50%;margin-right:8px;">';
                 }
-                echo '<span style="font-weight:bold;">Insurer: ' . esc_html($insurer_name) . '</span>';
+                echo '<span class="insurer-name" data-insurer-id="' . esc_attr($insurer_id) . '" style="font-weight:bold;">Insurer: ' . esc_html($insurer_name) . '</span>';
                 echo '</div>';
             }
             
@@ -242,11 +249,67 @@ class Maljani_Filter {
             }
             
             echo '</div>';
+            // Affichage du profil assureur (caché)
+            $insurer_profile = get_post_meta($insurer_id, '_insurer_profile', true);
+            $insurer_website = get_post_meta($insurer_id, '_insurer_website', true);
+            $insurer_linkedin = get_post_meta($insurer_id, '_insurer_linkedin', true);
+            echo '<div class="insurer-profile-popup" id="insurer-profile-' . esc_attr($insurer_id) . '" style="display:none;">';
+            echo '  <div class="popup-profile-content" style="min-width:260px;max-width:340px;">';
+            echo '    <div style="text-align:center;margin-bottom:12px;">';
+            if ($insurer_logo) {
+                echo '      <img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:64px;height:64px;object-fit:cover;border-radius:50%;box-shadow:0 2px 8px rgba(24,49,83,0.10);">';
+            }
+            echo '    </div>';
+            echo '    <h3 style="margin-bottom:8px;">' . esc_html($insurer_name) . '</h3>';
+            if ($insurer_profile) {
+                echo '    <div style="font-size:1em;color:#222;margin-bottom:10px;">' . esc_html($insurer_profile) . '</div>';
+            }
+            if ($insurer_website) {
+                echo '    <div style="margin-bottom:6px;"><a href="' . esc_url($insurer_website) . '" target="_blank" style="color:#0073aa;font-weight:500;">🌐 Site web</a></div>';
+            }
+            if ($insurer_linkedin) {
+                echo '    <div><a href="' . esc_url($insurer_linkedin) . '" target="_blank" style="color:#0a66c2;font-weight:500;">in LinkedIn</a></div>';
+            }
+            echo '  </div>';
+            echo '</div>';
             echo '</li>';
         } catch (Exception $e) {
             echo '<li class="maljani-policy-item error">Erreur lors de l\'affichage de la policy : ' . esc_html($e->getMessage()) . '</li>';
             error_log('Erreur render_policy_item : ' . $e->getMessage());
         }
+    }
+
+    public function get_insurer_profile() {
+        try {
+            $insurer_id = intval($_POST['insurer_id']);
+            $user = get_userdata($insurer_id);
+            if ($user) {
+                $logo = get_user_meta($insurer_id, 'insurer_logo', true);
+                $profile = get_user_meta($insurer_id, 'insurer_profile', true);
+                $website = get_user_meta($insurer_id, 'insurer_website', true);
+                $linkedin = get_user_meta($insurer_id, 'insurer_linkedin', true);
+                echo '<div class="popup-profile-content" style="min-width:260px;max-width:340px;">';
+                if ($logo) {
+                    echo '<div style="text-align:center;margin-bottom:12px;"><img src="' . esc_url($logo) . '" alt="Logo" style="width:64px;height:64px;object-fit:cover;border-radius:50%;box-shadow:0 2px 8px rgba(24,49,83,0.10);"></div>';
+                }
+                echo '<h3 style="margin-bottom:8px;">' . esc_html($user->display_name) . '</h3>';
+                if ($profile) {
+                    echo '<div style="font-size:1em;color:#222;margin-bottom:10px;">' . esc_html($profile) . '</div>';
+                }
+                if ($website) {
+                    echo '<div style="margin-bottom:6px;"><a href="' . esc_url($website) . '" target="_blank" style="color:#0073aa;font-weight:500;">🌐 Site web</a></div>';
+                }
+                if ($linkedin) {
+                    echo '<div><a href="' . esc_url($linkedin) . '" target="_blank" style="color:#0a66c2;font-weight:500;">in LinkedIn</a></div>';
+                }
+                echo '</div>';
+            } else {
+                echo '<div class="popup-profile-content">Profile not found.</div>';
+            }
+        } catch (Exception $e) {
+            echo '<div class="popup-profile-content">Error: ' . esc_html($e->getMessage()) . '</div>';
+        }
+        wp_die();
     }
 }
 new Maljani_Filter();
