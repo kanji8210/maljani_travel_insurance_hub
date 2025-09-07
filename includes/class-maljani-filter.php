@@ -227,11 +227,27 @@ class Maljani_Filter {
                 echo '<div style="margin-bottom:8px;"><strong>Region:</strong> ' . esc_html($region_name) . '</div>';
             }
             
+            // Affichage du premium si calculé
             if ($premium && $days > 0) {
                 echo '<div style="margin-bottom:12px;padding:12px;background:#e8f5e8;border-radius:6px;">';
                 echo '<strong style="color:#2d5d2d;">Premium for ' . esc_html($days) . ' days: ' . esc_html($premium) . '</strong>';
                 echo '</div>';
             }
+            // Lien et bloc pour les bénéfices (toujours affiché)
+            echo '<div class="policy-benefits-link" style="margin-bottom:12px;">';
+            echo '<a href="#" class="see-benefits" data-policy-id="' . esc_attr($policy_id) . '" style="color:#0073aa;font-weight:500;text-decoration:underline;cursor:pointer;">See benefits</a>';
+            echo '</div>';
+            $benefits = get_post_meta($policy_id, '_policy_benefits', true);
+            echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
+            if ($benefits) {
+                echo '<div class="popup-benefits-content" style="min-width:220px;max-width:550px;">';
+                echo '<h4 style="margin-bottom:10px;">Policy Benefits</h4>';
+                echo '<div style="font-size:1em;color:#222;">' . nl2br(esc_html($benefits)) . '</div>';
+                echo '</div>';
+            } else {
+                echo '<div class="popup-benefits-content">No benefits listed for this policy.</div>';
+            }
+            echo '</div>';
             
             echo '<div style="margin-bottom:12px;">' . esc_html($excerpt) . '</div>';
             

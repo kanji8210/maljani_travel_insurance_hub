@@ -159,4 +159,18 @@ jQuery(document).ready(function($) {
             $('.maljani-lightbox-bg').fadeOut(120, function(){ $(this).remove(); });
         }
     });
+
+    $(document).on('click', '.see-benefits', function(e){
+        e.preventDefault();
+        addLightboxStyles();
+        var policyId = $(this).data('policy-id');
+        var $benefits = $('#policy-benefits-' + policyId);
+        if ($('.maljani-lightbox-bg').length) $('.maljani-lightbox-bg').remove();
+        var $bg = $('<div class="maljani-lightbox-bg"></div>').appendTo('body');
+        if ($benefits.length) {
+            $bg.html('<div class="maljani-lightbox-content">'+$benefits.html()+'<button class="maljani-lightbox-close" title="Close">&times;</button></div>');
+        } else {
+            $bg.html('<div class="maljani-lightbox-content"><div style="padding:32px;text-align:center;">Benefits not found</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
+        }
+    });
 });
