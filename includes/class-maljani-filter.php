@@ -240,9 +240,9 @@ class Maljani_Filter {
             $benefits = get_post_meta($policy_id, '_policy_benefits', true);
             echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
             if ($benefits) {
-                echo '<div class="popup-benefits-content" style="min-width:220px;max-width:550px;">';
+                echo '<div class="popup-benefits-content" style="min-width:220px;max-width:340px;">';
                 echo '<h4 style="margin-bottom:10px;">Policy Benefits</h4>';
-                echo '<div style="font-size:1em;color:#222;">' . nl2br(esc_html($benefits)) . '</div>';
+                echo '<div style="font-size:1em;color:#222;">' . wp_kses_post($benefits) . '</div>';
                 echo '</div>';
             } else {
                 echo '<div class="popup-benefits-content">No benefits listed for this policy.</div>';
