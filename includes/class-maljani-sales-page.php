@@ -596,7 +596,7 @@ class Maljani_Sales_Page {
                                         'field'    => 'term_id',
                                         'terms'    => $region_id,
                                     ],
-                                ],
+                                ]
                             ]);
                             foreach ($policies as $p) {
                                 $premiums = get_post_meta($p->ID, '_policy_day_premiums', true);
@@ -884,7 +884,7 @@ class Maljani_Sales_Page {
                 'payment_reference' => sanitize_text_field($_POST['payment_reference'] ?? ''),
                 'payment_status'    => 'pending',
                 'policy_status'     => 'unconfirmed',
-                'terms'             => isset($_POST['accept_terms']) ? 1 : 0, // Acceptation des conditions
+                'terms'             => isset($_POST['accept_terms']) ? 1 : 0 // Acceptation des conditions
             ]);
             if ($result) {
                 // Vérifier si l'utilisateur est connecté
@@ -898,6 +898,7 @@ class Maljani_Sales_Page {
                         // Fallback si pas de dashboard configuré
                         wp_redirect(add_query_arg('sale_success', '1', home_url()));
                     }
+                    exit;
                 } else {
                     // Utilisateur non connecté - vérifier si l'email existe
                     $insured_email = sanitize_email($_POST['insured_email']);
