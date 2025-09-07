@@ -53,7 +53,7 @@ class Maljani_Style_Isolation {
         // Enqueue with high priority to override theme styles
         wp_enqueue_style(
             'maljani-isolated-styles',
-            plugin_dir_url(__FILE__) . '../css/maljani-isolated.css',
+            plugin_dir_url(__FILE__) . 'css/maljani-isolated.css',
             array(),
             $this->version . '_' . time(), // Force reload during development
             'all'
@@ -72,7 +72,7 @@ class Maljani_Style_Isolation {
         if (strpos($hook, 'maljani') !== false || get_post_type() === 'maljani_policy') {
             wp_enqueue_style(
                 'maljani-admin-isolated',
-                plugin_dir_url(__FILE__) . '../css/maljani-isolated.css',
+                plugin_dir_url(__FILE__) . 'css/maljani-isolated.css',
                 array(),
                 $this->version,
                 'all'
