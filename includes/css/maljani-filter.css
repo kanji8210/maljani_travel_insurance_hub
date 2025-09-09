@@ -240,3 +240,53 @@ input[type="date"]:focus {
   overflow-y: auto;
   padding-right: 8px;
 }
+
+/* Typography & links overrides for policy cards (non-destructive, specific) */
+.thumbnail-grid .maljani-policy-item,
+.maljani-policy-infos,
+#maljani-policy-filter-form {
+    font-family: 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    color: #263238; /* primary text color */
+}
+
+/* Title font and color */
+.thumbnail-grid .maljani-policy-item h3 {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 700;
+    color: #102a43; /* darker blue/ink for titles */
+    margin-bottom: 10px;
+    font-size: 1.08rem;
+}
+.thumbnail-grid .maljani-policy-item h3 a {
+    color: #102a43;
+    text-decoration: none;
+}
+.thumbnail-grid .maljani-policy-item h3 a:hover {
+    color: #005177;
+    text-decoration: underline;
+}
+
+/* General link color inside cards */
+.thumbnail-grid .maljani-policy-item a {
+    color: #0073aa;
+}
+
+/* See benefits button - white text with accessible background */
+.thumbnail-grid .see-benefits {
+    color: #ffffff !important;
+    background: #0073aa;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    text-decoration: none !important;
+    font-weight: 600;
+}
+.thumbnail-grid .see-benefits:hover {
+    background: #005177;
+}
+
+/* Ensure insurer name contrast and font-weight */
+.thumbnail-grid .insurer-name {
+    color: #1f2933;
+    font-weight: 600;
+}
