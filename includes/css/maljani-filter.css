@@ -290,3 +290,57 @@ input[type="date"]:focus {
     color: #1f2933;
     font-weight: 600;
 }
+
+/* Strong, scoped overrides to overrule theme styles for the filter block */
+.maljani-filter-wrapper {
+    font-family: 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif !important;
+    color: #263238 !important;
+}
+
+.maljani-filter-wrapper .thumbnail-grid,
+.maljani-filter-wrapper .maljani-policy-grid {
+    gap: 24px !important;
+}
+
+.maljani-filter-wrapper .maljani-policy-item {
+    background-color: #ffffff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
+    color: #263238 !important;
+}
+
+.maljani-filter-wrapper .maljani-policy-item h3 {
+    font-family: 'Georgia', 'Times New Roman', serif !important;
+    color: #102a43 !important;
+}
+
+.maljani-filter-wrapper a {
+    color: #0073aa !important;
+}
+
+/* See benefits as white text button */
+.maljani-filter-wrapper .see-benefits {
+    color: #ffffff !important;
+    background: #0073aa !important;
+    padding: 6px 10px !important;
+    border-radius: 6px !important;
+    display: inline-block !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+}
+.maljani-filter-wrapper .see-benefits:hover {
+    background: #005177 !important;
+}
+
+/* Inputs and buttons within filter form */
+.maljani-filter-wrapper #maljani-policy-filter-form input,
+.maljani-filter-wrapper #maljani-policy-filter-form select,
+.maljani-filter-wrapper #maljani-policy-filter-form button {
+    font-family: inherit !important;
+}
+
+/* Ensure popup benefits have higher stacking and own background */
+.maljani-filter-wrapper .policy-benefits-popup .popup-benefits-content {
+    background: #ffffff !important;
+    color: #222 !important;
+}

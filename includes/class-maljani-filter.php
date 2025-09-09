@@ -2,7 +2,8 @@
 class Maljani_Filter {
     public function __construct() {
         add_shortcode('maljani_policy_ajax_filter', array($this, 'render_filter_form'));
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+    // Load filter assets late to overrule theme styles
+    add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'), 999);
         add_action('wp_ajax_maljani_filter_policies', array($this, 'ajax_filter'));
         add_action('wp_ajax_nopriv_maljani_filter_policies', array($this, 'ajax_filter'));
     }
@@ -24,8 +25,9 @@ class Maljani_Filter {
     public function render_filter_form() {
         ob_start();
         try {
-        ?>
-        <form id="maljani-policy-filter-form" style="display:flex;flex-direction:column;gap:20px;margin-bottom:30px;">
+    ?>
+    <div class="maljani-filter-wrapper">
+    <form id="maljani-policy-filter-form" style="display:flex;flex-direction:column;gap:20px;margin-bottom:30px;">
             <!-- Date inputs -->
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
                 <label style="margin:0;">
@@ -54,6 +56,7 @@ class Maljani_Filter {
         </form>
         <div id="maljani-policy-results">
             <?php $this->render_policy_list(); ?>
+        </div>
         </div>
         <?php
         } catch (Exception $e) {
