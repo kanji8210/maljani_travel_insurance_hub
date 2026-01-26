@@ -24,40 +24,112 @@ class Maljani_Filter {
         }
     }
 
-    public function render_filter_form() {
+    public function render_filter_form($atts = array()) {
+        $atts = shortcode_atts(array(
+            'columns' => '4',
+        ), $atts);
+        
+        $columns = intval($atts['columns']);
+        $columns = max(1, min(4, $columns));
+        
         ob_start();
         try {
     ?>
-    <div class="maljani-filter-wrapper">
+    <style>
+        .maljani-policy-grid-ajax {
+            display: grid;
+            grid-template-columns: repeat(<?php echo esc_attr($columns); ?>, 1fr);
+            gap: 24px;
+            list-style: none;
+            padding: 0;
+            margin: 32px 0 0 0;
+        }
+        @media (max-width: 1024px) {
+            .maljani-policy-grid-ajax {
+                grid-template-columns: repeat(<?php echo min(2, $columns); ?>, 1fr);
+            }
+        }
+        @media (max-width: 700px) {
+            .maljani-policy-grid-ajax {
+                grid-template-columns: 1fr;
+            }
+        }
+        .maljani-policy-card {
+            border: 1px solid #ddd;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .maljani-policy-card h3 {
+            margin: 0;
+            font-size: 1.2em;
+            color: #222;
+        }
+        .maljani-policy-card h3 a {
+            color: #1e5c3a;
+            text-decoration: none;
+        }
+        .maljani-policy-card h3 a:hover {
+            text-decoration: underline;
+        }
+        .policy-buy-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--wp--preset--color--primary, #1e5c3a);
+            color: white;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+        .policy-buy-btn:hover {
+            opacity: 0.9;
+        }
+        .region-filter-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--wp--preset--color--primary, #1e5c3a);
+            background: white;
+            color: var(--wp--preset--color--primary, #1e5c3a);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .region-filter-btn.active,
+        .region-filter-btn:hover {
+            background: var(--wp--preset--color--primary, #1e5c3a);
+            color: white;
+        }
+    </style>
+    <div class="maljani-filter-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
     <form id="maljani-policy-filter-form" style="display:flex;flex-direction:column;gap:20px;margin-bottom:30px;">
             <!-- Date inputs -->
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                <label style="margin:0;">
+                <label style="margin:0;color:#222;">
                     Departure Date:
-                    <input type="date" name="departure" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:4px;" required>
+                    <input type="date" name="departure" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
                 </label>
-                <label style="margin:0;">
+                <label style="margin:0;color:#222;">
                     Return Date:
-                    <input type="date" name="return" style="margin-left:8px;padding:8px;border:1px solid #ddd;border-radius:4px;" required>
+                    <input type="date" name="return" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
                 </label>
             </div>
             
             <!-- Region filter buttons -->
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <span style="font-weight:bold;">Filter by Region:</span>
-                <button type="button" class="region-filter-btn active" data-region="" style="padding:8px 16px;border:1px solid #0073aa;background:#0073aa;color:white;border-radius:4px;cursor:pointer;transition:all 0.3s ease;">All Regions</button>
+                <span style="font-weight:bold;color:#222;">Filter by type/region:</span>
+                <button type="button" class="region-filter-btn active" data-region="">All Regions</button>
                 <?php
                 $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
                 if (!is_wp_error($regions)) {
                     foreach ($regions as $region) {
-                        echo '<button type="button" class="region-filter-btn" data-region="' . esc_attr($region->term_id) . '" style="padding:8px 16px;border:1px solid #0073aa;background:white;color:#0073aa;border-radius:4px;cursor:pointer;transition:all 0.3s ease;">' . esc_html($region->name) . '</button>';
+                        echo '<button type="button" class="region-filter-btn" data-region="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</button>';
                     }
                 }
                 ?>
             </div>
         </form>
         <div id="maljani-policy-results">
-            <?php $this->render_policy_list(); ?>
+            <?php $this->render_policy_list(array(), 0, $columns); ?>
         </div>
         </div>
         <?php
@@ -218,6 +290,7 @@ class Maljani_Filter {
             $region = intval($_POST['region']);
             $departure = sanitize_text_field($_POST['departure']);
             $return = sanitize_text_field($_POST['return']);
+            $columns = isset($_POST['columns']) ? intval($_POST['columns']) : 4;
             
             // Calculate days
             $days = 0;
@@ -252,7 +325,7 @@ class Maljani_Filter {
             }
 
             ob_start();
-            $this->render_policy_list($args, $days);
+            $this->render_policy_list($args, $days, $columns);
             $html = ob_get_clean();
 
             wp_send_json_success(array('html' => $html, 'days' => $days));
@@ -294,7 +367,7 @@ class Maljani_Filter {
         }
     }
 
-    public function render_policy_list($args = array(), $days = 0) {
+    public function render_policy_list($args = array(), $days = 0, $columns = 4) {
         try {
             $defaults = array(
                 'post_type' => 'policy',
@@ -305,18 +378,16 @@ class Maljani_Filter {
 
             if ($query->have_posts()) {
                 if ($days > 0) {
-                    echo '<h2>Policies found for ' . esc_html($days) . ' days of travel</h2>';
-                } else {
-                    echo '<h2>Policies found</h2>';
+                    echo '<h2 style="color:#222;">Policies found for ' . esc_html($days) . ' days of travel</h2>';
                 }
-                echo '<div class="thumbnail-grid">';
+                echo '<ul class="maljani-policy-grid-ajax">';
                 while ($query->have_posts()) {
                     $query->the_post();
                     $this->render_policy_item(get_the_ID(), $days);
                 }
-                echo '</div>';
+                echo '</ul>';
             } else {
-                echo '<p>Please widen your search - no policy was found to match your criteria</p>';
+                echo '<p style="color:#222;">Please widen your search - no policy was found to match your criteria</p>';
             }
             wp_reset_postdata();
         } catch (Exception $e) {
@@ -361,32 +432,31 @@ class Maljani_Filter {
                 }
             }
 
-            echo '<li class="maljani-policy-item" style="display:flex;align-items:flex-start;margin-bottom:24px;border:1px solid #ddd;border-radius:8px;padding:16px;">';
-            echo '<div class="maljani-policy-infos" style="flex:1;">';
-            echo '<h3 style="margin:0 0 12px 0;"><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
+            echo '<li class="maljani-policy-card">';
+            echo '<h3><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
             
             if ($insurer_id && $insurer_name) {
-                echo '<div style="display:flex;align-items:center;margin-bottom:8px;">';
+                echo '<div style="display:flex;align-items:center;gap:8px;">';
                 if ($insurer_logo) {
-                    echo '<img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:32px;height:32px;object-fit:cover;border-radius:50%;margin-right:8px;">';
+                    echo '<img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:32px;height:32px;object-fit:cover;">';
                 }
-                echo '<span class="insurer-name" data-insurer-id="' . esc_attr($insurer_id) . '" style="font-weight:bold;">Insurer: ' . esc_html($insurer_name) . '</span>';
+                echo '<span class="insurer-name" data-insurer-id="' . esc_attr($insurer_id) . '" style="font-weight:bold;color:#222;">Insurer: ' . esc_html($insurer_name) . '</span>';
                 echo '</div>';
             }
             
             if ($region_name) {
-                echo '<div style="margin-bottom:8px;"><strong>Region:</strong> ' . esc_html($region_name) . '</div>';
+                echo '<div style="color:#222;"><strong>Region:</strong> ' . esc_html($region_name) . '</div>';
             }
             
             // Affichage du premium si calculé
             if ($premium && $days > 0) {
-                echo '<div style="margin-bottom:12px;padding:12px;background:#e8f5e8;border-radius:6px;">';
-                echo '<strong style="color:#2d5d2d;">Premium for ' . esc_html($days) . ' days: ' . esc_html($premium) . '</strong>';
+                echo '<div style="padding:12px;background:#f5f5f5;border:1px solid #ddd;">';
+                echo '<strong style="color:#222;">Premium for ' . esc_html($days) . ' days: ' . esc_html($premium) . '</strong>';
                 echo '</div>';
             }
             // Lien et bloc pour les bénéfices (toujours affiché)
-            echo '<div class="policy-benefits-link" style="margin-bottom:12px;">';
-            echo '<a href="#" class="see-benefits" data-policy-id="' . esc_attr($policy_id) . '" style="color:#0073aa;font-weight:500;text-decoration:underline;cursor:pointer;">See benefits</a>';
+            echo '<div class="policy-benefits-link">';
+            echo '<a href="#" class="see-benefits" data-policy-id="' . esc_attr($policy_id) . '" style="color:#1e5c3a;font-weight:500;text-decoration:underline;cursor:pointer;">See benefits</a>';
             echo '</div>';
             $benefits = get_post_meta($policy_id, '_policy_benefits', true);
             echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
@@ -400,7 +470,7 @@ class Maljani_Filter {
             }
             echo '</div>';
             
-            echo '<div style="margin-bottom:12px;">' . esc_html($excerpt) . '</div>';
+            echo '<div style="color:#222;flex:1;">' . esc_html($excerpt) . '</div>';
             
             // Add purchase link if premium is available
             if ($premium && $days > 0) {
@@ -411,11 +481,11 @@ class Maljani_Filter {
                         'departure' => isset($_POST['departure']) ? $_POST['departure'] : '',
                         'return' => isset($_POST['return']) ? $_POST['return'] : ''
                     ], get_permalink($sale_page_id));
-                    echo '<a href="' . esc_url($sale_url) . '" style="display:inline-block;padding:10px 20px;background:#0073aa;color:white;text-decoration:none;border-radius:4px;">Buy Now - ' . esc_html($premium) . '</a>';
+                    echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Buy Now - ' . esc_html($premium) . '</a>';
                 }
             }
             
-            echo '</div>';
+            echo '</li>';
             // Affichage du profil assureur (caché)
             $insurer_profile = get_post_meta($insurer_id, '_insurer_profile', true);
             $insurer_website = get_post_meta($insurer_id, '_insurer_website', true);

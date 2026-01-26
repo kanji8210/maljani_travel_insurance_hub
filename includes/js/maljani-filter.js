@@ -7,11 +7,14 @@ jQuery(document).ready(function($) {
     function loadPolicies(departure = '', return_date = '', region = '') {
         console.log('Loading policies with dates and region:', departure, return_date, region);
         
+        let columns = $('.maljani-filter-wrapper').data('columns') || 4;
+        
         let data = {
             action: 'maljani_filter_policies',
             departure: departure,
             return: return_date,
-            region: region
+            region: region,
+            columns: columns
         };
         
         $('#maljani-policy-results').addClass('loading').html('<p>Calculating premiums...</p>');
@@ -65,15 +68,8 @@ jQuery(document).ready(function($) {
         console.log('Region button clicked:', $(this).data('region'));
         
         // Update button styles
-        $('.region-filter-btn').removeClass('active').css({
-            'background': 'white',
-            'color': '#0073aa'
-        });
-        
-        $(this).addClass('active').css({
-            'background': '#0073aa',
-            'color': 'white'
-        });
+        $('.region-filter-btn').removeClass('active');
+        $(this).addClass('active');
         
         // Update current region
         currentRegion = $(this).data('region') || '';

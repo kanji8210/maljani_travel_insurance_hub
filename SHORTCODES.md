@@ -8,7 +8,13 @@
 Complete policy search with AJAX filtering
 ```
 [maljani_policy_ajax_filter]
+
+<!-- With custom columns -->
+[maljani_policy_ajax_filter columns="3"]
 ```
+
+**Parameters:**
+- `columns` - Number of columns (1-4, default: 4)
 
 #### `[maljani_filter_form]`
 Filter form only (redirects to results page)
