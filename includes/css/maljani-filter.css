@@ -1,4 +1,4 @@
-/* Grille responsive */
+/* Grille responsive - Minimalist */
 .thumbnail-grid,
 .maljani-policy-grid {
     display: flex;
@@ -8,10 +8,9 @@
     padding: 0;
     margin: 32px 0 0 0;
 }
+
 .maljani-policy-item {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    border: 1px solid #ddd;
     display: flex;
     flex: 0 0 calc(33.333% - 16px);
     min-width: 260px;
@@ -19,11 +18,8 @@
     margin-bottom: 0;
     align-items: flex-start;
     overflow: hidden;
-    transition: box-shadow 0.2s;
 }
-.maljani-policy-item:hover {
-    box-shadow: 0 4px 24px rgba(0,0,0,0.13);
-}
+
 .maljani-policy-thumb {
     flex: 0 0 120px;
     height: 180px;
@@ -31,14 +27,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f7f7f7;
 }
+
 .maljani-policy-thumb img {
     width: 120px;
     height: 180px;
     object-fit: cover;
-    border-radius: 12px 0 0 12px;
 }
+
 .maljani-policy-infos {
     padding: 18px 18px 18px 0;
     flex: 1 1 auto;
@@ -46,30 +42,33 @@
     flex-direction: column;
     justify-content: space-between;
 }
+
 .maljani-policy-region {
     font-size: 0.98em;
-    color: #0073aa;
+    color: #1e5c3a;
     margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
+
 .maljani-policy-insurer {
     display: flex;
     align-items: center;
     margin-bottom: 8px;
     gap: 8px;
 }
+
 .maljani-insurer-logo {
     width: 28px;
     height: 28px;
     object-fit: cover;
-    border-radius: 50%;
-    background: #f0f0f0;
+    border: 1px solid #ddd;
 }
+
 .maljani-policy-excerpt {
     font-size: 1em;
-    color: #444;
+    color: #222;
     margin-top: 8px;
 }
 

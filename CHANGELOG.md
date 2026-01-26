@@ -1,5 +1,160 @@
 # Maljani Travel Insurance Hub - Notes de Version
 
+## Version 1.0.2 - 26 janvier 2026
+
+### 🎯 Nouveaux Shortcodes
+
+#### [maljani_filter_form]
+- **Formulaire de filtre autonome** : affiche uniquement le formulaire de recherche
+- **Redirection paramétrable** : redirige vers une page de résultats avec les critères GET
+- **Usage** : `[maljani_filter_form redirect="/policies/"]`
+- Parfait pour les widgets de recherche et les flows multi-pages
+
+#### [maljani_policy_grid]
+- **Grille de polices personnalisable** : contrôle des colonnes et du nombre de polices
+- **Paramètre `columns`** : 1-4 colonnes (défaut: 3)
+- **Paramètre `posts_per_page`** : 1-50 polices (défaut: 12)
+- **Paramètre `region`** : pré-filtrage par région
+- **Usage** : `[maljani_policy_grid columns="4" posts_per_page="20"]`
+- Design responsive avec ajustement automatique mobile
+
+### 📚 Documentation
+
+#### SHORTCODES-REFERENCE.md
+- **Documentation complète** de tous les shortcodes (7 au total)
+- **Exemples d'utilisation** détaillés pour chaque shortcode
+- **Configurations multi-pages** : search form + results grid
+- **Tableaux de référence** des paramètres
+- Guide de dépannage et optimisation
+
+#### SHORTCODES.md (mise à jour)
+- **Guide rapide** en anglais
+- **Syntaxes essentielles** pour tous les shortcodes
+- **Configurations courantes** : homepage, résultats, ventes
+- Lien vers la documentation complète
+
+### 🎨 Améliorations UX
+
+- **Grilles responsives** : ajustement automatique selon la taille d'écran
+- **Meilleure séparation** : formulaire de recherche vs résultats
+- **Flexibilité d'affichage** : 1-4 colonnes au choix
+- **Contrôle du contenu** : nombre de polices ajustable
+
+---
+
+## Version 1.0.1 - 26 janvier 2026
+
+### 🔒 Améliorations de Sécurité
+
+#### Correction CSRF sur les endpoints AJAX
+- **Ajout de vérification nonce** sur `ajax_get_policy_premium`
+- **Validation des entrées** : vérification que policy_id et days sont valides
+- **Vérification du type de post** : s'assure que la police existe et est publiée
+- Protection contre les requêtes forgées
+
+#### Protection des PDFs
+- **Vérification d'authentification** : les utilisateurs doivent être connectés
+- **Contrôle d'autorisation** : seuls les admins, l'agent créateur ou le client assuré peuvent accéder au PDF
+- **Messages d'erreur améliorés** en anglais pour meilleure UX
+- Appliqué sur `generate-policy-pdf.php` et `generate-policy-pdf-bluehost.php`
+
+#### Validation des Données
+- **Nouvelle méthode `validate_dates()`** dans `class-maljani-sales-page.php`
+- Vérification du format de date (YYYY-MM-DD)
+- Validation que la date de retour est après le départ
+- Vérification que le départ n'est pas dans le passé
+- Limite de durée maximale (365 jours)
+
+### ⚡ Optimisations de Performance
+
+#### Système de Cache
+- **Nouvelle classe `Maljani_Cache`** pour la gestion du cache
+- Cache des calculs de premium avec transients (24h)
+- Cache des requêtes de polices avec object cache (1h)
+- Cache des régions pour éviter les requêtes répétitives
+- Nettoyage automatique lors de la mise à jour des polices
+
+#### Fonctions de Cache
+- `Maljani_Cache::get_premium()` - Récupération de premium avec cache
+- `Maljani_Cache::get_policies()` - Liste des polices avec cache
+- `Maljani_Cache::get_regions()` - Régions avec cache
+- `Maljani_Cache::clear_all()` - Nettoyage complet
+- `Maljani_Cache::clear_policy_cache()` - Nettoyage par police
+
+### 📊 Système de Logging
+
+#### Nouvelle Classe Logger
+- **`Maljani_Logger`** pour le logging structuré
+- Niveaux de log : error, warning, info, debug
+- Logs sauvegardés dans `/wp-uploads/maljani-logs/`
+- Protection .htaccess pour sécuriser les logs
+- Rotation automatique des logs (30 jours)
+
+#### Fonctionnalités Logger
+- `Maljani_Logger::error()` - Erreurs critiques
+- `Maljani_Logger::warning()` - Avertissements
+- `Maljani_Logger::info()` - Informations
+- `Maljani_Logger::debug()` - Débogage
+- `get_recent_logs()` - Consultation des logs récents
+- `cleanup_old_logs()` - Nettoyage automatique
+
+### 📝 Documentation
+
+#### README.txt Complet
+- Description détaillée du plugin
+- Liste complète des fonctionnalités
+- Instructions d'installation pas à pas
+- FAQ avec réponses communes
+- Informations sur les shortcodes
+- Notes de mise à niveau
+- Informations de support et contribution
+
+#### Améliorations Documentation
+- Meilleur formatage pour WordPress.org
+- Tags appropriés pour la recherche
+- Version et compatibilité WordPress mise à jour
+- Section Privacy Policy ajoutée
+
+### 🔧 Changements Techniques
+
+#### Fichiers Modifiés
+- `admin/class-maljani-policy-sales.php` - Sécurité AJAX
+- `includes/generate-policy-pdf.php` - Permissions
+- `includes/generate-policy-pdf-bluehost.php` - Permissions
+- `includes/class-maljani-sales-page.php` - Validation
+- `maljani.php` - Chargement nouvelles classes
+- `README.txt` - Documentation complète
+
+#### Nouveaux Fichiers
+- `includes/class-maljani-logger.php` - Système de logging
+- `includes/class-maljani-cache.php` - Système de cache
+
+#### Version
+- Mise à jour de 1.0.0 à 1.0.1
+- Constante `MALJANI_VERSION` mise à jour
+
+### 🐛 Corrections de Bugs
+
+- **Accès non autorisé aux PDFs** - Maintenant correctement restreint
+- **CSRF sur AJAX** - Protection nonce ajoutée
+- **Validation dates** - Vérification complète implémentée
+- **Performance queries** - Optimisée avec cache
+
+### ⚠️ Notes de Migration
+
+#### Pour les développeurs
+- Les nouvelles classes sont chargées automatiquement
+- Le cache se met à jour automatiquement lors des modifications
+- Les logs sont créés seulement si `WP_DEBUG` est activé
+- Aucune modification de base de données requise
+
+#### Compatibilité
+- Compatible avec les versions précédentes
+- Aucun changement breaking
+- Les shortcodes existants fonctionnent sans modification
+
+---
+
 ## Version 1.0.0 - Juillet 2025
 
 ### 🎉 Version Initiale

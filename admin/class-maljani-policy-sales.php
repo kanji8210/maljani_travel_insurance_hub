@@ -48,13 +48,31 @@ class Maljani_Policy_Sales_Admin {
     }
 
     public function ajax_get_policy_premium() {
-        $policy_id = intval($_POST['policy_id']);
-        $days = intval($_POST['days']);
+        // Security: Verify nonce
+        check_ajax_referer('maljani_premium_nonce', 'security');
+        
+        // Validate inputs
+        $policy_id = isset($_POST['policy_id']) ? intval($_POST['policy_id']) : 0;
+        $days = isset($_POST['days']) ? intval($_POST['days']) : 0;
+        
+        if (!$policy_id || !$days) {
+            wp_send_json_error('Invalid parameters');
+            return;
+        }
+        
+        // Check if post exists and is published
+        $policy = get_post($policy_id);
+        if (!$policy || $policy->post_type !== 'policy' || $policy->post_status !== 'publish') {
+            wp_send_json_error('Invalid policy');
+            return;
+        }
+        
         $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
-      $premium = '';
+        $premium = '';
+        
         if (is_array($premiums)) {
             foreach ($premiums as $row) {
-                if ($days >= $row['from'] && $days <= $row['to']) {
+                if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
                     $premium = $row['premium'];
                     break;
                 }

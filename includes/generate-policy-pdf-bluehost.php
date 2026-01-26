@@ -38,9 +38,9 @@ try {
         }
     }
 
-    // Vérification de sécurité basique
-    if (!current_user_can('read')) {
-        wp_die('Access denied: You do not have permission to access this resource.');
+    // Security: Verify user is logged in
+    if (!is_user_logged_in()) {
+        wp_die('You must be logged in to access this document.');
     }
 
     // Validation des paramètres
@@ -71,6 +71,17 @@ try {
     
     if (!$sale) {
         wp_die('Error: Sale record not found for ID: ' . $sale_id);
+    }
+    
+    // Security: Verify user has permission to view this sale
+    $current_user_id = get_current_user_id();
+    $user_email = wp_get_current_user()->user_email;
+    
+    // Allow: Admins, the agent who created it, or the insured person
+    if (!current_user_can('manage_options') && 
+        $sale->agent_id != $current_user_id && 
+        $sale->insured_email != $user_email) {
+        wp_die('You are not authorized to access this document.');
     }
 
     // Récupération des informations de la police

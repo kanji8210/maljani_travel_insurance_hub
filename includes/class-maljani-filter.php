@@ -2,6 +2,8 @@
 class Maljani_Filter {
     public function __construct() {
         add_shortcode('maljani_policy_ajax_filter', array($this, 'render_filter_form'));
+        add_shortcode('maljani_filter_form', array($this, 'render_filter_form_only'));
+        add_shortcode('maljani_policy_grid', array($this, 'render_policy_grid'));
     // Load filter assets late to overrule theme styles
     add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'), 999);
         add_action('wp_ajax_maljani_filter_policies', array($this, 'ajax_filter'));
@@ -62,6 +64,152 @@ class Maljani_Filter {
         } catch (Exception $e) {
             echo '<div class="error">Error displaying filter form: ' . esc_html($e->getMessage()) . '</div>';
         }
+        return ob_get_clean();
+    }
+
+    /**
+     * Render filter form only (without policy grid)
+     * Shortcode: [maljani_filter_form]
+     * 
+     * @param array $atts Shortcode attributes
+     * @return string HTML output
+     */
+    public function render_filter_form_only($atts = array()) {
+        $atts = shortcode_atts(array(
+            'redirect' => '', // URL to redirect to with filter parameters
+        ), $atts);
+        
+        ob_start();
+        try {
+    ?>
+    <div class="maljani-filter-form-only">
+        <form id="maljani-filter-form-standalone" method="get" action="<?php echo esc_url($atts['redirect'] ? $atts['redirect'] : ''); ?>" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <label style="margin:0;color:#222;">
+                Departure Date:
+                <input type="date" name="departure" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
+            </label>
+            <label style="margin:0;color:#222;">
+                Return Date:
+                <input type="date" name="return" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
+            </label>
+            <label style="margin:0;color:#222;">
+                Filter by type/region:
+                <select name="region_id" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;">
+                    <option value="">All Regions</option>
+                    <?php
+                    $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
+                    if (!is_wp_error($regions)) {
+                        foreach ($regions as $region) {
+                            echo '<option value="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</option>';
+                        }
+                    }
+                    ?>
+                </select>
+            </label>
+            <button type="submit" style="padding:10px 24px;border:1px solid #222;color:#222;cursor:pointer;">Search Policies</button>
+        </form>
+    </div>
+    <?php
+        } catch (Exception $e) {
+            echo '<div class="error">Error displaying filter form: ' . esc_html($e->getMessage()) . '</div>';
+        }
+        return ob_get_clean();
+    }
+
+    /**
+     * Render policy grid with customizable columns and posts per page
+     * Shortcode: [maljani_policy_grid columns="3" posts_per_page="12"]
+     * 
+     * @param array $atts Shortcode attributes
+     * @return string HTML output
+     */
+    public function render_policy_grid($atts = array()) {
+        $atts = shortcode_atts(array(
+            'columns' => '3',
+            'posts_per_page' => '12',
+            'region' => '',
+        ), $atts);
+        
+        $columns = intval($atts['columns']);
+        $columns = max(1, min(4, $columns)); // Limit between 1-4 columns
+        
+        $posts_per_page = intval($atts['posts_per_page']);
+        $posts_per_page = max(1, min(50, $posts_per_page)); // Limit between 1-50 posts
+        
+        // Get filter parameters from URL
+        $region_id = isset($_GET['region_id']) ? intval($_GET['region_id']) : ($atts['region'] ? intval($atts['region']) : 0);
+        $departure = isset($_GET['departure']) ? sanitize_text_field($_GET['departure']) : '';
+        $return = isset($_GET['return']) ? sanitize_text_field($_GET['return']) : '';
+        
+        // Calculate days
+        $days = 0;
+        if ($departure && $return) {
+            $d1 = new DateTime($departure);
+            $d2 = new DateTime($return);
+            $days = $d1 < $d2 ? $d1->diff($d2)->days : 0;
+        }
+        
+        $args = array(
+            'post_type' => 'policy',
+            'posts_per_page' => $posts_per_page,
+        );
+        
+        if ($region_id) {
+            $args['tax_query'] = array(
+                array(
+                    'taxonomy' => 'policy_region',
+                    'field' => 'term_id',
+                    'terms' => $region_id,
+                )
+            );
+        }
+        
+        // Calculate column width based on columns parameter
+        $column_width = 100 / $columns;
+        
+        ob_start();
+        ?>
+        <style>
+            .maljani-policy-grid-<?php echo esc_attr($columns); ?> {
+                display: grid;
+                grid-template-columns: repeat(<?php echo esc_attr($columns); ?>, 1fr);
+                gap: 24px;
+                list-style: none;
+                padding: 0;
+                margin: 32px 0 0 0;
+            }
+            @media (max-width: 1024px) {
+                .maljani-policy-grid-<?php echo esc_attr($columns); ?> {
+                    grid-template-columns: repeat(<?php echo min(2, $columns); ?>, 1fr);
+                }
+            }
+            @media (max-width: 700px) {
+                .maljani-policy-grid-<?php echo esc_attr($columns); ?> {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+        <div class="maljani-policy-grid-wrapper">
+            <?php
+            $query = new WP_Query($args);
+            
+            if ($query->have_posts()) {
+                if ($days > 0) {
+                    echo '<h2 style="color:#222;">Policies found for ' . esc_html($days) . ' days of travel</h2>';
+                }
+                echo '<ul class="maljani-policy-grid-' . esc_attr($columns) . '">';
+                while ($query->have_posts()) {
+                    $query->the_post();
+                    $this->render_policy_item(get_the_ID(), $days);
+                }
+                echo '</ul>';
+            } else {
+                echo '<p style="color:#222;">Please widen your search - no policy was found to match your criteria</p>';
+            }
+            wp_reset_postdata();
+            ?>
+        </div>
+        <?php
         return ob_get_clean();
     }
 

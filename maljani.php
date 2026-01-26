@@ -3,7 +3,7 @@
  * Plugin Name:       maljani travel hub
  * Plugin URI: https://github.com/kanji8210/maljani_travel_insurance_hub 
  * Description:       Maljani Insurance Aggregator is a modular WordPress plugin designed to streamline the management of insurers and policies within a centralized admin interface. It allows administrators to register, display, and manage custom post types for insurer profiles and insurance policies, complete with logo uploads, product listings, and detailed descriptions. Built on a scalable boilerplate architecture, it supports CRUD operations, role-based permissions, and frontend submissions. The plugin also lays the groundwork for REST API integration and dynamic premium calculations, making it ideal for organizations aiming to offer user-friendly insurance comparison tools while maintaining clean code and extendability. Available shortcodes: [maljani_policy_sale], [maljani_user_dashboard], [maljani_agent_register]. See SHORTCODES.md for complete documentation.
- * Version:           1.0.0
+ * Version:           1.0.2
  * Author:            Dennis kip
  * Author URI:        https://kipdevwp.tech/
  * License:           GPL-2.0+
@@ -18,11 +18,15 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Définition de la version du plugin
-define( 'MALJANI_VERSION', '1.0.0' );
+define( 'MALJANI_VERSION', '1.0.2' );
 
 // ==========================
 // INCLUSIONS PRINCIPALES
 // ==========================
+
+// Logger and Cache (load first)
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-logger.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-cache.php';
 
 // Classe principale du plugin
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani.php';

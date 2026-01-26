@@ -35,15 +35,30 @@ if (!file_exists($tcpdf_path)) {
 }
 require_once $tcpdf_path;
 
-// if (!current_user_can('manage_options')) wp_die('Not allowed');
+// Security: Verify user is logged in
+if (!is_user_logged_in()) {
+    wp_die('You must be logged in to access this document.');
+}
 
 $sale_id = isset($_GET['sale_id']) && !empty($_GET['sale_id']) ? intval($_GET['sale_id']) : 0;
-if (!$sale_id) wp_die('No sale ID');
+if (!$sale_id) wp_die('No sale ID provided.');
 
 global $wpdb;
 $table = $wpdb->prefix . 'policy_sale';
 $sale = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $sale_id));
-if (!$sale) wp_die('Sale not found');
+
+if (!$sale) wp_die('Sale not found.');
+
+// Security: Verify user has permission to view this sale
+$current_user_id = get_current_user_id();
+$user_email = wp_get_current_user()->user_email;
+
+// Allow: Admins, the agent who created it, or the insured person
+if (!current_user_can('manage_options') && 
+    $sale->agent_id != $current_user_id && 
+    $sale->insured_email != $user_email) {
+    wp_die('You are not authorized to access this document.');
+}
 
 // Policy info
 $policy_id = $sale->policy_id;

@@ -35,6 +35,47 @@ class Maljani_Sales_Page {
         add_filter('the_content', [$this, 'maybe_inject_sales_form']);
     }
     
+    /**
+     * Validate travel dates
+     *
+     * @param string $departure Departure date in Y-m-d format
+     * @param string $return Return date in Y-m-d format
+     * @return bool|string True if valid, error message if invalid
+     */
+    private function validate_dates($departure, $return) {
+        // Check format
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $departure) || 
+            !preg_match('/^\d{4}-\d{2}-\d{2}$/', $return)) {
+            return 'Invalid date format. Please use the date picker.';
+        }
+        
+        // Check that dates are valid
+        $dep_time = strtotime($departure);
+        $ret_time = strtotime($return);
+        
+        if ($dep_time === false || $ret_time === false) {
+            return 'Invalid dates provided.';
+        }
+        
+        // Check that departure is before return
+        if ($dep_time >= $ret_time) {
+            return 'Return date must be after departure date.';
+        }
+        
+        // Check that departure is not in the past (allow today)
+        if ($dep_time < strtotime('today')) {
+            return 'Departure date cannot be in the past.';
+        }
+        
+        // Check that the trip is not too long (e.g., max 365 days)
+        $days = ceil(($ret_time - $dep_time) / (60 * 60 * 24));
+        if ($days > 365) {
+            return 'Trip duration cannot exceed 365 days.';
+        }
+        
+        return true;
+    }
+    
     // Nouvelle fonction pour gérer les redirections de sélection de police
     public function handle_policy_redirection() {
         // Ne pas rediriger automatiquement - laisser le formulaire fonctionner naturellement

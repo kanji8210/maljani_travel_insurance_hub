@@ -1,4 +1,16 @@
 /**
- * All of the CSS for your public-facing functionality should be
- * included in this file.
+ * Public-facing styles - Minimalist
  */
+
+.maljani-public {
+    color: #222;
+}
+
+.maljani-public a {
+    color: #1e5c3a;
+    text-decoration: underline;
+}
+
+.maljani-public a:hover {
+    text-decoration: none;
+}

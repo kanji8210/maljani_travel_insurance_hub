@@ -1,19 +1,16 @@
-/* register-user.css - Style moderne pour le formulaire d'inscription assuré/agent */
+/* register-user.css - Minimalist */
 .maljani-register-form {
-  background: rgba(255,255,255,0.20);
-  border-radius: 14px;
-  box-shadow: 0 4px 24px rgba(24,49,83,0.10);
   max-width: 420px;
   margin: 40px auto;
   padding: 32px 24px 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  border: 2px solid #17624a;
+  border: 1px solid #ddd;
 }
 .maljani-register-form label {
   font-size: 1em;
-  color: #183153;
+  color: #222;
   font-weight: 500;
   margin-bottom: 0;
 }
@@ -21,51 +18,37 @@
 .maljani-register-form input[type="email"],
 .maljani-register-form input[type="date"],
 .maljani-register-form input[type="password"] {
-  border: 2px solid #17624a;
-  border-radius: 6px;
+  border: 1px solid #ddd;
   padding: 10px 12px;
   margin-top: 5px;
   margin-bottom: 5px;
   font-size: 1em;
-  background: #f7f9fa;
-  color: #183153;
-  transition: border 0.2s, background 0.2s;
+  color: #222;
 }
 .maljani-register-form input:focus {
-  border-color: #17624a;
-  background: #eaf6f1;
+  border-color: #222;
   outline: none;
 }
 .maljani-register-form input[type="radio"],
 .maljani-register-form input[type="checkbox"] {
-  accent-color: #17624a;
   margin-right: 8px;
 }
 .maljani-register-form button[type="submit"] {
-  background: #183153;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
+  border: 1px solid #222;
   padding: 12px 0;
   font-size: 1.08em;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
   margin-top: 8px;
-  box-shadow: 0 2px 8px rgba(24,49,83,0.06);
-}
-.maljani-register-form button[type="submit"]:hover {
-  background: #17624a;
-  color: #fff;
+  color: #222;
 }
 .maljani-register-form a {
-  color: #183153;
+  color: #1e5c3a;
   text-decoration: underline;
   font-size: 0.97em;
-  transition: color 0.2s;
 }
 .maljani-register-form a:hover {
-  color: #17624a;
+  text-decoration: none;
 }
 @media (max-width: 600px) {
   .maljani-register-form {
