@@ -64,6 +64,8 @@ class Policy_CPT {
 
     // Affiche la metabox
     public function render_meta_box($post) {
+        wp_nonce_field('policy_meta_box', 'policy_meta_box_nonce');
+        
         // Récupération des valeurs existantes
         $insurer_id = get_post_meta($post->ID, '_policy_insurer', true);
         $region = get_post_meta($post->ID, '_policy_region', true);
@@ -75,27 +77,160 @@ class Policy_CPT {
         $feature_img_id = get_post_meta($post->ID, '_policy_feature_img', true);
         $feature_img_url = $feature_img_id ? wp_get_attachment_url($feature_img_id) : '';
 
+        echo '<style>
+            .policy-form-section {
+                background: #fff;
+                border: 1px solid #ddd;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .policy-form-section h3 {
+                margin: 0 0 15px 0;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #1e5c3a;
+                color: #222;
+            }
+            .policy-form-row {
+                margin-bottom: 15px;
+            }
+            .policy-form-row label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 5px;
+                color: #222;
+            }
+            .policy-form-row input[type="text"],
+            .policy-form-row select {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+            }
+            .policy-premium-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .policy-premium-table th {
+                background: #f5f5f5;
+                padding: 10px;
+                text-align: left;
+                border: 1px solid #ddd;
+                font-weight: 600;
+            }
+            .policy-premium-table td {
+                padding: 8px;
+                border: 1px solid #ddd;
+            }
+            .policy-premium-table input {
+                width: 100%;
+                padding: 6px;
+                border: 1px solid #ddd;
+            }
+            .policy-btn-primary {
+                background: #1e5c3a;
+                color: #fff;
+                border: none;
+                padding: 8px 16px;
+                cursor: pointer;
+                font-weight: 500;
+            }
+            .policy-btn-primary:hover {
+                opacity: 0.9;
+            }
+            .policy-btn-secondary {
+                background: #fff;
+                color: #222;
+                border: 1px solid #ddd;
+                padding: 8px 16px;
+                cursor: pointer;
+            }
+            .policy-feature-img-preview {
+                max-width: 150px;
+                max-height: 225px;
+                border: 1px solid #ddd;
+                display: block;
+                margin: 10px 0;
+            }
+            .policy-info-box {
+                background: #f0f8ff;
+                padding: 15px;
+                border-left: 4px solid #1e5c3a;
+                margin: 20px 0;
+            }
+        </style>';
+
+        // Section 1: Basic Information
+        echo '<div class="policy-form-section">';
+        echo '<h3>Basic Information</h3>';
+        
         // Sélecteur d'assureur
         $insurers = get_posts(array(
             'post_type' => 'insurer_profile',
             'numberposts' => -1,
             'post_status' => 'publish'
         ));
-        echo '<label for="policy_insurer">Insurer :</label><br>';
-        echo '<select id="policy_insurer" name="policy_insurer" style="width:100%;">';
-        echo '<option value="">-- Select --</option>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_insurer">Insurer</label>';
+        echo '<select id="policy_insurer" name="policy_insurer">';
+        echo '<option value="">-- Select Insurer --</option>';
         foreach ($insurers as $insurer) {
             $selected = ($insurer_id == $insurer->ID) ? 'selected' : '';
             echo '<option value="' . esc_attr($insurer->ID) . '" ' . $selected . '>' . esc_html($insurer->post_title) . '</option>';
         }
-        echo '</select><br><br>';
+        echo '</select>';
+        echo '</div>';
+
+        // Région
+        $regions = get_terms(array(
+            'taxonomy' => 'policy_region',
+            'hide_empty' => false,
+        ));
+        $current_regions = wp_get_post_terms($post->ID, 'policy_region', array('fields' => 'ids'));
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_region">Region</label>';
+        echo '<div style="display:flex;gap:10px;align-items:center;">';
+        echo '<select id="policy_region" name="policy_region" style="flex:1;">';
+        echo '<option value="">-- Select Region --</option>';
+        foreach ($regions as $region) {
+            $selected = in_array($region->term_id, $current_regions) ? 'selected' : '';
+            echo '<option value="' . esc_attr($region->term_id) . '" ' . $selected . '>' . esc_html($region->name) . '</option>';
+        }
+        echo '</select>';
+        echo '<input type="text" id="new_policy_region" placeholder="Add new region" style="flex:1;" />';
+        echo '<button type="button" id="add_policy_region" class="policy-btn-primary">Add</button>';
+        echo '</div>';
+        echo '</div>';
 
         // Description
-        echo '<label for="policy_description">Description :</label><br>';
-        echo '<input type="text" id="policy_description" name="policy_description" value="' . esc_attr($description) . '" style="width:100%;" /><br><br>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_description">Short Description</label>';
+        echo '<input type="text" id="policy_description" name="policy_description" value="' . esc_attr($description) . '" placeholder="Brief description of this policy" />';
+        echo '</div>';
+        
+        echo '</div>'; // End Basic Information
 
+        // Section 2: Feature Image
+        echo '<div class="policy-form-section">';
+        echo '<h3>Feature Image</h3>';
+        echo '<div class="policy-form-row">';
+        echo '<label>Policy Image (recommended: portrait 4:6 ratio)</label>';
+        echo '<input type="hidden" id="policy_feature_img" name="policy_feature_img" value="' . esc_attr($feature_img_id) . '" />';
+        if ($feature_img_url) {
+            echo '<img id="policy_feature_img_preview" src="' . esc_url($feature_img_url) . '" class="policy-feature-img-preview" />';
+        } else {
+            echo '<img id="policy_feature_img_preview" src="" class="policy-feature-img-preview" style="display:none;" />';
+        }
+        echo '<button type="button" class="policy-btn-primary" id="upload_policy_feature_img">Upload Image</button>';
+        echo '<button type="button" class="policy-btn-secondary" id="remove_policy_feature_img" style="margin-left:10px;">Remove</button>';
+        echo '</div>';
+        echo '</div>'; // End Feature Image
+
+        // Section 3: Policy Details
+        echo '<div class="policy-form-section">';
+        echo '<h3>Policy Details</h3>';
+        
         // Cover details (WYSIWYG)
-        echo '<label for="policy_cover_details">Cover Details :</label><br>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_cover_details">Cover Details</label>';
         wp_editor($cover_details, 'policy_cover_details', array(
             'textarea_name' => 'policy_cover_details',
             'textarea_rows' => 8,
@@ -112,10 +247,11 @@ class Policy_CPT {
                 'buttons' => 'strong,em,ul,ol,li,link,block,del,ins,img,more,code'
             )
         ));
-        echo '<br>';
+        echo '</div>';
 
         // Benefits (WYSIWYG)
-        echo '<label for="policy_benefits">Benefits :</label><br>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_benefits">Benefits</label>';
         wp_editor($benefits, 'policy_benefits', array(
             'textarea_name' => 'policy_benefits',
             'textarea_rows' => 8,
@@ -132,10 +268,11 @@ class Policy_CPT {
                 'buttons' => 'strong,em,ul,ol,li,link,block,del,ins,img,more,code'
             )
         ));
-        echo '<br>';
+        echo '</div>';
 
         // What is not covered
-        echo '<label for="policy_not_covered">What is not covered :</label><br>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_not_covered">What is Not Covered</label>';
         wp_editor($not_covered, 'policy_not_covered', array(
             'textarea_name' => 'policy_not_covered',
             'textarea_rows' => 8,
@@ -152,70 +289,66 @@ class Policy_CPT {
                 'buttons' => 'strong,em,ul,ol,li,link,block,del,ins,img,more,code'
             )
         ));
-        echo '<br>';
+        echo '</div>';
+        echo '</div>'; // End Policy Details
 
-        // Jour & prime (tableau dynamique)
-        echo '<label>Day Range & Premiums :</label>';
-        echo '<table id="day-premium-table" style="width:100%;margin-bottom:10px;">';
-        echo '<thead><tr><th>From (days)</th><th>To (days)</th><th>Premium</th><th></th></tr></thead><tbody>';
+        // Section 4: Pricing
+        echo '<div class="policy-form-section">';
+        echo '<h3>Pricing Structure</h3>';
+        echo '<div class="policy-form-row">';
+        echo '<label>Day Range & Premiums</label>';
+        echo '<p style="color:#666;margin:5px 0 10px 0;">Define premium amounts based on travel duration ranges</p>';
+        echo '<table class="policy-premium-table" id="day-premium-table">';
+        echo '<thead><tr><th>From (days)</th><th>To (days)</th><th>Premium Amount</th><th style="width:80px;">Action</th></tr></thead><tbody>';
         if (!empty($day_premiums) && is_array($day_premiums)) {
             foreach ($day_premiums as $row) {
                 echo '<tr>
-                    <td><input type="number" name="day_premium_from[]" value="' . esc_attr($row['from']) . '" min="1" style="width:90px;" /></td>
-                    <td><input type="number" name="day_premium_to[]" value="' . esc_attr($row['to']) . '" min="1" style="width:90px;" /></td>
-                    <td><input type="number" name="day_premium_amount[]" value="' . esc_attr($row['premium']) . '" min="0" step="0.01" style="width:120px;" /></td>
-                    <td><button type="button" class="remove-row button">-</button></td>
+                    <td><input type="number" name="day_premium_from[]" value="' . esc_attr($row['from']) . '" min="1" placeholder="1" /></td>
+                    <td><input type="number" name="day_premium_to[]" value="' . esc_attr($row['to']) . '" min="1" placeholder="365" /></td>
+                    <td><input type="number" name="day_premium_amount[]" value="' . esc_attr($row['premium']) . '" min="0" step="0.01" placeholder="0.00" /></td>
+                    <td><button type="button" class="remove-row policy-btn-secondary">Remove</button></td>
                 </tr>';
             }
         } else {
             // Ligne vide par défaut
             echo '<tr>
-                <td><input type="number" name="day_premium_from[]" value="" min="1" style="width:90px;" /></td>
-                <td><input type="number" name="day_premium_to[]" value="" min="1" style="width:90px;" /></td>
-                <td><input type="number" name="day_premium_amount[]" value="" min="0" step="0.01" style="width:120px;" /></td>
-                <td><button type="button" class="remove-row button">-</button></td>
+                <td><input type="number" name="day_premium_from[]" value="" min="1" placeholder="1" /></td>
+                <td><input type="number" name="day_premium_to[]" value="" min="1" placeholder="365" /></td>
+                <td><input type="number" name="day_premium_amount[]" value="" min="0" step="0.01" placeholder="0.00" /></td>
+                <td><button type="button" class="remove-row policy-btn-secondary">Remove</button></td>
             </tr>';
         }
         echo '</tbody></table>';
-        echo '<button type="button" id="add-day-premium-row" class="button">Add Row</button>';
-
-        // Feature Image (portrait)
-        echo '<label for="policy_feature_img">Feature Image (recommandé : portrait 4:6, mais toutes les images sont acceptées) :</label><br>';
-        echo '<input type="hidden" id="policy_feature_img" name="policy_feature_img" value="' . esc_attr($feature_img_id) . '" />';
-        echo '<img id="policy_feature_img_preview" src="' . esc_url($feature_img_url) . '" style="max-width:120px;max-height:180px;display:block;margin-bottom:5px;" />';
-        echo '<button type="button" class="button" id="upload_policy_feature_img">Upload Image</button><br><br>';
-
-        // Région (dropdown + ajout rapide)
-        $regions = get_terms(array(
-            'taxonomy' => 'policy_region',
-            'hide_empty' => false,
-        ));
-        $current_regions = wp_get_post_terms($post->ID, 'policy_region', array('fields' => 'ids'));
-        echo '<label for="policy_region">Region :</label><br>';
-        echo '<select id="policy_region" name="policy_region" style="width:100%;">';
-        echo '<option value="">-- Select --</option>';
-        foreach ($regions as $region) {
-            $selected = in_array($region->term_id, $current_regions) ? 'selected' : '';
-            echo '<option value="' . esc_attr($region->term_id) . '" ' . $selected . '>' . esc_html($region->name) . '</option>';
-        }
-        echo '</select> ';
-        echo '<input type="text" id="new_policy_region" placeholder="Add new region" style="width:60%;" />';
-        echo '<button type="button" id="add_policy_region" class="button">Add</button><br><br>';
-
-        // Note about public form
-        echo '<div style="background: #f0f8ff; padding: 15px; border-left: 4px solid #0073aa; margin: 20px 0;">';
-        echo '<p><strong>Note:</strong> Le formulaire de devis avec les dates de départ/retour s\'affichera automatiquement sur la page publique de cette politique.</p>';
+        echo '<button type="button" id="add-day-premium-row" class="policy-btn-primary" style="margin-top:10px;">Add Pricing Row</button>';
         echo '</div>';
+        echo '</div>'; // End Pricing
 
-        // Ajout d'un champ longtext pour les détails de paiement
+        // Section 5: Additional Information
+        echo '<div class="policy-form-section">';
+        echo '<h3>Additional Information</h3>';
+        
+        // Payment details
         $payment_details = get_post_meta($post->ID, '_policy_payment_details', true);
-        echo '<label for="policy_payment_details">Payment Details (privé, non publié) :</label><br>';
-        echo '<textarea id="policy_payment_details" name="policy_payment_details" style="width:100%;height:80px;">' . esc_textarea($payment_details) . '</textarea><br><br>';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_payment_details">Payment Details (Private - Not Published)</label>';
+        echo '<textarea id="policy_payment_details" name="policy_payment_details" rows="4" style="width:100%;padding:8px;border:1px solid #ddd;">' . esc_textarea($payment_details) . '</textarea>';
+        echo '<p style="color:#666;margin:5px 0 0 0;">Internal notes about payment processing, commissions, etc.</p>';
+        echo '</div>';
+        
+        // Info box
+        echo '<div class="policy-info-box">';
+        echo '<p style="margin:0;"><strong>Note:</strong> A public quote form with departure/return dates will automatically display on this policy\'s public page.</p>';
+        echo '</div>';
+        
+        echo '</div>'; // End Additional Information
     }
 
     // Sauvegarde des champs personnalisés
     public function save_meta_boxes($post_id) {
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+        if (!isset($_POST['policy_meta_box_nonce']) || !wp_verify_nonce($_POST['policy_meta_box_nonce'], 'policy_meta_box')) return;
+        if (!current_user_can('edit_post', $post_id)) return;
+        
         if (isset($_POST['policy_insurer'])) {
             update_post_meta($post_id, '_policy_insurer', intval($_POST['policy_insurer']));
         }

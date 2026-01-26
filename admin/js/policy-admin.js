@@ -14,26 +14,26 @@ jQuery(document).ready(function ($) {
             const attachment = frame.state().get('selection').first().toJSON();
             $('#policy_feature_img').val(attachment.id);
             $('#policy_feature_img_preview').attr('src', attachment.url).show();
-            $('#remove_policy_feature_img').show();
         });
         
         frame.open();
     });
     
     // Remove feature image
-    $('#remove_policy_feature_img').click(function() {
+    $('#remove_policy_feature_img').click(function(e) {
+        e.preventDefault();
         $('#policy_feature_img').val('');
         $('#policy_feature_img_preview').attr('src', '').hide();
-        $(this).hide();
     });
     
     // Add day premium row
-    $('#add-day-premium-row').click(function() {
+    $('#add-day-premium-row').click(function(e) {
+        e.preventDefault();
         const row = '<tr>' +
-            '<td><input type="number" name="day_premium_from[]" min="1" style="width:90px;" /></td>' +
-            '<td><input type="number" name="day_premium_to[]" min="1" style="width:90px;" /></td>' +
-            '<td><input type="number" name="day_premium_amount[]" min="0" step="0.01" style="width:120px;" /></td>' +
-            '<td><button type="button" class="remove-row button">-</button></td>' +
+            '<td><input type="number" name="day_premium_from[]" min="1" placeholder="1" /></td>' +
+            '<td><input type="number" name="day_premium_to[]" min="1" placeholder="365" /></td>' +
+            '<td><input type="number" name="day_premium_amount[]" min="0" step="0.01" placeholder="0.00" /></td>' +
+            '<td><button type="button" class="remove-row policy-btn-secondary">Remove</button></td>' +
         '</tr>';
         
         $('#day-premium-table tbody').append(row);

@@ -77,14 +77,16 @@ class Maljani_Filter {
             display: inline-block;
             padding: 10px 20px;
             background: var(--wp--preset--color--primary, #1e5c3a);
-            color: white;
+            color: #ffffff !important;
             text-decoration: none;
             border: none;
             cursor: pointer;
             text-align: center;
+            font-weight: 500;
         }
         .policy-buy-btn:hover {
             opacity: 0.9;
+            color: #ffffff !important;
         }
         .region-filter-btn {
             padding: 8px 16px;
