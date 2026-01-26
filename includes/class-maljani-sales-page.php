@@ -205,6 +205,10 @@ class Maljani_Sales_Page {
                         if (newPremium) {
                             jQuery("#premium-amount").text(newPremium);
                             jQuery("input[name=amount_paid]").val(newPremium);
+                            if (window.maljaniCurrency) {
+                                jQuery("#premium-currency").text(window.maljaniCurrency);
+                            }
+                        }
                         }
                     }
                 }
@@ -320,7 +324,11 @@ class Maljani_Sales_Page {
 
         // Calcul du premium
         $premium = '';
+        $currency = '';
         if ($policy_id && $days > 0) {
+            $currency = get_post_meta($policy_id, '_policy_currency', true);
+            if (empty($currency)) $currency = 'KSH';
+            
             $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
             if (is_array($premiums)) {
                 foreach ($premiums as $row) {
@@ -333,6 +341,7 @@ class Maljani_Sales_Page {
             // Injection des données de premium en JS pour mise à jour dynamique
             echo '<script>
                 window.maljaniPremiums = ' . json_encode($premiums) . ';
+                window.maljaniCurrency = ' . json_encode($currency) . ';
                 window.policyId = ' . json_encode($policy_id) . ';
                 window.departureDateValue = ' . json_encode($departure) . ';
                 window.returnDateValue = ' . json_encode($return) . ';
@@ -723,7 +732,7 @@ class Maljani_Sales_Page {
                     <div class="maljani-sales-summary">
                         <p><strong>Policy:</strong> <?php echo esc_html($policy_title); ?></p>
                         <p><strong>Region:</strong> <?php echo esc_html($region_name ?: $region_title); ?></p>
-                        <p><strong>Premium (Amount to pay):</strong> <span id="premium-amount"><?php echo esc_html($premium); ?></span></p>
+                        <p><strong>Premium (Amount to pay):</strong> <span id="premium-currency"><?php echo esc_html($currency); ?></span> <span id="premium-amount"><?php echo esc_html($premium); ?></span></p>
                         <p><strong>Days covered:</strong> <span id="days-covered"><?php echo esc_html($days); ?></span></p>
                         <?php if ($should_prefill): ?>
                             <?php if ($is_insured && !$buying_for_self): ?>

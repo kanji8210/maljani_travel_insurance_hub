@@ -295,6 +295,19 @@ class Policy_CPT {
         // Section 4: Pricing
         echo '<div class="policy-form-section">';
         echo '<h3>Pricing Structure</h3>';
+        
+        // Currency selector
+        $currency = get_post_meta($post->ID, '_policy_currency', true);
+        if (empty($currency)) $currency = 'KSH';
+        echo '<div class="policy-form-row">';
+        echo '<label for="policy_currency">Currency</label>';
+        echo '<select id="policy_currency" name="policy_currency" style="width:200px;">';
+        echo '<option value="KSH" ' . selected($currency, 'KSH', false) . '>KSH</option>';
+        echo '<option value="Shilling" ' . selected($currency, 'Shilling', false) . '>Shilling</option>';
+        echo '</select>';
+        echo '<p style="color:#666;margin:5px 0 0 0;">Select currency format for premium display</p>';
+        echo '</div>';
+        
         echo '<div class="policy-form-row">';
         echo '<label>Day Range & Premiums</label>';
         echo '<p style="color:#666;margin:5px 0 10px 0;">Define premium amounts based on travel duration ranges</p>';
@@ -363,6 +376,10 @@ class Policy_CPT {
         }
         if (isset($_POST['policy_not_covered'])) {
             update_post_meta($post_id, '_policy_not_covered', wp_kses_post($_POST['policy_not_covered']));
+        }
+        // Save currency
+        if (isset($_POST['policy_currency'])) {
+            update_post_meta($post_id, '_policy_currency', sanitize_text_field($_POST['policy_currency']));
         }
         // Sauvegarde du tableau dynamique
         $premiums = array();

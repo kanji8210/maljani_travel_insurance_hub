@@ -422,6 +422,9 @@ class Maljani_Filter {
 
             // Calculate premium if days are provided
             $premium = '';
+            $currency = get_post_meta($policy_id, '_policy_currency', true);
+            if (empty($currency)) $currency = 'KSH';
+            
             if ($days > 0) {
                 $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
                 if (is_array($premiums)) {
@@ -453,7 +456,7 @@ class Maljani_Filter {
             // Affichage du premium si calculé
             if ($premium && $days > 0) {
                 echo '<div style="padding:12px;background:#f5f5f5;border:1px solid #ddd;">';
-                echo '<strong style="color:#222;">Premium for ' . esc_html($days) . ' days: ' . esc_html($premium) . '</strong>';
+                echo '<strong style="color:#222;">Premium for ' . esc_html($days) . ' days: ' . esc_html($currency) . ' ' . esc_html($premium) . '</strong>';
                 echo '</div>';
             }
             // Lien et bloc pour les bénéfices (toujours affiché)
@@ -483,7 +486,7 @@ class Maljani_Filter {
                         'departure' => isset($_POST['departure']) ? $_POST['departure'] : '',
                         'return' => isset($_POST['return']) ? $_POST['return'] : ''
                     ], get_permalink($sale_page_id));
-                    echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Buy Now - ' . esc_html($premium) . '</a>';
+                    echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Buy Now - ' . esc_html($currency) . ' ' . esc_html($premium) . '</a>';
                 }
             }
             
