@@ -123,9 +123,41 @@ jQuery(document).ready(function($) {
                 min-width: 280px; max-width: 95vw; padding: 32px 28px; position: relative;
                 animation: maljaniLightboxIn 0.18s;
             }
+            .maljani-lightbox-content.maljani-dual-column {
+                max-width: 1100px;
+                width: 90vw;
+            }
+            .maljani-popup-columns {
+                display: flex;
+                gap: 24px;
+                align-items: flex-start;
+            }
+            .maljani-popup-profile-section {
+                flex: 0 0 30%;
+                max-height: 280px;
+                overflow-y: auto;
+                padding-right: 12px;
+            }
+            .maljani-popup-profile-section .popup-profile-content {
+                max-width: 100% !important;
+                min-width: auto !important;
+            }
+            .maljani-popup-benefits-section {
+                flex: 1 1 60%;
+                min-width: 40%;
+            }
+            .maljani-popup-benefits-section .popup-benefits-content {
+                max-width: 100% !important;
+                min-width: auto !important;
+            }
             .maljani-lightbox-close {
                 position: absolute; top: 12px; right: 18px; background: none; border: none; font-size: 1.8em; color: #183153; cursor: pointer;}
             @keyframes maljaniLightboxIn { from { opacity: 0; transform: scale(0.95);} to { opacity: 1; transform: scale(1);} }
+            @media (max-width: 768px) {
+                .maljani-popup-columns { flex-direction: column; }
+                .maljani-popup-profile-section { flex: 1 1 100%; max-height: none; }
+                .maljani-popup-benefits-section { flex: 1 1 100%; }
+            }
             `;
             document.head.appendChild(style);
         }
@@ -139,12 +171,22 @@ jQuery(document).ready(function($) {
         e.stopPropagation();
         addLightboxStyles();
         var insurerId = $(this).data('insurer-id');
-        // Cherche le HTML du profil déjà présent dans la page
+        var policyId = $(this).closest('.maljani-policy-item').find('.see-benefits').data('policy-id');
+        
+        // Cherche le HTML du profil et des bénéfices déjà présents dans la page
         var $profile = $('#insurer-profile-' + insurerId);
+        var $benefits = $('#policy-benefits-' + policyId);
+        
         if ($('.maljani-lightbox-bg').length) $('.maljani-lightbox-bg').remove();
         var $bg = $('<div class="maljani-lightbox-bg"></div>').appendTo('body');
+        
         if ($profile.length) {
-            $bg.html('<div class="maljani-lightbox-content">'+$profile.html()+'<button class="maljani-lightbox-close" title="Close">&times;</button></div>');
+            var profileHtml = '<div class="maljani-popup-profile-section">' + $profile.html() + '</div>';
+            var benefitsHtml = '';
+            if ($benefits.length) {
+                benefitsHtml = '<div class="maljani-popup-benefits-section">' + $benefits.html() + '</div>';
+            }
+            $bg.html('<div class="maljani-lightbox-content maljani-dual-column"><div class="maljani-popup-columns">' + profileHtml + benefitsHtml + '</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
         } else {
             $bg.html('<div class="maljani-lightbox-content"><div style="padding:32px;text-align:center;">Profile not found</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
         }

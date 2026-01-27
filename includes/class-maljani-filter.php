@@ -502,9 +502,11 @@ class Maljani_Filter {
                 echo '      <img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:64px;height:64px;object-fit:cover;border-radius:50%;box-shadow:0 2px 8px rgba(24,49,83,0.10);">';
             }
             echo '    </div>';
-            echo '    <h3 style="margin-bottom:8px;">' . esc_html($insurer_name) . '</h3>';
+            echo '    <h3 style="margin-bottom:8px;font-size:1.1em;">' . esc_html($insurer_name) . '</h3>';
             if ($insurer_profile) {
-                echo '    <div style="font-size:1em;color:#222;margin-bottom:10px;">' . esc_html($insurer_profile) . '</div>';
+                // Tronquer le profil si trop long (environ 280 caractères pour 9 lignes)
+                $truncated_profile = strlen($insurer_profile) > 350 ? substr($insurer_profile, 0, 350) . '...' : $insurer_profile;
+                echo '    <div style="font-size:0.92em;color:#222;margin-bottom:10px;line-height:1.4;">' . esc_html($truncated_profile) . '</div>';
             }
             if ($insurer_website) {
                 echo '    <div style="margin-bottom:6px;"><a href="' . esc_url($insurer_website) . '" target="_blank" style="color:#0073aa;font-weight:500;">🌐 Site web</a></div>';
