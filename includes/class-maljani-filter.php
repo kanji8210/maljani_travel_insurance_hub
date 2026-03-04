@@ -340,22 +340,18 @@ class Maljani_Filter {
 
     public function enqueue_scripts() {
         try {
-            if (is_page('votre-page-filtre')) { // Remplacez par le slug de la page filtre
-                wp_enqueue_script('maljani-filter-js', plugin_dir_url(__FILE__).'js/maljani-filter.js', array('jquery'), null, true);
-                wp_localize_script('maljani-filter-js', 'maljaniFilterAjax', array(
-                    'ajaxurl' => admin_url('admin-ajax.php')
-                ));
-            }
-
+            // Enqueue filter script and localize AJAX parameters (include legacy keys)
             wp_enqueue_script(
                 'maljani-filter',
                 plugin_dir_url(__FILE__) . '/js/maljani-filter.js',
                 array('jquery'),
-                null,
+                defined('MALJANI_VERSION') ? MALJANI_VERSION : null,
                 true
             );
             wp_localize_script('maljani-filter', 'maljaniFilter', array(
-                'ajaxurl' => admin_url('admin-ajax.php')
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'security' => wp_create_nonce('maljani_filter_nonce')
             ));
 
             wp_enqueue_style(

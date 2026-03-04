@@ -99,14 +99,17 @@
             
             $('body').append(modalHtml);
             
-            // Charger les détails via AJAX
+            // Charger les détails via AJAX (prefer `ajax_url`/`security`, fallback to legacy keys)
+            var _ajaxUrl = (typeof maljaniDashboard !== 'undefined' && (maljaniDashboard.ajax_url || maljaniDashboard.ajaxurl)) ? (maljaniDashboard.ajax_url || maljaniDashboard.ajaxurl) : '/wp-admin/admin-ajax.php';
+            var _security = (typeof maljaniDashboard !== 'undefined' && (maljaniDashboard.security || maljaniDashboard.nonce)) ? (maljaniDashboard.security || maljaniDashboard.nonce) : '';
+
             $.ajax({
-                url: maljaniDashboard.ajaxurl,
+                url: _ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'get_policy_details',
                     policy_id: policyId,
-                    nonce: maljaniDashboard.nonce
+                    nonce: _security
                 },
                 success: function(response) {
                     if (response.success) {

@@ -48,12 +48,14 @@ class Maljani_User_Dashboard {
             // Styles gérés par le système d'isolation - pas besoin de CSS externe
             // wp_enqueue_style('maljani-dashboard', plugin_dir_url(__FILE__) . 'css/dashboard.css', [], '1.0.0');
             
-            wp_enqueue_script('maljani-dashboard', plugin_dir_url(__FILE__) . 'js/dashboard.js', ['jquery'], '1.0.0', true);
-            
-            // Localisation pour AJAX
+            wp_enqueue_script('maljani-dashboard', plugin_dir_url(__FILE__) . 'js/dashboard.js', ['jquery'], defined('MALJANI_VERSION') ? MALJANI_VERSION : '1.0.0', true);
+
+            // Localisation pour AJAX — include both legacy keys and new keys for compatibility
             wp_localize_script('maljani-dashboard', 'maljaniDashboard', [
                 'ajaxurl' => admin_url('admin-ajax.php'),
+                'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('maljani_dashboard_nonce'),
+                'security' => wp_create_nonce('maljani_dashboard_nonce'),
                 'strings' => [
                     'confirm_update' => 'Confirm profile update?',
                     'generating_pdf' => 'Generating PDF...',

@@ -19,7 +19,12 @@ jQuery(document).ready(function($) {
         
         $('#maljani-policy-results').addClass('loading').html('<p>Calculating premiums...</p>');
         
-        $.post(maljaniFilter.ajaxurl, data, function(response) {
+        // attach security nonce if available
+        if (typeof maljaniFilter !== 'undefined' && maljaniFilter.security) {
+            data.security = maljaniFilter.security;
+        }
+
+        $.post((typeof maljaniFilter !== 'undefined' && maljaniFilter.ajax_url) ? maljaniFilter.ajax_url : maljaniFilter.ajaxurl, data, function(response) {
             $('#maljani-policy-results').removeClass('loading');
             if (response.success && response.data && response.data.html) {
                 $('#maljani-policy-results').html(response.data.html);

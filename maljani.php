@@ -148,3 +148,25 @@ add_filter('template_include', function($template) {
     }
     return $template;
 });
+
+// Include PDF generator and register admin action for secure generation
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-pdf.php';
+
+// Support chat
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-support.php';
+add_action('admin_post_maljani_verify_policy', 'maljani_handle_verify_policy');
+function maljani_handle_verify_policy() {
+    if ( ! isset( $_GET['sale_id'] ) || ! isset( $_GET['token'] ) ) {
+        wp_die( 'Missing parameters.' );
+    }
+    $sale_id = intval( $_GET['sale_id'] );
+    $token = wp_unslash( $_GET['token'] );
+
+    $nonce = isset( $_GET['_wpnonce'] ) ? wp_unslash( $_GET['_wpnonce'] ) : '';
+    if ( ! wp_verify_nonce( $nonce, 'maljani_verify_policy_' . $sale_id ) ) {
+        wp_die( 'Invalid nonce.' );
+    }
+
+    // Use verifier to validate token and display a small verification page
+    Maljani_PDF_Generator::verify_and_display( $sale_id, $token );
+}

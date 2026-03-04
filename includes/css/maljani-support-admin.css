@@ -1,0 +1,41 @@
+/* Admin menu badge styling */
+.toplevel_page_maljani-support .dashicons-testimonial:after {
+    content: attr(data-unread);
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+    background: #d54e21;
+    color: #fff;
+    border-radius: 10px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    font-weight: 700;
+}
+.maljani-admin-badge {
+    display: inline-block;
+    background: #d54e21;
+    color: #fff;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+/* Conversation layout */
+.maljani-conversation { max-height: 600px; overflow:auto; padding:16px; background:#fff; border:1px solid #e5e5e5; }
+.maljani-message { margin-bottom:12px; clear:both; }
+.maljani-message .meta { font-size:12px; margin-bottom:4px; }
+.maljani-message.user { text-align:left; }
+.maljani-message.agent { text-align:right; }
+.maljani-message.user .bubble { background:#f1f1f1; display:inline-block; }
+.maljani-message.agent .bubble { background:#d9f7d9; display:inline-block; }
+.maljani-message .bubble { padding:10px 12px; border-radius:12px; }
+
+/* optimistic pending/failed styles */
+.maljani-message.pending .bubble { opacity:0.7; position:relative; }
+.maljani-message.pending .bubble:after { content: 'Sending...'; position:absolute; right:8px; bottom:4px; font-size:11px; color:#666; }
+.maljani-message.failed .bubble { border:1px solid #d9534f; background:#ffdede; }
+
+/* unread badge in sessions list */
+.maljani-session-unread { display:inline-block; background:#d54e21; color:#fff; padding:2px 6px; border-radius:10px; font-size:12px; margin-left:8px; }

@@ -16,13 +16,19 @@ class Maljani_Policy_Sales_Admin {
                 null
             );
             
-            // Rendre la variable ajaxurl disponible en JavaScript
-            wp_localize_script('jquery', 'ajax_object', array(
-                'ajax_url' => admin_url('admin-ajax.php')
+            // Register and enqueue a small script so we can localize AJAX params safely
+            wp_enqueue_script(
+                'maljani-policy-sales',
+                plugin_dir_url(__FILE__) . 'js/maljani-policy-sales.js',
+                array('jquery'),
+                defined('MALJANI_VERSION') ? MALJANI_VERSION : null,
+                true
+            );
+
+            wp_localize_script('maljani-policy-sales', 'maljani_ajax', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'security' => wp_create_nonce('maljani_premium_nonce'),
             ));
-            
-            // Ajouter ajaxurl globalement pour le JavaScript inline
-            echo '<script type="text/javascript">var ajaxurl = "' . admin_url('admin-ajax.php') . '";</script>';
             
         } catch (Exception $e) {
             error_log('Error registering admin style: ' . $e->getMessage());
@@ -159,11 +165,23 @@ foreach ($sales as $sale) {
     echo '<td>' . esc_html(ucfirst($policy_status)) . '</td>';
     echo '<td>' . esc_html(ucfirst($payment_status)) . '</td>';
     echo '<td class="terms-cell"><span class="terms-short" style="cursor:pointer;color:#0073aa;" data-full="' . esc_attr($sale->terms) . '">' . esc_html($terms_short) . ' <span style="color:#888;">(show all)</span></span></td>';
-    echo '<td class="actions-cell">
-        <button type="button" class="button edit-sale-btn" data-sale="' . esc_attr($sale->id) . '">Edit</button>
-        <a href="' . plugins_url('includes/generate-policy-pdf.php', dirname(__FILE__)) . '?sale_id=' . esc_attr($sale->id) . '" target="_blank">Generate PDF</a> | 
-        <a href="' . esc_url(add_query_arg(['action' => 'archive_policy', 'sale_id' => $sale->id])) . '" onclick="return confirm(\'Archive this sale?\')">Archive</a>
-    </td>';
+    $token = '';
+    if ( class_exists('Maljani_PDF_Generator') ) {
+        try {
+            $token = Maljani_PDF_Generator::generate_verification_hash($sale->id, $sale->policy_number ?? '', $sale->passport_number ?? '');
+        } catch (Exception $e) {
+            $token = '';
+        }
+    }
+
+    $verify_url = admin_url('admin-post.php?action=maljani_verify_policy&sale_id=' . $sale->id . '&token=' . rawurlencode($token));
+    $verify_url = wp_nonce_url( $verify_url, 'maljani_verify_policy_' . $sale->id );
+
+    echo '<td class="actions-cell">';
+    echo '<button type="button" class="button edit-sale-btn" data-sale="' . esc_attr($sale->id) . '">Edit</button>';
+    echo ' <a href="' . esc_url( $verify_url ) . '" target="_blank">Verify</a> | ';
+    echo ' <a href="' . esc_url(add_query_arg(['action' => 'archive_policy', 'sale_id' => $sale->id])) . '" onclick="return confirm(\'Archive this sale?\')">Archive</a>';
+    echo '</td>';
     echo '</tr>';
 
     // Ligne édition (cachée par défaut)
@@ -240,9 +258,10 @@ echo '</tbody></table>';
             echo '</div></div>';
         }
         // Ajout du JS inline pour l'édition
-        echo '<script>
+        echo <<<'JS'
+<script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Afficher la ligne d\'édition au clic sur Edit
+    // Afficher la ligne d'édition au clic sur Edit
     document.querySelectorAll(".edit-sale-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
             var saleId = this.getAttribute("data-sale");
@@ -257,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
     
-    // Annuler l\'édition
+    // Annuler l'édition
     document.querySelectorAll(".cancel-edit-sale-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
             var saleId = this.getAttribute("data-sale");
@@ -309,8 +328,11 @@ document.addEventListener("DOMContentLoaded", function() {
         formData.append("action", "maljani_get_policy_premium");
         formData.append("policy_id", policyId);
         formData.append("days", days);
+        if (typeof maljani_ajax !== 'undefined' && maljani_ajax.security) {
+            formData.append('security', maljani_ajax.security);
+        }
 
-        fetch(ajaxurl, {
+        fetch((typeof maljani_ajax !== 'undefined' && maljani_ajax.ajax_url) ? maljani_ajax.ajax_url : ajaxurl, {
             method: "POST",
             body: formData
         })
@@ -339,7 +361,7 @@ document.addEventListener("DOMContentLoaded", function() {
         element.addEventListener("change", function() {
             var saleId = this.getAttribute("data-sale");
             if (saleId) {
-                // Petit délai pour s\'assurer que la valeur est bien mise à jour
+                // Petit délai pour s'assurer que la valeur est bien mise à jour
                 setTimeout(() => recalculatePremium(saleId), 100);
             }
         });
@@ -367,7 +389,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 });
-</script>';
+</script>
+JS;
     }
 }
 new Maljani_Policy_Sales_Admin();

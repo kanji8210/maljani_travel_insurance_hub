@@ -13,6 +13,10 @@ class Maljani_Settings {
         register_setting('maljani_settings_group', 'maljani_user_registration_page');
         register_setting('maljani_settings_group', 'maljani_user_dashboard_page');
         register_setting('maljani_settings_group', 'maljani_policy_sale_page');
+        register_setting('maljani_settings_group', 'maljani_support_email_new_subject');
+        register_setting('maljani_settings_group', 'maljani_support_email_new_body');
+        register_setting('maljani_settings_group', 'maljani_support_email_response_subject');
+        register_setting('maljani_settings_group', 'maljani_support_email_response_body');
         register_setting('maljani_settings_group', 'maljani_hide_modified_files', [
             'type' => 'boolean',
             'default' => true,
@@ -110,6 +114,23 @@ class Maljani_Settings {
                                 Masquer les notifications de fichiers modifiés dans l'administration
                             </label>
                             <p class="description">Cette option masque les notifications concernant les fichiers modifiés du plugin dans le tableau de bord WordPress.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Support Email Templates</th>
+                        <td>
+                            <p><strong>New message (admin)</strong></p>
+                            <p>Subject:<br>
+                                <input type="text" name="maljani_support_email_new_subject" value="<?php echo esc_attr(get_option('maljani_support_email_new_subject', 'New support message: #{id}')); ?>" style="width:100%"></p>
+                            <p>Body:<br>
+                                <textarea name="maljani_support_email_new_body" rows="6" style="width:100%"><?php echo esc_textarea(get_option('maljani_support_email_new_body', "A new support message (ID: {id})\nFrom: {email}\n\n{message}")); ?></textarea></p>
+
+                            <p><strong>Response to user</strong></p>
+                            <p>Subject:<br>
+                                <input type="text" name="maljani_support_email_response_subject" value="<?php echo esc_attr(get_option('maljani_support_email_response_subject', 'Response to your support message #{id}')); ?>" style="width:100%"></p>
+                            <p>Body:<br>
+                                <textarea name="maljani_support_email_response_body" rows="6" style="width:100%"><?php echo esc_textarea(get_option('maljani_support_email_response_body', "Hello,\n\nA support representative has replied to your message:\n\n{response}\n\nRegards")); ?></textarea></p>
+                            <p class="description">You can use placeholders: <code>{id}</code>, <code>{email}</code>, <code>{message}</code>, <code>{response}</code></p>
                         </td>
                     </tr>
                 </table>

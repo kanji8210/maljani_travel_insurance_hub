@@ -35,7 +35,7 @@ class Policy_CPT {
             array(
                 'label'        => 'Regions',
                 'rewrite'      => array('slug' => 'policy-region'),
-                'hierarchical' => false,
+                'hierarchical' => true,
                 'show_in_rest' => true,
                 'show_admin_column' => true,
             )
@@ -425,10 +425,12 @@ class Policy_CPT {
                 null,
                 true
             );
-            // Pass AJAX data to JavaScript
+            // Pass AJAX data to JavaScript — include both legacy keys and new ones
             wp_localize_script('policy-admin-js', 'policyAdmin', array(
                 'nonce' => wp_create_nonce('add_policy_region_nonce'),
-                'ajaxurl' => admin_url('admin-ajax.php')
+                'security' => wp_create_nonce('add_policy_region_nonce'),
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'ajax_url' => admin_url('admin-ajax.php')
             ));
         }
     }

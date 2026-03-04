@@ -69,6 +69,65 @@ class Maljani_Database_Tools {
                 UNIQUE KEY api_key (api_key),
                 KEY key_name (key_name)
             ) $charset_collate;"
+,
+            'support_chat' => "CREATE TABLE {$prefix}support_chat (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id BIGINT UNSIGNED NULL,
+                email VARCHAR(191) NOT NULL,
+                message TEXT NOT NULL,
+                response TEXT NULL,
+                status ENUM('new','answered','closed') DEFAULT 'new',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY user_id (user_id),
+                KEY email (email),
+                KEY status (status)
+            ) $charset_collate;"
+,
+            'support_sessions' => "CREATE TABLE {$prefix}support_sessions (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id BIGINT UNSIGNED NULL,
+                email VARCHAR(191) NULL,
+                subject VARCHAR(191) NULL,
+                status ENUM('open','closed') DEFAULT 'open',
+                last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY user_id (user_id),
+                KEY email (email),
+                KEY status (status)
+            ) $charset_collate;",
+
+            'support_messages' => "CREATE TABLE {$prefix}support_messages (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                session_id BIGINT UNSIGNED NOT NULL,
+                sender ENUM('user','agent') DEFAULT 'user',
+                user_id BIGINT UNSIGNED NULL,
+                email VARCHAR(191) NULL,
+                message TEXT NOT NULL,
+                status ENUM('new','read') DEFAULT 'new',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY session_id (session_id),
+                KEY sender (sender),
+                KEY status (status)
+            ) $charset_collate;",
+            'support_email_queue' => "CREATE TABLE {$prefix}support_email_queue (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                to_email VARCHAR(191) NOT NULL,
+                subject VARCHAR(255) NOT NULL,
+                body LONGTEXT NOT NULL,
+                headers LONGTEXT NULL,
+                status ENUM('queued','sending','sent','failed') DEFAULT 'queued',
+                attempts INT DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY status (status),
+                KEY to_email (to_email)
+            ) $charset_collate;"
         ];
     }
 
