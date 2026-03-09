@@ -3,18 +3,22 @@
  * Maljani Client Dashboard - Portal for Insured Users
  */
 
-class Maljani_Client_Dashboard {
+class Maljani_Client_Dashboard
+{
 
-    public static function init() {
+    public static function init()
+    {
         return new self();
     }
 
-    public function __construct() {
+    public function __construct()
+    {
         add_shortcode('maljani_client_dashboard', [$this, 'render_dashboard']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
-    public function enqueue_assets() {
+    public function enqueue_assets()
+    {
         global $post;
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'maljani_client_dashboard')) {
             wp_enqueue_style('maljani-client-dashboard', plugin_dir_url(__FILE__) . 'css/maljani-client-dashboard.css', [], time());
@@ -23,7 +27,8 @@ class Maljani_Client_Dashboard {
         }
     }
 
-    public function render_dashboard() {
+    public function render_dashboard()
+    {
         if (!is_user_logged_in()) {
             return '<div class="maljani-dashboard-msg">Please log in to view your insurance portal.</div>';
         }
@@ -32,7 +37,7 @@ class Maljani_Client_Dashboard {
         $policies = $this->get_user_policies();
 
         ob_start();
-        ?>
+?>
         <div class="maljani-client-dashboard">
             <header class="client-header">
                 <div class="header-welcome">
@@ -64,7 +69,8 @@ class Maljani_Client_Dashboard {
                             <p>You haven't purchased any travel insurance policies yet.</p>
                             <a href="<?php echo home_url('/buy'); ?>" class="mj-btn-primary">Browse Plans</a>
                         </div>
-                    <?php else: ?>
+                    <?php
+        else: ?>
                         <div class="policy-grid">
                             <?php foreach ($policies as $policy): ?>
                                 <div class="policy-card glass-morphism">
@@ -84,14 +90,18 @@ class Maljani_Client_Dashboard {
                                     <div class="policy-card-footer">
                                         <?php if ($policy->policy_status === 'active'): ?>
                                             <a href="?maljani_action=download_pdf&id=<?php echo $policy->id; ?>" class="btn-download">Download PDF</a>
-                                        <?php else: ?>
+                                        <?php
+                else: ?>
                                             <span class="pending-note">Available once activated</span>
-                                        <?php endif; ?>
+                                        <?php
+                endif; ?>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
+                            <?php
+            endforeach; ?>
                         </div>
-                    <?php endif; ?>
+                    <?php
+        endif; ?>
                 </section>
 
                 <!-- PROFILE VIEW -->
@@ -136,18 +146,21 @@ class Maljani_Client_Dashboard {
         return ob_get_clean();
     }
 
-    private function get_user_policies() {
+    private function get_user_policies()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'policy_sale';
-        
+
         // Link by user_id or email
         $user_id = get_current_user_id();
-        
+
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table WHERE user_id = %d ORDER BY created_at DESC", 
+            "SELECT * FROM $table WHERE user_id = %d ORDER BY created_at DESC",
             $user_id
         ));
     }
 }
 
-if (defined('ABSPATH')) { Maljani_Client_Dashboard::init(); }
+if (defined('ABSPATH')) {
+    Maljani_Client_Dashboard::init();
+}
