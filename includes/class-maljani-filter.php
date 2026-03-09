@@ -39,195 +39,120 @@ class Maljani_Filter {
         ob_start();
         try {
     ?>
-    <style>
-        :root {
-            --maljani-primary: #4f46e5;
-            --maljani-secondary: #0f172a;
-            --maljani-accent: #818cf8;
-            --maljani-glass-bg: rgba(255, 255, 255, 0.7);
-            --maljani-glass-border: rgba(255, 255, 255, 0.8);
-            --maljani-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-        }
-
-        .maljani-filter-wrapper {
-            background: var(--maljani-glass-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--maljani-glass-border);
-            border-radius: 24px;
-            padding: 40px;
-            margin-bottom: 50px;
-            box-shadow: var(--maljani-shadow);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-
-        .filter-header { margin-bottom: 25px; text-align: left; }
-        .filter-header h2 { font-size: 24px; font-weight: 800; color: var(--maljani-secondary); margin: 0; }
-        
-        #maljani-policy-filter-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 24px;
-            align-items: flex-end;
-        }
-
-        .filter-group { display: flex; flex-direction: column; gap: 8px; }
-        .filter-group label { font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .filter-input {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            color: #1e293b;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .filter-input:focus { border-color: var(--maljani-primary); outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-
-        .region-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-        .region-btn {
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .region-btn.active {
-            background: var(--maljani-primary);
-            color: white;
-            border-color: var(--maljani-primary);
-            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
-        }
-
-        .maljani-policy-grid-ajax {
-            display: grid;
-            grid-template-columns: repeat(<?php echo esc_attr($columns); ?>, 1fr);
-            gap: 24px;
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .maljani-policy-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid #f1f5f9;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            height: 100%;
-        }
-        .maljani-policy-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border-color: #e2e8f0; }
-
-        .policy-card-header {
-            padding: 24px;
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            border-bottom: 1px solid #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .policy-title-box h3 { margin: 0; font-size: 18px; font-weight: 800; color: #1e293b; line-height: 1.3; }
-        .policy-title-box h3 a { color: inherit; text-decoration: none; }
-        
-        .insurer-emblem {
-            width: 48px; height: 48px;
-            background: white;
-            border-radius: 12px;
-            padding: 4px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            object-fit: contain;
-            border: 1px solid #f1f5f9;
-        }
-
-        .policy-card-body { padding: 24px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
-        .policy-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748b; }
-        .policy-label { font-weight: 600; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-
-        .premium-box {
-            background: #f0f9ff;
-            border: 1px dashed #bae6fd;
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-        }
-        .premium-value { display: block; font-size: 20px; font-weight: 800; color: #0369a1; }
-        .premium-days { font-size: 12px; color: #0ea5e9; font-weight: 600; }
-
-        .policy-card-footer { padding: 20px 24px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
-        .policy-buy-btn {
-            width: 100%;
-            background: var(--maljani-primary);
-            color: white !important;
-            text-align: center;
-            padding: 14px;
-            border-radius: 12px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .policy-buy-btn:hover { background: #4338ca; transform: scale(1.02); }
-        
-        .see-benefits-link {
-            text-align: center;
-            font-size: 13px;
-            font-weight: 600;
-            color: #64748b;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        .see-benefits-link:hover { color: var(--maljani-primary); }
-
-        @media (max-width: 1024px) {
-            .maljani-policy-grid-ajax { grid-template-columns: repeat(<?php echo min(2, $columns); ?>, 1fr); }
-        }
-        @media (max-width: 700px) {
-            .maljani-policy-grid-ajax { grid-template-columns: 1fr; }
-            .maljani-filter-wrapper { padding: 24px; }
-        }
-    </style>
-    <div class="maljani-filter-container">
-        <div class="maljani-filter-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
-            <div class="filter-header">
-                <h2>Find Your Perfect Plan</h2>
+    <div class="maljani-filter-container wizard-layout">
+        <div class="maljani-wizard-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
+            <div class="wizard-progress">
+                <div class="progress-step active" data-step="1">
+                    <span class="step-num">1</span>
+                    <span class="step-label">Destination</span>
+                </div>
+                <div class="progress-step" data-step="2">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Dates</span>
+                </div>
+                <div class="progress-step" data-step="3">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Results</span>
+                </div>
+                <div class="progress-line">
+                    <div class="progress-fill"></div>
+                </div>
             </div>
-            <form id="maljani-policy-filter-form">
-                <div class="filter-group">
-                    <label>Departure Date</label>
-                    <input type="date" name="departure" class="filter-input" required>
-                </div>
-                <div class="filter-group">
-                    <label>Return Date</label>
-                    <input type="date" name="return" class="filter-input" required>
-                </div>
-                <div class="filter-group" style="grid-column: span 2;">
-                    <label>Destination / Region</label>
-                    <div class="region-toggles">
-                        <button type="button" class="region-btn active" data-region="">All Regions</button>
+
+            <form id="maljani-policy-filter-form" class="wizard-form">
+                <!-- STEP 1: DESTINATION -->
+                <div class="wizard-step active" id="step-destination">
+                    <div class="step-header">
+                        <h2>Which region are you traveling to?</h2>
+                        <p>Select your destination to see specific coverage plans.</p>
+                    </div>
+                    <div class="region-grid">
+                        <div class="region-card active" data-region="">
+                            <div class="region-icon">🌍</div>
+                            <span class="region-name">Worldwide</span>
+                        </div>
                         <?php
                         $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
                         if (!is_wp_error($regions)) {
                             foreach ($regions as $region) {
-                                echo '<button type="button" class="region-btn" data-region="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</button>';
+                                $icon = '';
+                                $name = esc_html($region->name);
+                                if (stripos($name, 'Europe') !== false) $icon = '🏰';
+                                elseif (stripos($name, 'Africa') !== false) $icon = '🦁';
+                                elseif (stripos($name, 'Asia') !== false) $icon = '⛩️';
+                                elseif (stripos($name, 'America') !== false) $icon = '🗽';
+                                else $icon = '📍';
+                                
+                                echo '<div class="region-card" data-region="' . esc_attr($region->term_id) . '">';
+                                echo '  <div class="region-icon">' . $icon . '</div>';
+                                echo '  <span class="region-name">' . $name . '</span>';
+                                echo '</div>';
                             }
                         }
                         ?>
                     </div>
                     <input type="hidden" name="region_id" id="maljani-region-input" value="">
+                    <div class="wizard-actions">
+                        <button type="button" class="mj-btn-next" data-next="step-dates">Continue to Dates →</button>
+                    </div>
                 </div>
-                <!-- The form is handled by AJAX in maljani-filter.js -->
+
+                <!-- STEP 2: DATES -->
+                <div class="wizard-step" id="step-dates">
+                    <div class="step-header">
+                        <h2>When is your trip?</h2>
+                        <p>We need your travel dates to calculate the exact premium.</p>
+                    </div>
+                    <div class="date-selection-grid">
+                        <div class="filter-group">
+                            <label>Departure Date</label>
+                            <div class="input-with-icon">
+                                <span class="input-icon">📅</span>
+                                <input type="date" name="departure" class="filter-input" required>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Return Date</label>
+                            <div class="input-with-icon">
+                                <span class="input-icon">🛫</span>
+                                <input type="date" name="return" class="filter-input" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="trip-summary-box" style="display:none;">
+                        <span class="summary-icon">⏱️</span>
+                        <span class="summary-text">Trip Duration: <strong id="trip-duration-display">0</strong> days</span>
+                    </div>
+
+                    <div class="wizard-actions">
+                        <button type="button" class="mj-btn-back" data-back="step-destination">← Back</button>
+                        <button type="button" class="mj-btn-next mj-btn-primary" data-next="step-results" id="mj-trigger-results">Generate Quote ✨</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: LOADING / RESULTS ANCHOR -->
+                <div class="wizard-step" id="step-results">
+                    <div class="results-transition">
+                        <div class="transition-loader">
+                            <div class="pulse-ring"></div>
+                            <span class="loader-icon">🛡️</span>
+                        </div>
+                        <h3>Finding your perfect plans...</h3>
+                        <p>Comparing coverage and benefits from our partners.</p>
+                    </div>
+                </div>
             </form>
         </div>
 
-        <div id="maljani-policy-results">
-            <?php $this->render_policy_list(array(), 0, $columns); ?>
+        <div id="maljani-policy-results" class="wizard-results-container" style="display:none;">
+            <div class="results-toolbar">
+                <button class="mj-btn-outline" onclick="location.reload()">🔄 Start New Quote</button>
+                <div id="active-filters-summary"></div>
+            </div>
+            <div class="maljani-results-grid-anchor">
+                <?php $this->render_policy_list(array(), 0, $columns); ?>
+            </div>
         </div>
     </div>
     <?php

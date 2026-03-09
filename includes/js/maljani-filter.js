@@ -1,13 +1,97 @@
 jQuery(document).ready(function($) {
+    let currentStep = 1;
     let currentRegion = '';
     
-    // Initialize filter on page load
-    console.log('Maljani Filter initialized');
-    
-    function loadPolicies(departure = '', return_date = '', region = '') {
-        console.log('Loading policies with dates and region:', departure, return_date, region);
+    // NAVIGATION: Next Step
+    $(document).on('click', '.mj-btn-next', function() {
+        const nextStepId = $(this).data('next');
+        const nextStepNum = (nextStepId === 'step-dates') ? 2 : 3;
         
-        let columns = $('.maljani-filter-wrapper').data('columns') || 4;
+        if (nextStepId === 'step-results') {
+            // Validate dates before proceeding
+            const dep = $('input[name="departure"]').val();
+            const ret = $('input[name="return"]').val();
+            if (!dep || !ret) {
+                alert('Please select both departure and return dates.');
+                return;
+            }
+            const d1 = new Date(dep);
+            const d2 = new Date(ret);
+            if (d1 >= d2) {
+                alert('Return date must be after departure date.');
+                return;
+            }
+            
+            // Trigger results loading
+            goToStep(3);
+            loadPolicies(dep, ret, currentRegion);
+        } else {
+            goToStep(nextStepNum);
+        }
+    });
+
+    // NAVIGATION: Back Step
+    $(document).on('click', '.mj-btn-back', function() {
+        const prevStepId = $(this).data('back');
+        const prevStepNum = (prevStepId === 'step-destination') ? 1 : 2;
+        goToStep(prevStepNum);
+    });
+
+    function goToStep(stepNum) {
+        $('.wizard-step').removeClass('active');
+        $(`.wizard-step:nth-child(${stepNum})`).addClass('active');
+        
+        // Update Progress Bar
+        $('.progress-step').removeClass('active completed');
+        $('.progress-step').each(function() {
+            const s = $(this).data('step');
+            if (s < stepNum) $(this).addClass('completed');
+            if (s === stepNum) $(this).addClass('active');
+        });
+        
+        const progress = ((stepNum - 1) / 2) * 100;
+        $('.progress-fill').css('width', `${progress}%`);
+        
+        currentStep = stepNum;
+        
+        // Hide results if we go back
+        if (stepNum < 3) {
+            $('#maljani-policy-results').fadeOut();
+        }
+    }
+
+    // REGION SELECTION
+    $(document).on('click', '.region-card', function() {
+        $('.region-card').removeClass('active');
+        $(this).addClass('active');
+        currentRegion = $(this).data('region') || '';
+        $('#maljani-region-input').val(currentRegion);
+        
+        // Optional: Auto-advance to dates after selection
+        // setTimeout(() => goToStep(2), 300);
+    });
+
+    // DATE CALCULATION
+    $(document).on('change', 'input[name="departure"], input[name="return"]', function() {
+        const dep = $('input[name="departure"]').val();
+        const ret = $('input[name="return"]').val();
+        
+        if (dep && ret) {
+            const d1 = new Date(dep);
+            const d2 = new Date(ret);
+            if (d2 > d1) {
+                const diffTime = Math.abs(d2 - d1);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                $('#trip-duration-display').text(diffDays);
+                $('.trip-summary-box').fadeIn();
+            } else {
+                $('.trip-summary-box').fadeOut();
+            }
+        }
+    });
+
+    function loadPolicies(departure, return_date, region) {
+        let columns = $('.maljani-wizard-wrapper').data('columns') || 4;
         
         let data = {
             action: 'maljani_filter_policies',
@@ -17,93 +101,32 @@ jQuery(document).ready(function($) {
             columns: columns
         };
         
-        $('#maljani-policy-results').addClass('loading').html('<div class="loading-spinner">✨ Finding the best plans for you...</div>');
-        
-        // attach security nonce if available
         if (typeof maljaniFilter !== 'undefined' && maljaniFilter.security) {
             data.security = maljaniFilter.security;
         }
 
-        $.post((typeof maljaniFilter !== 'undefined' && maljaniFilter.ajax_url) ? maljaniFilter.ajax_url : maljaniFilter.ajaxurl, data, function(response) {
-            $('#maljani-policy-results').removeClass('loading');
+        const ajaxUrl = (typeof maljaniFilter !== 'undefined' && maljaniFilter.ajax_url) ? maljaniFilter.ajax_url : maljaniFilter.ajaxurl;
+
+        $.post(ajaxUrl, data, function(response) {
             if (response.success && response.data && response.data.html) {
-                $('#maljani-policy-results').hide().html(response.data.html).fadeIn(400);
+                // Smooth transition to results
+                setTimeout(() => {
+                    $('.wizard-form').fadeOut(300, function() {
+                        $('#maljani-policy-results').fadeIn(400);
+                        $('.maljani-results-grid-anchor').html(response.data.html);
+                    });
+                }, 1500); // Artificial delay for premium loader feel
             } else {
-                $('#maljani-policy-results').html('<div class="notice notice-info">No policies match your criteria. Try adjusting dates or region.</div>');
+                goToStep(2);
+                alert('No policies found for your criteria.');
             }
         }).fail(function() {
-            $('#maljani-policy-results').removeClass('loading');
-            $('#maljani-policy-results').html('<div class="notice notice-error">Connection error. Please try again.</div>');
+            goToStep(2);
+            alert('Connection error. Please try again.');
         });
     }
 
-    // Auto-calculate when both dates are filled
-    function checkAndCalculate() {
-        let departure = $('input[name="departure"]').val();
-        let return_date = $('input[name="return"]').val();
-        
-        if (departure && return_date) {
-            // Validate dates
-            let depDate = new Date(departure);
-            let retDate = new Date(return_date);
-            
-            if (depDate >= retDate) {
-                $('input[name="departure"], input[name="return"]').css('border-color', 'red');
-                $('#maljani-policy-results').html('<p style="color:red;">Return date must be after departure date.</p>');
-                return;
-            } else {
-                $('input[name="departure"], input[name="return"]').css('border-color', '#ddd');
-            }
-            
-            // Auto-calculate premiums
-            loadPolicies(departure, return_date, currentRegion);
-        }
-    }
-
-    // Handle date changes - auto-calculate
-    $(document).on('change', 'input[name="departure"], input[name="return"]', function() {
-        checkAndCalculate();
-    });
-
-    // Handle region filter buttons (Toggles)
-    $(document).on('click', '.region-btn', function(e) {
-        e.preventDefault();
-        
-        console.log('Region toggle clicked:', $(this).data('region'));
-        
-        // Update button styles
-        $('.region-btn').removeClass('active');
-        $(this).addClass('active');
-        
-        // Update current region
-        currentRegion = $(this).data('region') || '';
-        $('#maljani-region-input').val(currentRegion);
-        
-        // Auto-calculate if dates are set
-        checkAndCalculate();
-    });
-    
-    // Remove form submission handler since we auto-calculate
-    $(document).on('submit', '#maljani-policy-filter-form', function(e) {
-        e.preventDefault();
-        // Do nothing - auto-calculation handles everything
-    });
-    
-    // Désactive le comportement sur toute la vignette, ne l'applique que sur le nom
-    $(document).on('mouseenter', '.insurer-name', function(e){
-        if (!$(this).find('.insurer-hover-hint').length) {
-            $('body').append('<div class="insurer-hover-hint">Click to see profile</div>');
-        }
-    }).on('mousemove', '.insurer-name', function(e){
-        $('.insurer-hover-hint').css({
-            left: e.clientX + 16,
-            top: e.clientY + 16
-        });
-    }).on('mouseleave', '.insurer-name', function(){
-        $('.insurer-hover-hint').remove();
-    });
-
-    // Lightbox CSS (à ajouter dynamiquement si besoin)
+    // Modal/Benefit popup logic (Keeping existing functionality)
     function addLightboxStyles() {
         if (!document.getElementById('maljani-lightbox-style')) {
             const style = document.createElement('style');
@@ -111,99 +134,43 @@ jQuery(document).ready(function($) {
             style.innerHTML = `
             .maljani-lightbox-bg {
                 position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-                background: rgba(24,49,83,0.45); z-index: 9998; display: flex; align-items: center; justify-content: center;
+                background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);
+                z-index: 9998; display: flex; align-items: center; justify-content: center;
             }
             .maljani-lightbox-content {
-                background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(24,49,83,0.18);
-                min-width: 280px; max-width: 95vw; padding: 32px 28px; position: relative;
-                animation: maljaniLightboxIn 0.18s;
-            }
-            .maljani-lightbox-content.maljani-dual-column {
-                max-width: 1100px;
-                width: 90vw;
-            }
-            .maljani-popup-columns {
-                display: flex;
-                gap: 24px;
-                align-items: flex-start;
-            }
-            .maljani-popup-profile-section {
-                flex: 0 0 30%;
-                max-height: 280px;
-                overflow-y: auto;
-                padding-right: 12px;
-            }
-            .maljani-popup-profile-section .popup-profile-content {
-                max-width: 100% !important;
-                min-width: auto !important;
-            }
-            .maljani-popup-benefits-section {
-                flex: 1 1 60%;
-                min-width: 40%;
-            }
-            .maljani-popup-benefits-section .popup-benefits-content {
-                max-width: 100% !important;
-                min-width: auto !important;
+                background: #fff; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+                max-width: 90vw; padding: 40px; position: relative;
+                animation: maljaniLightboxIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             }
             .maljani-lightbox-close {
-                position: absolute; top: 12px; right: 18px; background: none; border: none; font-size: 1.8em; color: #183153; cursor: pointer;}
-            @keyframes maljaniLightboxIn { from { opacity: 0; transform: scale(0.95);} to { opacity: 1; transform: scale(1);} }
-            @media (max-width: 768px) {
-                .maljani-popup-columns { flex-direction: column; }
-                .maljani-popup-profile-section { flex: 1 1 100%; max-height: none; }
-                .maljani-popup-benefits-section { flex: 1 1 100%; }
+                position: absolute; top: 20px; right: 20px; background: #f1f5f9; border: none; 
+                width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; 
+                justify-content: center; color: #64748b; cursor: pointer; transition: all 0.2s;
             }
+            .maljani-lightbox-close:hover { background: #e2e8f0; color: #ef4444; }
+            @keyframes maljaniLightboxIn { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
             `;
             document.head.appendChild(style);
         }
     }
 
-    $(document).on('mouseenter', '.insurer-name', function(){
-        $(this).css('cursor', 'pointer');
-    });
-
-    $(document).on('click', '.insurer-name', function(e){
-        e.stopPropagation();
-        addLightboxStyles();
-        var insurerId = $(this).data('insurer-id');
-        var policyId = $(this).closest('.maljani-policy-item').find('.see-benefits').data('policy-id');
-        
-        // Cherche le HTML du profil et des bénéfices déjà présents dans la page
-        var $profile = $('#insurer-profile-' + insurerId);
-        var $benefits = $('#policy-benefits-' + policyId);
-        
-        if ($('.maljani-lightbox-bg').length) $('.maljani-lightbox-bg').remove();
-        var $bg = $('<div class="maljani-lightbox-bg"></div>').appendTo('body');
-        
-        if ($profile.length) {
-            var profileHtml = '<div class="maljani-popup-profile-section">' + $profile.html() + '</div>';
-            var benefitsHtml = '';
-            if ($benefits.length) {
-                benefitsHtml = '<div class="maljani-popup-benefits-section">' + $benefits.html() + '</div>';
-            }
-            $bg.html('<div class="maljani-lightbox-content maljani-dual-column"><div class="maljani-popup-columns">' + profileHtml + benefitsHtml + '</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
-        } else {
-            $bg.html('<div class="maljani-lightbox-content"><div style="padding:32px;text-align:center;">Profile not found</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
-        }
-    });
-    // Fermer la lightbox
-    $(document).on('click', '.maljani-lightbox-close, .maljani-lightbox-bg', function(e){
-        if ($(e.target).is('.maljani-lightbox-bg, .maljani-lightbox-close')) {
-            $('.maljani-lightbox-bg').fadeOut(120, function(){ $(this).remove(); });
-        }
-    });
-
     $(document).on('click', '.see-benefits', function(e){
         e.preventDefault();
         addLightboxStyles();
-        var policyId = $(this).data('policy-id');
-        var $benefits = $('#policy-benefits-' + policyId);
+        const policyId = $(this).data('policy-id');
+        const $benefits = $('#policy-benefits-' + policyId);
+        
         if ($('.maljani-lightbox-bg').length) $('.maljani-lightbox-bg').remove();
-        var $bg = $('<div class="maljani-lightbox-bg"></div>').appendTo('body');
+        const $bg = $('<div class="maljani-lightbox-bg"></div>').appendTo('body');
+        
         if ($benefits.length) {
             $bg.html('<div class="maljani-lightbox-content">'+$benefits.html()+'<button class="maljani-lightbox-close" title="Close">&times;</button></div>');
-        } else {
-            $bg.html('<div class="maljani-lightbox-content"><div style="padding:32px;text-align:center;">Benefits not found</div><button class="maljani-lightbox-close" title="Close">&times;</button></div>');
         }
     });
-});
+
+    $(document).on('click', '.maljani-lightbox-close, .maljani-lightbox-bg', function(e){
+        if ($(e.target).is('.maljani-lightbox-bg, .maljani-lightbox-close')) {
+            $('.maljani-lightbox-bg').fadeOut(200, function(){ $(this).remove(); });
+        }
+    });
+});

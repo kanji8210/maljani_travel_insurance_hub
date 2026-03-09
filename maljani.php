@@ -49,7 +49,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-client-dashboar
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.php';
 
 // Initialize
-Maljani_Registration::init();
+// Maljani_Registration::init(); // Handled in the class file itself
 
 // Add icons shortcode
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-icons.php';
