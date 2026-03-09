@@ -27,9 +27,12 @@ class Maljani_Database_Tools {
             'policy_sale' => "CREATE TABLE {$prefix}policy_sale (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 policy_id BIGINT UNSIGNED NOT NULL,
+                client_id BIGINT UNSIGNED NULL,
+                agency_id BIGINT UNSIGNED NULL,
                 policy_number VARCHAR(64),
                 region VARCHAR(191),
                 premium DECIMAL(10,2),
+                commission_amount DECIMAL(10,2) DEFAULT 0.00,
                 days INT,
                 departure DATE,
                 `return` DATE,
@@ -41,17 +44,19 @@ class Maljani_Database_Tools {
                 insured_email VARCHAR(191),
                 insured_address VARCHAR(191),
                 country_of_origin VARCHAR(191),
-                agent_id BIGINT UNSIGNED,
                 agent_name VARCHAR(191),
                 amount_paid DECIMAL(10,2),
                 payment_reference VARCHAR(191),
                 payment_status ENUM('confirmed','failed','pending') DEFAULT 'pending',
                 policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
+                workflow_status ENUM('draft','pending_review','submitted_to_insurer','approved','active','verification_ready') DEFAULT 'draft',
                 terms LONGTEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 KEY policy_id (policy_id),
+                KEY client_id (client_id),
+                KEY agency_id (agency_id),
                 KEY policy_number (policy_number),
                 KEY insured_email (insured_email)
             ) $charset_collate;",
@@ -70,28 +75,11 @@ class Maljani_Database_Tools {
                 KEY key_name (key_name)
             ) $charset_collate;"
 ,
-            'support_chat' => "CREATE TABLE {$prefix}support_chat (
-                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                user_id BIGINT UNSIGNED NULL,
-                email VARCHAR(191) NOT NULL,
-                message TEXT NOT NULL,
-                response TEXT NULL,
-                status ENUM('new','answered','closed') DEFAULT 'new',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                KEY user_id (user_id),
-                KEY email (email),
-                KEY status (status)
-            ) $charset_collate;"
-,
-            'support_sessions' => "CREATE TABLE {$prefix}support_sessions (
+            'maljani_chat_conversations' => "CREATE TABLE {$prefix}maljani_chat_conversations (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 user_id BIGINT UNSIGNED NULL,
                 email VARCHAR(191) NULL,
-                subject VARCHAR(191) NULL,
-                status ENUM('open','closed') DEFAULT 'open',
-                last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status ENUM('active','closed') DEFAULT 'active',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
@@ -100,33 +88,101 @@ class Maljani_Database_Tools {
                 KEY status (status)
             ) $charset_collate;",
 
-            'support_messages' => "CREATE TABLE {$prefix}support_messages (
+            'maljani_chat_messages' => "CREATE TABLE {$prefix}maljani_chat_messages (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                session_id BIGINT UNSIGNED NOT NULL,
-                sender ENUM('user','agent') DEFAULT 'user',
+                conversation_id BIGINT UNSIGNED NOT NULL,
+                sender_type ENUM('user','agent') DEFAULT 'user',
                 user_id BIGINT UNSIGNED NULL,
-                email VARCHAR(191) NULL,
                 message TEXT NOT NULL,
-                status ENUM('new','read') DEFAULT 'new',
+                is_read BOOLEAN DEFAULT FALSE,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                KEY session_id (session_id),
-                KEY sender (sender),
-                KEY status (status)
+                KEY conversation_id (conversation_id),
+                KEY sender_type (sender_type),
+                KEY is_read (is_read)
             ) $charset_collate;",
-            'support_email_queue' => "CREATE TABLE {$prefix}support_email_queue (
+
+            'maljani_chat_agents' => "CREATE TABLE {$prefix}maljani_chat_agents (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                to_email VARCHAR(191) NOT NULL,
-                subject VARCHAR(255) NOT NULL,
-                body LONGTEXT NOT NULL,
-                headers LONGTEXT NULL,
-                status ENUM('queued','sending','sent','failed') DEFAULT 'queued',
-                attempts INT DEFAULT 0,
+                user_id BIGINT UNSIGNED NOT NULL,
+                is_online BOOLEAN DEFAULT FALSE,
+                last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY user_id (user_id),
+                KEY is_online (is_online)
+            ) $charset_collate;",
+
+            'maljani_agencies' => "CREATE TABLE {$prefix}maljani_agencies (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id BIGINT UNSIGNED NULL,
+                agency_name VARCHAR(191) NOT NULL,
+                commission_percent DECIMAL(5,2) DEFAULT 0.00,
+                contact_email VARCHAR(191),
+                contact_phone VARCHAR(32),
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                KEY status (status),
-                KEY to_email (to_email)
+                KEY user_id (user_id),
+                KEY contact_email (contact_email)
+            ) $charset_collate;",
+
+            'maljani_clients' => "CREATE TABLE {$prefix}maljani_clients (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                agency_id BIGINT UNSIGNED NULL,
+                first_name VARCHAR(191) NOT NULL,
+                last_name VARCHAR(191) NOT NULL,
+                email VARCHAR(191),
+                phone VARCHAR(32),
+                dob DATE,
+                passport_number VARCHAR(64),
+                national_id VARCHAR(64),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY agency_id (agency_id),
+                KEY email (email)
+            ) $charset_collate;",
+
+            'maljani_payments' => "CREATE TABLE {$prefix}maljani_payments (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                agency_id BIGINT UNSIGNED NULL,
+                policy_id BIGINT UNSIGNED NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                reference VARCHAR(191),
+                type ENUM('agency_to_maljani','maljani_to_insurer') DEFAULT 'agency_to_maljani',
+                status ENUM('pending','completed','failed') DEFAULT 'pending',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY agency_id (agency_id),
+                KEY policy_id (policy_id),
+                KEY status (status)
+            ) $charset_collate;",
+
+            'maljani_documents' => "CREATE TABLE {$prefix}maljani_documents (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                policy_id BIGINT UNSIGNED NOT NULL,
+                type ENUM('policy_doc','embassy_letter','verification') NOT NULL,
+                file_path VARCHAR(255) NOT NULL,
+                uploaded_by BIGINT UNSIGNED NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY policy_id (policy_id),
+                KEY type (type)
+            ) $charset_collate;",
+
+            'maljani_audit_trail' => "CREATE TABLE {$prefix}maljani_audit_trail (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                entity_type ENUM('policy','payment','client','agency') NOT NULL,
+                entity_id BIGINT UNSIGNED NOT NULL,
+                action_name VARCHAR(191) NOT NULL,
+                performed_by BIGINT UNSIGNED NULL,
+                details JSON NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY entity_type_id (entity_type, entity_id)
             ) $charset_collate;"
         ];
     }
@@ -187,8 +243,16 @@ class Maljani_Database_Tools {
 
         // Define required columns for each table
         $required_columns = [
-            'policy_sale' => ['id', 'policy_id', 'policy_number', 'premium', 'insured_names', 'insured_email'],
-            'maljani_api_keys' => ['id', 'key_name', 'api_key', 'status']
+            'policy_sale' => ['id', 'policy_id', 'client_id', 'agency_id', 'policy_number', 'premium', 'commission_amount', 'workflow_status', 'insured_names', 'insured_email'],
+            'maljani_api_keys' => ['id', 'key_name', 'api_key', 'status'],
+            'maljani_chat_conversations' => ['id', 'email', 'status'],
+            'maljani_chat_messages' => ['id', 'conversation_id', 'message'],
+            'maljani_chat_agents' => ['id', 'user_id', 'is_online'],
+            'maljani_agencies' => ['id', 'agency_name', 'commission_percent'],
+            'maljani_clients' => ['id', 'first_name', 'last_name', 'email'],
+            'maljani_payments' => ['id', 'policy_id', 'amount', 'type', 'status'],
+            'maljani_documents' => ['id', 'policy_id', 'type', 'file_path'],
+            'maljani_audit_trail' => ['id', 'entity_type', 'entity_id', 'action_name']
         ];
 
         if (!isset($required_columns[$table_key])) {

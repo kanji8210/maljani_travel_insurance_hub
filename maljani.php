@@ -71,20 +71,78 @@ register_deactivation_hook( __FILE__, 'deactivate_maljani' );
 
 // Ajoute les rôles personnalisés à l'activation
 register_activation_hook(__FILE__, function() {
-    add_role('agent', 'Agent', [
+    // Role: Agent (Agency)
+    add_role('agent', 'Agency', [
         'read' => true,
-        // Ajoute d'autres capacités si besoin
+        'maljani_agency_dashboard' => true // Custom capability for the new CRM dashboard
     ]);
+    
+    // Role: Insured (Client)
+    add_role('insured', 'Client', [
+        'read' => true,
+        'maljani_client_dashboard' => true
+    ]);
+
+    // Role: Insurer (existing)
     add_role('insurer', 'Insurer', [
         'read' => true,
-        // Ajoute d'autres capacités si besoin
+        'review_maljani_policies' => true
     ]);
+
+    // Role: Maljani Editor / Moderator
+    add_role('maljani_editor', 'Maljani Editor', [
+        'read' => true,
+        'edit_maljani_policies' => true // Can perform initial reviews and forward to insurer
+    ]);
+
+    // Role: Maljani Admin
+    add_role('maljani_admin', 'Maljani Admin', [
+        'read' => true,
+        'edit_maljani_policies' => true,
+        'manage_maljani_agencies' => true,
+        'manage_maljani_payments' => true,
+        'activate_maljani_policies' => true // Can perform final activation and doc uploads
+    ]);
+
+    // Role: Maljani Super Admin
+    add_role('maljani_super_admin', 'Maljani Super Admin', [
+        'read' => true,
+        'edit_maljani_policies' => true,
+        'manage_maljani_agencies' => true,
+        'manage_maljani_payments' => true,
+        'activate_maljani_policies' => true,
+        'manage_maljani_roles' => true, // Can assign our custom roles to WP users
+        'manage_options' => true // Can access general WP settings if needed
+    ]);
+
+    // Also grant super admin powers to actual WordPress Administrators
+    $admin_role = get_role('administrator');
+    if ($admin_role) {
+        $admin_role->add_cap('edit_maljani_policies');
+        $admin_role->add_cap('manage_maljani_agencies');
+        $admin_role->add_cap('manage_maljani_payments');
+        $admin_role->add_cap('activate_maljani_policies');
+        $admin_role->add_cap('manage_maljani_roles');
+    }
 });
 
 // Supprime les rôles personnalisés à la désactivation
 register_deactivation_hook(__FILE__, function() {
     remove_role('agent');
+    remove_role('insured');
     remove_role('insurer');
+    remove_role('maljani_editor');
+    remove_role('maljani_admin');
+    remove_role('maljani_super_admin');
+    
+    $admin_role = get_role('administrator');
+    if ($admin_role) {
+        $admin_role->remove_cap('edit_maljani_policies');
+        $admin_role->remove_cap('manage_maljani_agencies');
+        $admin_role->remove_cap('manage_maljani_payments');
+        $admin_role->remove_cap('activate_maljani_policies');
+        $admin_role->remove_cap('manage_maljani_roles');
+    }
 });
 
 // ==========================
@@ -153,7 +211,16 @@ add_filter('template_include', function($template) {
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-pdf.php';
 
 // Support chat
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-support.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-live-chat.php';
+require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-live-chat-admin.php';
+
+// Agency CRM & Workflow
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-crm.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-workflow.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-notifications.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-crm-dashboard.php';
+require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-crm-admin.php';
+
 add_action('admin_post_maljani_verify_policy', 'maljani_handle_verify_policy');
 function maljani_handle_verify_policy() {
     if ( ! isset( $_GET['sale_id'] ) || ! isset( $_GET['token'] ) ) {

@@ -24,7 +24,7 @@ class Insurer_Profile_CPT {
             'rewrite'            => array('slug' => 'insurer-profile'),
             'supports'           => array('title', 'editor', 'thumbnail', 'custom-fields'),
             'show_in_rest'       => true,
-
+            'show_in_menu'       => 'maljani_travel',
         );
         //add wp function
         register_post_type('insurer_profile', $args);

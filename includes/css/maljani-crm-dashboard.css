@@ -1,0 +1,126 @@
+.maljani-crm-dashboard {
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #334155;
+}
+
+.crm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+
+.crm-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.crm-tab {
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    color: #64748b;
+}
+
+.crm-tab.active {
+    border-bottom-color: #3b82f6;
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.crm-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.crm-section { display: none; }
+.crm-section.active { display: block; }
+
+.crm-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #e2e8f0;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.crm-btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+.crm-btn-small { padding: 4px 8px; font-size: 12px; }
+
+.crm-table {
+    width: 100%;
+    background: white;
+    border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.crm-table th, .crm-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.crm-table th { background: #f8fafc; font-weight: 600; }
+
+.crm-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.crm-modal.active { display: flex; }
+
+.crm-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+}
+
+.crm-form-group { margin-bottom: 15px; }
+.crm-form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+.crm-form-group input, .crm-form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+.crm-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.crm-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}
+.crm-badge-draft { background: #e2e8f0; }
+.crm-badge-pending_review { background: #fef08a; color: #854d0e; }
+.crm-badge-submitted_to_insurer { background: #bfdbfe; color: #1e40af; }
+.crm-badge-approved { background: #d8b4fe; color: #6b21a8; }
+.crm-badge-active { background: #bbf7d0; color: #166534; }

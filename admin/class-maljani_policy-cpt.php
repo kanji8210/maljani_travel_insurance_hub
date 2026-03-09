@@ -25,6 +25,7 @@ class Policy_CPT {
             'rewrite'            => array('slug' => 'policy'),
             'supports'           => array('title', 'editor', 'thumbnail', 'custom-fields'),
             'show_in_rest'       => true,
+            'show_in_menu'       => 'maljani_travel',
         );
         register_post_type('policy', $args);
 

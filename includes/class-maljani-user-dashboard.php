@@ -96,6 +96,12 @@ class Maljani_User_Dashboard {
         $user_roles = $current_user->roles;
         $is_agent = in_array('agent', $user_roles);
         $is_insured = in_array('insured', $user_roles);
+
+        // --- NEW CRM DELEGATION ---
+        if ($is_agent && class_exists('Maljani_CRM_Dashboard')) {
+             return do_shortcode('[maljani_crm_dashboard]');
+        }
+        // --------------------------
         
         // Récupérer les données utilisateur
         $user_data = $this->get_user_profile_data($current_user->ID);

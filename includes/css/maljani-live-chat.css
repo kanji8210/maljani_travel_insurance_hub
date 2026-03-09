@@ -1,0 +1,155 @@
+#maljani-live-chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+    z-index: 999999;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+#maljani-live-chat-widget.maljani-chat-closed {
+    width: auto;
+    border-radius: 30px;
+}
+
+#maljani-live-chat-widget.maljani-chat-closed .maljani-chat-body {
+    display: none;
+}
+
+.maljani-chat-header {
+    background: #0073aa;
+    color: #fff;
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+
+.maljani-chat-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.maljani-chat-body {
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.maljani-chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.maljani-chat-msg {
+    max-width: 80%;
+    margin-bottom: 5px;
+    clear: both;
+}
+
+.maljani-chat-msg .bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.maljani-chat-msg.system {
+    align-self: center;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    margin: 10px 0;
+}
+
+.maljani-chat-msg.system .bubble {
+    background: none;
+    padding: 0;
+}
+
+.maljani-chat-msg.user {
+    align-self: flex-end;
+}
+
+.maljani-chat-msg.user .bubble {
+    background: #0073aa;
+    color: #fff;
+    border-bottom-right-radius: 2px;
+}
+
+.maljani-chat-msg.agent {
+    align-self: flex-start;
+}
+
+.maljani-chat-msg.agent .bubble {
+    background: #e5e5ea;
+    color: #000;
+    border-bottom-left-radius: 2px;
+}
+
+.maljani-chat-msg .time {
+    font-size: 10px;
+    color: #999;
+    margin-top: 4px;
+    display: block;
+}
+
+.maljani-chat-msg.user .time {
+    text-align: right;
+}
+
+.maljani-chat-form {
+    padding: 10px;
+    background: #fff;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 8px;
+}
+
+.maljani-chat-form input,
+.maljani-chat-form textarea {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+}
+
+.maljani-chat-form textarea {
+    resize: none;
+    height: 38px;
+    font-family: Arial, sans-serif;
+}
+
+.maljani-chat-form button {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.maljani-chat-form button:hover {
+    background: #005177;
+}
