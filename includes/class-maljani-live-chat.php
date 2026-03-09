@@ -11,6 +11,13 @@ class Maljani_Live_Chat {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('rest_api_init', [$this, 'register_routes']);
         add_action('wp_footer', [$this, 'render_widget']);
+        add_shortcode('maljani_live_chat', [$this, 'render_shortcode']);
+    }
+    
+    public function render_shortcode() {
+        ob_start();
+        $this->render_widget();
+        return ob_get_clean();
     }
 
     public function enqueue_assets() {

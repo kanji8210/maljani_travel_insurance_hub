@@ -44,6 +44,13 @@ require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-admin-menu.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-insured-reg.php';
 // Add user dashboard
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-user-dashboard.php';
+// Add client dashboard
+require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-client-dashboard.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.php';
+
+// Initialize
+Maljani_Registration::init();
+
 // Add icons shortcode
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-icons.php';
 // Add diagnostic tool

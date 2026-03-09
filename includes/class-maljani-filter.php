@@ -4,6 +4,10 @@ class Maljani_Filter {
         add_shortcode('maljani_policy_ajax_filter', array($this, 'render_filter_form'));
         add_shortcode('maljani_filter_form', array($this, 'render_filter_form_only'));
         add_shortcode('maljani_policy_grid', array($this, 'render_policy_grid'));
+        
+        // Aliases for Page Management compatibility
+        add_shortcode('maljani_policy_catalog', array($this, 'render_filter_form'));
+        add_shortcode('maljani_quick_quote', array($this, 'render_filter_form_only'));
     // Load filter assets late to overrule theme styles
     add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'), 999);
         add_action('wp_ajax_maljani_filter_policies', array($this, 'ajax_filter'));
@@ -36,105 +40,197 @@ class Maljani_Filter {
         try {
     ?>
     <style>
+        :root {
+            --maljani-primary: #4f46e5;
+            --maljani-secondary: #0f172a;
+            --maljani-accent: #818cf8;
+            --maljani-glass-bg: rgba(255, 255, 255, 0.7);
+            --maljani-glass-border: rgba(255, 255, 255, 0.8);
+            --maljani-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+
+        .maljani-filter-wrapper {
+            background: var(--maljani-glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--maljani-glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 50px;
+            box-shadow: var(--maljani-shadow);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .filter-header { margin-bottom: 25px; text-align: left; }
+        .filter-header h2 { font-size: 24px; font-weight: 800; color: var(--maljani-secondary); margin: 0; }
+        
+        #maljani-policy-filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            align-items: flex-end;
+        }
+
+        .filter-group { display: flex; flex-direction: column; gap: 8px; }
+        .filter-group label { font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .filter-input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #1e293b;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .filter-input:focus { border-color: var(--maljani-primary); outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        .region-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .region-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .region-btn.active {
+            background: var(--maljani-primary);
+            color: white;
+            border-color: var(--maljani-primary);
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+
         .maljani-policy-grid-ajax {
             display: grid;
             grid-template-columns: repeat(<?php echo esc_attr($columns); ?>, 1fr);
             gap: 24px;
             list-style: none;
             padding: 0;
-            margin: 32px 0 0 0;
+            margin: 0;
         }
-        @media (max-width: 1024px) {
-            .maljani-policy-grid-ajax {
-                grid-template-columns: repeat(<?php echo min(2, $columns); ?>, 1fr);
-            }
-        }
-        @media (max-width: 700px) {
-            .maljani-policy-grid-ajax {
-                grid-template-columns: 1fr;
-            }
-        }
+
         .maljani-policy-card {
-            border: 1px solid #ddd;
-            padding: 20px;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            height: 100%;
         }
-        .maljani-policy-card h3 {
-            margin: 0;
-            font-size: 1.2em;
-            color: #222;
+        .maljani-policy-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border-color: #e2e8f0; }
+
+        .policy-card-header {
+            padding: 24px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
-        .maljani-policy-card h3 a {
-            color: #1e5c3a;
+        .policy-title-box h3 { margin: 0; font-size: 18px; font-weight: 800; color: #1e293b; line-height: 1.3; }
+        .policy-title-box h3 a { color: inherit; text-decoration: none; }
+        
+        .insurer-emblem {
+            width: 48px; height: 48px;
+            background: white;
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            object-fit: contain;
+            border: 1px solid #f1f5f9;
+        }
+
+        .policy-card-body { padding: 24px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
+        .policy-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #64748b; }
+        .policy-label { font-weight: 600; color: #94a3b8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+
+        .premium-box {
+            background: #f0f9ff;
+            border: 1px dashed #bae6fd;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .premium-value { display: block; font-size: 20px; font-weight: 800; color: #0369a1; }
+        .premium-days { font-size: 12px; color: #0ea5e9; font-weight: 600; }
+
+        .policy-card-footer { padding: 20px 24px; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 12px; }
+        .policy-buy-btn {
+            width: 100%;
+            background: var(--maljani-primary);
+            color: white !important;
+            text-align: center;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
             text-decoration: none;
+            transition: all 0.2s;
         }
-        .maljani-policy-card h3 a:hover {
+        .policy-buy-btn:hover { background: #4338ca; transform: scale(1.02); }
+        
+        .see-benefits-link {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
             text-decoration: underline;
         }
-        .policy-buy-btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background: var(--wp--preset--color--primary, #1e5c3a);
-            color: #ffffff !important;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            text-align: center;
-            font-weight: 500;
+        .see-benefits-link:hover { color: var(--maljani-primary); }
+
+        @media (max-width: 1024px) {
+            .maljani-policy-grid-ajax { grid-template-columns: repeat(<?php echo min(2, $columns); ?>, 1fr); }
         }
-        .policy-buy-btn:hover {
-            opacity: 0.9;
-            color: #ffffff !important;
-        }
-        .region-filter-btn {
-            padding: 8px 16px;
-            border: 1px solid var(--wp--preset--color--primary, #1e5c3a);
-            background: white;
-            color: var(--wp--preset--color--primary, #1e5c3a);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .region-filter-btn.active,
-        .region-filter-btn:hover {
-            background: var(--wp--preset--color--primary, #1e5c3a);
-            color: white;
+        @media (max-width: 700px) {
+            .maljani-policy-grid-ajax { grid-template-columns: 1fr; }
+            .maljani-filter-wrapper { padding: 24px; }
         }
     </style>
-    <div class="maljani-filter-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
-    <form id="maljani-policy-filter-form" style="display:flex;flex-direction:column;gap:20px;margin-bottom:30px;">
-            <!-- Date inputs -->
-            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                <label style="margin:0;color:#222;">
-                    Departure Date:
-                    <input type="date" name="departure" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
-                </label>
-                <label style="margin:0;color:#222;">
-                    Return Date:
-                    <input type="date" name="return" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
-                </label>
+    <div class="maljani-filter-container">
+        <div class="maljani-filter-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
+            <div class="filter-header">
+                <h2>Find Your Perfect Plan</h2>
             </div>
-            
-            <!-- Region filter buttons -->
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <span style="font-weight:bold;color:#222;">Filter by type/region:</span>
-                <button type="button" class="region-filter-btn active" data-region="">All Regions</button>
-                <?php
-                $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
-                if (!is_wp_error($regions)) {
-                    foreach ($regions as $region) {
-                        echo '<button type="button" class="region-filter-btn" data-region="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</button>';
-                    }
-                }
-                ?>
-            </div>
-        </form>
+            <form id="maljani-policy-filter-form">
+                <div class="filter-group">
+                    <label>Departure Date</label>
+                    <input type="date" name="departure" class="filter-input" required>
+                </div>
+                <div class="filter-group">
+                    <label>Return Date</label>
+                    <input type="date" name="return" class="filter-input" required>
+                </div>
+                <div class="filter-group" style="grid-column: span 2;">
+                    <label>Destination / Region</label>
+                    <div class="region-toggles">
+                        <button type="button" class="region-btn active" data-region="">All Regions</button>
+                        <?php
+                        $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
+                        if (!is_wp_error($regions)) {
+                            foreach ($regions as $region) {
+                                echo '<button type="button" class="region-btn" data-region="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</button>';
+                            }
+                        }
+                        ?>
+                    </div>
+                    <input type="hidden" name="region_id" id="maljani-region-input" value="">
+                </div>
+                <!-- The form is handled by AJAX in maljani-filter.js -->
+            </form>
+        </div>
+
         <div id="maljani-policy-results">
             <?php $this->render_policy_list(array(), 0, $columns); ?>
         </div>
-        </div>
-        <?php
+    </div>
+    <?php
         } catch (Exception $e) {
             echo '<div class="error">Error displaying filter form: ' . esc_html($e->getMessage()) . '</div>';
         }
@@ -397,7 +493,9 @@ class Maljani_Filter {
     public function render_policy_item($policy_id, $days = 0) {
         try {
             $insurer_id = get_post_meta($policy_id, '_policy_insurer', true);
-            $insurer_name = $insurer_logo = '';
+            $insurer_name = '';
+            $insurer_logo = '';
+            
             if ($insurer_id) {
                 $insurer_name = get_the_title($insurer_id);
                 $insurer_logo = get_post_meta($insurer_id, '_insurer_logo', true);
@@ -406,20 +504,11 @@ class Maljani_Filter {
                 }
             }
 
-            // Get region from taxonomy instead of meta
             $regions = get_the_terms($policy_id, 'policy_region');
-            $region_name = '';
-            if ($regions && !is_wp_error($regions)) {
-                $region_name = $regions[0]->name;
-            }
+            $region_name = ($regions && !is_wp_error($regions)) ? $regions[0]->name : 'Global';
 
-            $description = get_post_meta($policy_id, '_policy_description', true);
-            $excerpt = wp_trim_words($description, 20, '...');
-
-            // Calculate premium if days are provided
             $premium = '';
-            $currency = get_post_meta($policy_id, '_policy_currency', true);
-            if (empty($currency)) $currency = 'KSH';
+            $currency = get_post_meta($policy_id, '_policy_currency', true) ?: 'KSH';
             
             if ($days > 0) {
                 $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
@@ -434,84 +523,69 @@ class Maljani_Filter {
             }
 
             echo '<li class="maljani-policy-card">';
-            echo '<h3><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
             
-            if ($insurer_id && $insurer_name) {
-                echo '<div style="display:flex;align-items:center;gap:8px;">';
-                if ($insurer_logo) {
-                    echo '<img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:32px;height:32px;object-fit:cover;">';
-                }
-                echo '<span class="insurer-name" data-insurer-id="' . esc_attr($insurer_id) . '" style="font-weight:bold;color:#222;">Insurer: ' . esc_html($insurer_name) . '</span>';
-                echo '</div>';
+            // Header: Title and Insurer Emblem
+            echo '<div class="policy-card-header">';
+            echo '  <div class="policy-title-box">';
+            echo '    <h3><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
+            echo '    <span class="policy-region" style="font-size:12px; color:#64748b;">📍 ' . esc_html($region_name) . '</span>';
+            echo '  </div>';
+            if ($insurer_logo) {
+                echo '  <img src="' . esc_url($insurer_logo) . '" alt="' . esc_attr($insurer_name) . '" class="insurer-emblem" title="Insurer: ' . esc_attr($insurer_name) . '">';
             }
-            
-            if ($region_name) {
-                echo '<div style="color:#222;"><strong>Region:</strong> ' . esc_html($region_name) . '</div>';
-            }
-            
-            // Affichage du premium si calculé
-            if ($premium && $days > 0) {
-                echo '<div style="padding:12px;background:#f5f5f5;border:1px solid #ddd;">';
-                echo '<strong style="color:#222;">Premium for ' . esc_html($days) . ' days: ' . esc_html($currency) . ' ' . esc_html($premium) . '</strong>';
-                echo '</div>';
-            }
-            // Lien et bloc pour les bénéfices (toujours affiché)
-            echo '<div class="policy-benefits-link">';
-            echo '<a href="#" class="see-benefits" data-policy-id="' . esc_attr($policy_id) . '" style="color:#1e5c3a;font-weight:500;text-decoration:underline;cursor:pointer;">See benefits</a>';
             echo '</div>';
-            $benefits = get_post_meta($policy_id, '_policy_benefits', true);
-            echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
-            if ($benefits) {
-                echo '<div class="popup-benefits-content" style="min-width:220px;max-width:340px;">';
-                echo '<h4 style="margin-bottom:10px;">Policy Benefits</h4>';
-                echo '<div style="font-size:1em;color:#222;">' . wp_kses_post($benefits) . '</div>';
+
+            // Body: Metadata rows
+            echo '<div class="policy-card-body">';
+            
+            if ($premium && $days > 0) {
+                echo '<div class="premium-box">';
+                echo '  <span class="premium-value">' . esc_html($currency) . ' ' . esc_html(number_format($premium)) . '</span>';
+                echo '  <span class="premium-days">Total for ' . esc_html($days) . ' days</span>';
                 echo '</div>';
             } else {
-                echo '<div class="popup-benefits-content">No benefits listed for this policy.</div>';
+                echo '<div class="premium-box" style="background:#f1f5f9; border-color:#e2e8f0;">';
+                echo '  <span class="premium-value" style="color:#64748b; font-size:16px;">Enter travel dates</span>';
+                echo '  <span class="premium-days" style="color:#94a3b8;">to calculate premium</span>';
+                echo '</div>';
             }
-            echo '</div>';
-            
-            echo '<div style="color:#222;flex:1;">' . esc_html($excerpt) . '</div>';
-            
-            // Add purchase link if premium is available
-            if ($premium && $days > 0) {
-                $sale_page_id = get_option('maljani_policy_sale_page');
-                if ($sale_page_id) {
-                    $sale_url = add_query_arg([
-                        'policy_id' => $policy_id,
-                        'departure' => isset($_POST['departure']) ? $_POST['departure'] : '',
-                        'return' => isset($_POST['return']) ? $_POST['return'] : ''
-                    ], get_permalink($sale_page_id));
-                    echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Buy Now - ' . esc_html($currency) . ' ' . esc_html($premium) . '</a>';
-                }
-            }
-            
-            echo '</li>';
-            // Affichage du profil assureur (caché)
-            $insurer_profile = get_post_meta($insurer_id, '_insurer_profile', true);
-            $insurer_website = get_post_meta($insurer_id, '_insurer_website', true);
-            $insurer_linkedin = get_post_meta($insurer_id, '_insurer_linkedin', true);
-            echo '<div class="insurer-profile-popup" id="insurer-profile-' . esc_attr($insurer_id) . '" style="display:none;">';
-            echo '  <div class="popup-profile-content" style="min-width:260px;max-width:340px;">';
-            echo '    <div style="text-align:center;margin-bottom:12px;">';
-            if ($insurer_logo) {
-                echo '      <img src="' . esc_url($insurer_logo) . '" alt="Logo" style="width:64px;height:64px;object-fit:cover;border-radius:50%;box-shadow:0 2px 8px rgba(24,49,83,0.10);">';
-            }
-            echo '    </div>';
-            echo '    <h3 style="margin-bottom:8px;font-size:1.1em;">' . esc_html($insurer_name) . '</h3>';
-            if ($insurer_profile) {
-                // Tronquer le profil si trop long (environ 280 caractères pour 9 lignes)
-                $truncated_profile = strlen($insurer_profile) > 350 ? substr($insurer_profile, 0, 350) . '...' : $insurer_profile;
-                echo '    <div style="font-size:0.92em;color:#222;margin-bottom:10px;line-height:1.4;">' . esc_html($truncated_profile) . '</div>';
-            }
-            if ($insurer_website) {
-                echo '    <div style="margin-bottom:6px;"><a href="' . esc_url($insurer_website) . '" target="_blank" style="color:#0073aa;font-weight:500;">🌐 Site web</a></div>';
-            }
-            if ($insurer_linkedin) {
-                echo '    <div><a href="' . esc_url($insurer_linkedin) . '" target="_blank" style="color:#0a66c2;font-weight:500;">in LinkedIn</a></div>';
-            }
+
+            echo '  <div class="policy-meta-row">';
+            echo '    <span class="policy-label">Underwriter</span>';
+            echo '    <span>' . esc_html($insurer_name ?: 'Approved Partner') . '</span>';
             echo '  </div>';
             echo '</div>';
+            
+            // Footer: Actions
+            echo '<div class="policy-card-footer">';
+            $sale_page_id = get_option('maljani_page_policy_sale'); // Use the generic slug if possible, or fallback
+            if (!$sale_page_id) $sale_page_id = get_option('maljani_policy_sale_page');
+
+            if ($premium && $days > 0 && $sale_page_id) {
+                $sale_url = add_query_arg([
+                    'policy_id' => $policy_id,
+                    'departure' => isset($_POST['departure']) ? $_POST['departure'] : '',
+                    'return' => isset($_POST['return']) ? $_POST['return'] : '',
+                    'days' => $days
+                ], get_permalink($sale_page_id));
+                echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Select Plan</a>';
+            } else {
+                echo '<button class="policy-buy-btn" style="opacity:0.5; cursor:not-allowed;" disabled>Select Plan</button>';
+            }
+            
+            echo '<span class="see-benefits-link see-benefits" data-policy-id="' . esc_attr($policy_id) . '">View Full Coverage & Benefits</span>';
+            
+            // Benefits Hidden Modal Content
+            $benefits = get_post_meta($policy_id, '_policy_benefits', true);
+            echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
+            echo '  <div class="popup-benefits-content" style="max-width:400px; padding:30px; background:white; border-radius:16px;">';
+            echo '    <h4 style="margin-bottom:15px; font-size:18px; font-weight:800; border-bottom:1px solid #eee; padding-bottom:10px;">🛡️ Coverage Benefits</h4>';
+            echo '    <div style="font-size:14px; color:#475569; line-height:1.6;">' . wp_kses_post($benefits ?: 'Contact support for detailed benefits.') . '</div>';
+            echo '    <button onclick="jQuery(\'#policy-benefits-' . esc_attr($policy_id) . '\').hide();" style="margin-top:20px; width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; cursor:pointer;">Close</button>';
+            echo '  </div>';
+            echo '</div>';
+            
+            echo '</div>'; // footer
             echo '</li>';
         } catch (Exception $e) {
             echo '<li class="maljani-policy-item error">Erreur lors de l\'affichage de la policy : ' . esc_html($e->getMessage()) . '</li>';

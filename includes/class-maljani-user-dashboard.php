@@ -25,6 +25,9 @@ class Maljani_User_Dashboard {
     
     public function __construct() {
         add_shortcode('maljani_user_dashboard', [$this, 'render_dashboard']);
+        add_shortcode('maljani_login_form', [$this, 'render_login_form']);
+        add_shortcode('maljani_insurer_dashboard', [$this, 'render_insurer_dashboard']);
+        
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('init', [$this, 'handle_dashboard_actions']);
         add_action('wp_ajax_maljani_update_profile', [$this, 'handle_profile_update']);
@@ -79,11 +82,152 @@ class Maljani_User_Dashboard {
         }
     }
     
+    public function render_login_form() {
+        if (is_user_logged_in()) {
+            return $this->render_dashboard();
+        }
+        
+        ob_start();
+        ?>
+        <div class="maljani-login-wrapper">
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>Maljani Hub Login</h2>
+                    <p>Access your insurance and agency portal</p>
+                </div>
+                <?php wp_login_form([
+                    'label_username' => 'Email Address',
+                    'label_password' => 'Secure Password',
+                    'label_remember' => 'Stay connected',
+                    'label_log_in'   => 'Enter Hub',
+                    'remember'       => true,
+                    'value_remember' => true,
+                    'redirect'       => get_permalink()
+                ]); ?>
+                <div class="login-footer">
+                    <p>New to Maljani? <a href="<?php echo get_permalink(get_option('maljani_page_register_agency')); ?>">Register your agency</a></p>
+                </div>
+            </div>
+        </div>
+        <style>
+            .maljani-login-wrapper {
+                max-width: 450px; margin: 40px auto;
+                background: rgba(255, 255, 255, 0.7);
+                backdrop-filter: blur(10px);
+                border-radius: 24px; padding: 40px;
+                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+                border: 1px solid rgba(255,255,255,0.8);
+            }
+            .login-header { text-align: center; margin-bottom: 30px; }
+            .login-header h2 { font-size: 24px; font-weight: 800; color: #1e293b; margin: 0; }
+            .login-header p { color: #64748b; font-size: 14px; margin-top: 8px; }
+            #loginform label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; font-size: 13px; }
+            #loginform input[type="text"], #loginform input[type="password"] {
+                width: 100%; padding: 12px 16px; border-radius: 12px;
+                border: 1px solid #e2e8f0; background: #f8fafc;
+                margin-bottom: 20px; transition: all 0.2s;
+            }
+            #loginform input:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+            #loginform .forgetmenot { margin-bottom: 20px; color: #64748b; font-size: 13px; }
+            #loginform .button-primary {
+                width: 100%; border: none; background: #4f46e5; color: white;
+                padding: 14px; border-radius: 12px; font-weight: 700;
+                cursor: pointer; transition: transform 0.2s;
+            }
+            #loginform .button-primary:hover { background: #4338ca; transform: translateY(-1px); }
+            .login-footer { text-align: center; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 20px; color: #64748b; font-size: 14px; }
+            .login-footer a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+        </style>
+        <?php
+        return ob_get_clean();
+    }
+
+    public function render_insurer_dashboard() {
+        if (!is_user_logged_in() || !current_user_can('insurer_access') && !in_array('insurer', wp_get_current_user()->roles)) {
+            return '<div class="notice notice-error"><p>Access denied. This portal is for authorized insurers only.</p></div>';
+        }
+
+        $policies = $this->get_pending_insurer_policies();
+        
+        ob_start();
+        ?>
+        <div class="maljani-dashboard-container insurer-portal">
+            <div class="maljani-dashboard-header" style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8);">
+                <div style="display:flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>🏦 Insurer Underwriting Portal</h2>
+                        <p>Review and verify submitted insurance policies.</p>
+                    </div>
+                    <div class="portal-stat">
+                        <span class="stat-value"><?php echo count($policies); ?></span>
+                        <span class="stat-label">Pending Review</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3>Policies Awaiting Action</h3>
+                <?php if (empty($policies)): ?>
+                    <div style="text-align:center; padding: 60px 20px;">
+                        <span style="font-size: 48px;">✅</span>
+                        <p style="margin-top: 20px; font-size: 18px; color: #64748b;">Great work! All policies have been reviewed.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="insurer-policy-grid">
+                        <?php foreach ($policies as $policy): ?>
+                            <div class="policy-review-card">
+                                <div class="review-status">Awaiting Verification</div>
+                                <h4><?php echo esc_html($policy->insured_names); ?></h4>
+                                <div class="review-meta">
+                                    <span>#<?php echo esc_html($policy->policy_number); ?></span>
+                                    <span><?php echo esc_html($policy->region); ?></span>
+                                </div>
+                                <div class="review-details">
+                                    <div class="r-row"><span>Departure:</span> <strong><?php echo esc_html($policy->departure); ?></strong></div>
+                                    <div class="r-row"><span>Return:</span> <strong><?php echo esc_html($policy->return); ?></strong></div>
+                                    <div class="r-row"><span>Premium:</span> <strong><?php echo esc_html($policy->premium); ?></strong></div>
+                                </div>
+                                <div class="review-actions">
+                                    <button class="maljani-btn-verify" data-id="<?php echo $policy->id; ?>">Review Documents</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <style>
+            .insurer-portal .portal-stat { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); }
+            .portal-stat .stat-value { display: block; font-size: 32px; font-weight: 800; line-height: 1; }
+            .portal-stat .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+            .content-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+            .insurer-policy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+            .policy-review-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; position: relative; transition: all 0.2s; }
+            .policy-review-card:hover { border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1); }
+            .review-status { position: absolute; top: 20px; right: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #3b82f6; background: #eff6ff; padding: 4px 8px; border-radius: 6px; }
+            .policy-review-card h4 { margin: 0 0 10px 0; font-size: 18px; color: #1e293b; }
+            .review-meta { display: flex; gap: 10px; margin-bottom: 20px; color: #64748b; font-size: 12px; }
+            .review-meta span { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+            .review-details { margin-bottom: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+            .r-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+            .r-row span { color: #64748b; }
+            .maljani-btn-verify { width: 100%; padding: 12px; border: none; background: #1e293b; color: white; border-radius: 10px; font-weight: 600; cursor: pointer; }
+        </style>
+        <?php
+        return ob_get_clean();
+    }
+
+    private function get_pending_insurer_policies() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        // In a real scenario, we'd filter by the insurer's assigned policies
+        // For now, show all pending
+        return $wpdb->get_results("SELECT * FROM $table WHERE policy_status = 'pending' ORDER BY created_at DESC LIMIT 20");
+    }
+
     public function render_dashboard() {
-        // Get isolation manager
         $isolation = Maljani_Style_Isolation::instance();
         
-        // Vérifier que l'utilisateur est connecté
         if (!is_user_logged_in()) {
             return $isolation->wrap_output('
                 <div class="maljani-dashboard-login-required">
@@ -94,264 +238,110 @@ class Maljani_User_Dashboard {
         
         $current_user = wp_get_current_user();
         $user_roles = $current_user->roles;
-        $is_agent = in_array('agent', $user_roles);
-        $is_insured = in_array('insured', $user_roles);
-
-        // --- NEW CRM DELEGATION ---
-        if ($is_agent && class_exists('Maljani_CRM_Dashboard')) {
-             return do_shortcode('[maljani_crm_dashboard]');
-        }
-        // --------------------------
         
-        // Récupérer les données utilisateur
-        $user_data = $this->get_user_profile_data($current_user->ID);
-        
-        // Récupérer les polices selon le rôle
-        $policies = $this->get_user_policies($current_user->ID, $is_agent);
-        
-        // Gestion des messages de notification
-        $this->render_notifications();
-        
+        // Premium Hub Wrapper
         ob_start();
-        
-        // Add critical CSS inline
-        echo $isolation->get_inline_critical_styles();
         ?>
-        <div class="maljani-dashboard-container">
-            <div class="maljani-dashboard-header">
-                <h2>
-                    <?php if ($is_agent): ?>
-                        🏢 Agent Dashboard - <?php echo esc_html($current_user->display_name); ?>
+        <div class="maljani-hub-entrance">
+            <div class="hub-vignette"></div>
+            <div class="hub-content">
+                <div class="hub-welcome">
+                    <span class="hub-badge">Premium Access</span>
+                    <h1>Welcome, <?php echo esc_html($current_user->first_name ?: $current_user->display_name); ?></h1>
+                    <p>Redirecting you to your personal control center...</p>
+                </div>
+                
+                <div class="hub-loading">
+                    <div class="hub-spinner"></div>
+                </div>
+
+                <div class="hub-routing-box">
+                    <?php 
+                    $agency_page = get_option('maljani_page_agency_dashboard');
+                    $client_page = get_option('maljani_page_client_dashboard');
+                    $insurer_page = get_option('maljani_page_insurer_dashboard');
+                    $agency_url = $agency_page ? get_permalink($agency_page) : site_url('/agency-dashboard');
+                    $client_url = $client_page ? get_permalink($client_page) : site_url('/my-policies');
+                    $insurer_url = $insurer_page ? get_permalink($insurer_page) : site_url('/insurer-portal');
+                    ?>
+                    <?php if (in_array('agent', $user_roles) || current_user_can('manage_maljani_agencies')): ?>
+                        <div class="route-info">
+                            <span class="route-icon">🏢</span>
+                            <span class="route-text">Agency Management Portal</span>
+                        </div>
+                        <script>setTimeout(() => { window.location.href = '<?php echo esc_url($agency_url); ?>'; }, 1500);</script>
+                    <?php elseif (in_array('insurer', $user_roles)): ?>
+                        <div class="route-info">
+                            <span class="route-icon">🏦</span>
+                            <span class="route-text">Insurer Underwriting Portal</span>
+                        </div>
+                        <script>setTimeout(() => { window.location.href = '<?php echo esc_url($insurer_url); ?>'; }, 1500);</script>
+                    <?php elseif (in_array('insured', $user_roles)): ?>
+                        <div class="route-info">
+                            <span class="route-icon">🛡️</span>
+                            <span class="route-text">Personal Insurance Hub</span>
+                        </div>
+                        <script>setTimeout(() => { window.location.href = '<?php echo esc_url($client_url); ?>'; }, 1500);</script>
                     <?php else: ?>
-                        👤 My Insurance Dashboard - <?php echo esc_html($current_user->display_name); ?>
+                         <div class="route-info">
+                            <span class="route-icon">👤</span>
+                            <span class="route-text">User Profile Settings</span>
+                        </div>
+                        <script>setTimeout(() => { jQuery('#fallback-profile').fadeIn(); jQuery('.hub-content').fadeOut(); }, 1500);</script>
                     <?php endif; ?>
-                </h2>
-                <div class="dashboard-stats">
-                    <div class="stat-box">
-                        <span class="stat-number"><?php echo count($policies); ?></span>
-                        <span class="stat-label"><?php echo $is_agent ? 'Policies Sold' : 'My Policies'; ?></span>
+                </div>
+            </div>
+
+            <div id="fallback-profile" style="display:none;">
+                <div class="maljani-dashboard-container">
+                    <div class="maljani-dashboard-header">
+                        <h2>👤 My Account - <?php echo esc_html($current_user->display_name); ?></h2>
+                        <p>Basic account settings.</p>
                     </div>
-                    <?php if ($is_agent): ?>
-                        <div class="stat-box">
-                            <span class="stat-number"><?php echo $this->count_policies_by_status($policies, 'confirmed'); ?></span>
-                            <span class="stat-label">Confirmed</span>
-                        </div>
-                        <div class="stat-box">
-                            <span class="stat-number"><?php echo $this->count_policies_by_status($policies, 'pending'); ?></span>
-                            <span class="stat-label">Pending</span>
-                        </div>
-                    <?php endif; ?>
+                    <div class="tab-content active" id="profile-tab">
+                        <?php $this->render_profile_section($this->get_user_profile_data($current_user->ID), $current_user); ?>
+                    </div>
                 </div>
             </div>
-            
-            <div class="maljani-dashboard-tabs">
-                <button class="tab-button active" data-tab="policies">
-                    <?php echo $is_agent ? '📋 Policies Sold' : '📋 My Policies'; ?>
-                </button>
-                <button class="tab-button" data-tab="profile">👤 Profile</button>
-                <?php if ($is_agent): ?>
-                    <button class="tab-button" data-tab="analytics">📊 Analytics</button>
-                <?php endif; ?>
-            </div>
-            
-            <!-- Onglet Polices -->
-            <div class="tab-content active" id="policies-tab">
-                <?php $this->render_policies_table($policies, $is_agent); ?>
-            </div>
-            
-            <!-- Onglet Profil -->
-            <div class="tab-content" id="profile-tab">
-                <?php $this->render_profile_section($user_data, $current_user); ?>
-            </div>
-            
-            <?php if ($is_agent): ?>
-                <!-- Onglet Analytics (pour les agents) -->
-                <div class="tab-content" id="analytics-tab">
-                    <?php $this->render_analytics_section($policies); ?>
-                </div>
-            <?php endif; ?>
         </div>
-        
+
         <style>
-        .maljani-dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        .maljani-hub-entrance {
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            min-height: 500px; padding: 100px 40px; border-radius: 24px;
+            position: relative; overflow: hidden; color: white; text-align: center;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Inter', system-ui, sans-serif;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
-        .maljani-dashboard-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
+        .hub-content { z-index: 2; animation: hubFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1); }
+        .hub-badge { 
+            background: rgba(79, 70, 229, 0.2); color: #818cf8; padding: 6px 16px; 
+            border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; border: 1px solid rgba(129, 140, 248, 0.3);
+            margin-bottom: 20px; display: inline-block;
         }
-        .maljani-dashboard-header h2 {
-            margin: 0 0 20px 0;
-            font-size: 28px;
-        }
-        .dashboard-stats {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .stat-box {
-            background: rgba(255,255,255,0.1);
-            padding: 15px 20px;
-            border-radius: 8px;
-            text-align: center;
-            min-width: 120px;
-        }
-        .stat-number {
-            display: block;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            display: block;
-            font-size: 12px;
-            opacity: 0.9;
-        }
-        .maljani-dashboard-tabs {
-            display: flex;
-            border-bottom: 2px solid #e0e0e0;
-            margin-bottom: 30px;
-            gap: 10px;
-        }
-        .tab-button {
-            background: none;
-            border: none;
-            padding: 15px 25px;
-            cursor: pointer;
-            font-size: 16px;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        .tab-button.active {
-            border-bottom-color: #667eea;
-            color: #667eea;
-            font-weight: 600;
-        }
-        .tab-button:hover {
-            background: #f5f5f5;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .policies-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .policies-table th {
-            background: #f8f9fa;
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .policies-table td {
-            padding: 15px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .policies-table tr:hover {
-            background: #f8f9fa;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .status-confirmed { background: #d4edda; color: #155724; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-unconfirmed { background: #f8d7da; color: #721c24; }
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-        }
-        .btn {
-            padding: 6px 12px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 12px;
-            cursor: pointer;
-            border: none;
-        }
-        .btn-primary { background: #007cba; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn:hover { opacity: 0.8; }
-        .profile-form {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            .dashboard-stats {
-                justify-content: center;
-            }
-            .maljani-dashboard-tabs {
-                flex-direction: column;
-            }
-        }
-        </style>
+        .hub-welcome h1 { font-size: 42px; font-weight: 800; margin: 0; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hub-welcome p { font-size: 18px; color: #94a3b8; margin-top: 10px; }
         
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Gestion des onglets
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-            
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const tabId = this.dataset.tab;
-                    
-                    // Désactiver tous les onglets
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    
-                    // Activer l'onglet sélectionné
-                    this.classList.add('active');
-                    document.getElementById(tabId + '-tab').classList.add('active');
-                });
-            });
-        });
-        </script>
+        .hub-loading { margin: 40px 0; }
+        .hub-spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #4f46e5; border-radius: 50%;
+            margin: 0 auto; animation: hubSpin 1s linear infinite;
+        }
+        .hub-routing-box { background: rgba(255,255,255,0.03); padding: 20px 40px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .route-info { display: flex; align-items: center; gap: 15px; justify-content: center; }
+        .route-icon { font-size: 24px; }
+        .route-text { font-weight: 600; color: #e2e8f0; }
+
+        @keyframes hubFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes hubSpin { to { transform: rotate(360deg); } }
+        
+        /* Fallback Styles */
+        #fallback-profile { width: 100%; color: #1e293b; background: white; border-radius: 24px; padding: 20px; }
+        .maljani-dashboard-header { background: #1e293b; color: white; padding: 30px; border-radius: 16px; margin-bottom: 30px; text-align: left; }
+        </style>
         <?php
         return ob_get_clean();
     }

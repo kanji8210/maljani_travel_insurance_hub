@@ -17,7 +17,7 @@ jQuery(document).ready(function($) {
             columns: columns
         };
         
-        $('#maljani-policy-results').addClass('loading').html('<p>Calculating premiums...</p>');
+        $('#maljani-policy-results').addClass('loading').html('<div class="loading-spinner">✨ Finding the best plans for you...</div>');
         
         // attach security nonce if available
         if (typeof maljaniFilter !== 'undefined' && maljaniFilter.security) {
@@ -27,13 +27,13 @@ jQuery(document).ready(function($) {
         $.post((typeof maljaniFilter !== 'undefined' && maljaniFilter.ajax_url) ? maljaniFilter.ajax_url : maljaniFilter.ajaxurl, data, function(response) {
             $('#maljani-policy-results').removeClass('loading');
             if (response.success && response.data && response.data.html) {
-                $('#maljani-policy-results').html(response.data.html);
+                $('#maljani-policy-results').hide().html(response.data.html).fadeIn(400);
             } else {
-                $('#maljani-policy-results').html('<p>Error loading policies.</p>');
+                $('#maljani-policy-results').html('<div class="notice notice-info">No policies match your criteria. Try adjusting dates or region.</div>');
             }
         }).fail(function() {
             $('#maljani-policy-results').removeClass('loading');
-            $('#maljani-policy-results').html('<p>Error connecting to server.</p>');
+            $('#maljani-policy-results').html('<div class="notice notice-error">Connection error. Please try again.</div>');
         });
     }
 
@@ -65,32 +65,22 @@ jQuery(document).ready(function($) {
         checkAndCalculate();
     });
 
-    // Handle region filter buttons
-    $(document).on('click', '.region-filter-btn', function(e) {
+    // Handle region filter buttons (Toggles)
+    $(document).on('click', '.region-btn', function(e) {
         e.preventDefault();
-        e.stopPropagation();
         
-        console.log('Region button clicked:', $(this).data('region'));
+        console.log('Region toggle clicked:', $(this).data('region'));
         
         // Update button styles
-        $('.region-filter-btn').removeClass('active');
+        $('.region-btn').removeClass('active');
         $(this).addClass('active');
         
         // Update current region
         currentRegion = $(this).data('region') || '';
+        $('#maljani-region-input').val(currentRegion);
         
-        console.log('Current region set to:', currentRegion);
-        
-        // If dates are filled, reload with new region filter
-        let departure = $('input[name="departure"]').val();
-        let return_date = $('input[name="return"]').val();
-        
-        if (departure && return_date) {
-            console.log('Reloading with dates and region');
-            loadPolicies(departure, return_date, currentRegion);
-        } else {
-            console.log('No dates set, just updated region filter');
-        }
+        // Auto-calculate if dates are set
+        checkAndCalculate();
     });
     
     // Remove form submission handler since we auto-calculate

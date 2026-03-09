@@ -6,6 +6,51 @@ class Maljani_Policy_Verification {
         add_action('init', [$this, 'add_verification_endpoint']);
         add_action('template_redirect', [$this, 'handle_verification_request']);
         add_filter('query_vars', [$this, 'add_query_vars']);
+        add_shortcode('maljani_verify_policy', [$this, 'render_verification_form']);
+    }
+
+    public function render_verification_form() {
+        ob_start();
+        ?>
+        <div class="maljani-public-verification">
+            <h2>Verify Insurance Policy</h2>
+            <p>Enter the policy number and the insured's passport number to verify validity.</p>
+            <form action="" method="get" class="verification-mini-form">
+                <input type="hidden" name="verify_policy" value="1">
+                <div class="form-row" style="display:flex;gap:15px;margin-bottom:15px;">
+                    <input type="text" name="policy_no" placeholder="Policy Number (e.g. MAL-1234)" required style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;">
+                    <input type="text" name="passport" placeholder="Passport Number" required style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;">
+                </div>
+                <button type="submit" class="maljani-btn-premium" style="width:100%;cursor:pointer;background:#4f46e5;color:white;border:none;padding:15px;border-radius:8px;font-weight:700;">Verify Authenticity</button>
+            </form>
+        </div>
+        
+        <?php
+        // Handle the submission if params are present in GET
+        if (isset($_GET['policy_no']) && isset($_GET['passport'])) {
+            $this->handle_manual_verification(sanitize_text_field($_GET['policy_no']), sanitize_text_field($_GET['passport']));
+        }
+        
+        return ob_get_clean();
+    }
+
+    private function handle_manual_verification($policy_no, $passport) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        $sale = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table WHERE policy_number = %s AND passport_number = %s",
+            $policy_no, $passport
+        ));
+
+        if ($sale) {
+            echo '<div style="margin-top:30px;border-top:2px solid #eee;padding-top:20px;">';
+            $this->show_policy_verification($sale);
+            echo '</div>';
+        } else {
+            echo '<div style="margin-top:30px;">';
+            $this->show_error_message('No active policy found matching those credentials. Please check for typos.');
+            echo '</div>';
+        }
     }
     
     /**

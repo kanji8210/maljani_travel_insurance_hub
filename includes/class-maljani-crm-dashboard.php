@@ -40,17 +40,47 @@ class Maljani_CRM_Dashboard {
              return '<div class="maljani-crm-msg">Your account is not linked to an agency profile. Please contact support.</div>';
         }
 
+        $agency = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE id = %d", $agency_id));
+        $stats = $this->get_agency_stats($agency_id);
+
         ob_start();
         ?>
         <div class="maljani-crm-dashboard" id="maljani-crm-app">
             <header class="crm-header">
-                <h2>Agency Portal</h2>
+                <div class="crm-header-info">
+                    <h2>Agency Portal</h2>
+                    <p class="agency-name">🏢 <?php echo esc_html($agency->name); ?> (<?php echo esc_html($agency->commission_rate); ?>% Comms)</p>
+                </div>
                 <nav class="crm-tabs">
                     <button class="crm-tab active" data-target="clients">Clients</button>
-                    <button class="crm-tab" data-target="policies">Policies Workflow</button>
-                    <button class="crm-tab" data-target="payments">Payments</button>
+                    <button class="crm-tab" data-target="policies">Policies</button>
+                    <button class="crm-tab" data-target="payments">Commissions</button>
                 </nav>
             </header>
+
+            <div class="crm-stats-grid">
+                <div class="crm-stat-card">
+                    <span class="stat-icon">💰</span>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Commission</span>
+                        <span class="stat-value">$<?php echo number_format($stats['total_commission'], 2); ?></span>
+                    </div>
+                </div>
+                <div class="crm-stat-card">
+                    <span class="stat-icon">📄</span>
+                    <div class="stat-data">
+                        <span class="stat-label">Active Policies</span>
+                        <span class="stat-value"><?php echo $stats['active_count']; ?></span>
+                    </div>
+                </div>
+                <div class="crm-stat-card">
+                    <span class="stat-icon">⏳</span>
+                    <div class="stat-data">
+                        <span class="stat-label">Pending Review</span>
+                        <span class="stat-value"><?php echo $stats['pending_count']; ?></span>
+                    </div>
+                </div>
+            </div>
             
             <main class="crm-content">
                 <!-- CLIENTS VIEW -->
@@ -65,19 +95,19 @@ class Maljani_CRM_Dashboard {
                 <!-- POLICIES VIEW -->
                 <section id="crm-policies" class="crm-section">
                     <div class="crm-toolbar">
-                        <h3>Policy Drafts & Workflow</h3>
+                        <h3>Policy Workflow</h3>
                         <button class="crm-btn crm-btn-primary" onclick="showModal('crm-create-policy-modal')">+ Create Policy Draft</button>
                     </div>
                     <div id="crm-policies-list" class="crm-list">Loading...</div>
                 </section>
 
-                <!-- PAYMENTS VIEW -->
+                <!-- PAYMENTS/COMMISSIONS VIEW -->
                 <section id="crm-payments" class="crm-section">
                     <div class="crm-toolbar">
-                        <h3>Payment References</h3>
-                        <button class="crm-btn crm-btn-primary" onclick="showModal('crm-add-payment-modal')">Submit Payment Ref</button>
+                        <h3>Commission Ledger</h3>
+                        <p>Track your earnings for all confirmed policies.</p>
                     </div>
-                    <div id="crm-payments-list" class="crm-list">Loading...</div>
+                    <div id="crm-commissions-list" class="crm-list">Loading...</div>
                 </section>
             </main>
 
@@ -148,8 +178,39 @@ class Maljani_CRM_Dashboard {
             function hideAllModals() { document.querySelectorAll('.crm-modal').forEach(m => m.classList.remove('active')); }
         </script>
         <?php
-        return ob_get_clean();
+    }
+
+    private function get_agency_stats($agency_id) {
+        global $wpdb;
+        $agency = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE id = %d", $agency_id));
+        $comm_rate = $agency ? floatval($agency->commission_rate) / 100 : 0;
+
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT workflow_status, SUM(premium) as total_premium, COUNT(*) as count 
+             FROM {$wpdb->prefix}policy_sale 
+             WHERE agency_id = %d 
+             GROUP BY workflow_status",
+            $agency_id
+        ));
+
+        $stats = [
+            'total_commission' => 0,
+            'active_count' => 0,
+            'pending_count' => 0
+        ];
+
+        foreach ($results as $row) {
+            if ($row->workflow_status === 'active') {
+                $stats['active_count'] = $row->count;
+                $stats['total_commission'] = $row->total_premium * $comm_rate;
+            } elseif ($row->workflow_status === 'pending_review') {
+                $stats['pending_count'] = $row->count;
+            }
+        }
+
+        return $stats;
     }
 }
+
 
 if (defined('ABSPATH')) { Maljani_CRM_Dashboard::init(); }
