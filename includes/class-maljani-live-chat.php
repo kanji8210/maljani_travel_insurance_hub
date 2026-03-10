@@ -37,7 +37,7 @@ class Maljani_Live_Chat {
         );
 
         wp_localize_script('maljani-live-chat', 'maljaniChatParams', [
-            'rest_url' => esc_url_raw( rest_url('maljani-chat/v1') ),
+            'rest_url' => '/' . trim(parse_url(rest_url('maljani-chat/v1'), PHP_URL_PATH), '/'),
             'nonce' => wp_create_nonce('wp_rest')
         ]);
     }

@@ -54,7 +54,12 @@ jQuery(document).ready(function($) {
         html += '<span class="time">' + m.created_at + '</span>';
         html += '</div>';
         chatMessages.append(html);
-        lastId = m.id;
+        
+        // Only update lastId if it's a real DB ID (numeric)
+        var numericId = parseInt(m.id);
+        if (!isNaN(numericId) && numericId > lastId) {
+            lastId = numericId;
+        }
     }
 
     function fetchMessages() {
@@ -126,9 +131,11 @@ jQuery(document).ready(function($) {
             _wpnonce: maljaniChatParams.nonce
         }, function(res) {
             if (res.success) {
-                // remove temp message
-                $('.maljani-msg-' + tempMsg.id).remove();
-                fetchMessages();
+                // remove temp message only AFTER successful send
+                $('.maljani-msg-' + tempMsg.id).fadeOut(200, function() {
+                    $(this).remove();
+                    fetchMessages();
+                });
             }
         }).fail(function() {
             $('.maljani-msg-' + tempMsg.id + ' .time').text('Failed to send');
