@@ -139,6 +139,15 @@ class Maljani_Admin_Menu {
             'maljani_roles_admin',
             [$this, 'render_roles_admin']
         );
+
+        // Manage Regions (Taxonomy link)
+        add_submenu_page(
+            'maljani_travel',
+            'Manage Regions',
+            '🌍 Manage Regions',
+            'manage_options',
+            'edit-tags.php?taxonomy=policy_region&post_type=policy'
+        );
     }
 
     public function render_dashboard() {

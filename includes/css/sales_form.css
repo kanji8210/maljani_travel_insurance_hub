@@ -1,63 +1,223 @@
-/* Maljani Sales Form Styles - Minimalist */
-.maljani-injected-sales-form + .maljani-injected-sales-form {
-    display: none !important;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --mj-primary: #4f46e5;
+    --mj-primary-hover: #4338ca;
+    --mj-secondary: #0f172a;
+    --mj-accent: #818cf8;
+    --mj-bg: #f8fafc;
+    --mj-card-bg: #ffffff;
+    --mj-text-main: #1e293b;
+    --mj-text-muted: #64748b;
+    --mj-border: #e2e8f0;
+    --mj-glass: rgba(255, 255, 255, 0.7);
+    --mj-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --mj-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .maljani-sales-form-container {
-    max-width: 480px;
-    margin: 32px auto;
-    padding: 32px 28px 24px 28px;
-    box-sizing: border-box;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 40px;
+    background: var(--mj-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 24px;
+    box-shadow: var(--mj-shadow-xl);
+    color: var(--mj-text-main);
+}
+
+.maljani-sales-form h2 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 24px;
+    color: var(--mj-secondary);
+    text-align: center;
+}
+
+.maljani-form-group {
+    margin-bottom: 20px;
+}
+
+.maljani-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--mj-text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
 }
 
 .maljani-sales-form input[type="text"],
 .maljani-sales-form input[type="email"],
 .maljani-sales-form input[type="date"],
 .maljani-sales-form select {
-    border: 1px solid #ddd;
-    padding: 8px 12px;
-    font-size: 1em;
-    margin-bottom: 14px;
     width: 100%;
+    padding: 14px 16px;
+    background: #fff;
+    border: 2px solid var(--mj-border);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
     box-sizing: border-box;
-    color: #222;
+    transition: all 0.2s;
+    color: var(--mj-text-main);
 }
 
-.maljani-sales-form button,
+.maljani-sales-form input:focus,
+.maljani-sales-form select:focus {
+    border-color: var(--mj-primary);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
 .maljani-sales-btn {
-    border: 1px solid #222;
-    padding: 10px 28px;
-    font-size: 1.1em;
-    cursor: pointer;
-    margin-top: 10px;
     width: 100%;
-    color: #222;
+    padding: 16px;
+    background: var(--mj-secondary);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
 }
 
-.maljani-sales-form .dashicons {
-    font-size: 1.2em;
-    margin-right: 6px;
-    position: relative;
-    top: 2px;
+.maljani-sales-btn:hover {
+    background: #000;
+    transform: translateY(-2px);
+    box-shadow: var(--mj-shadow-md);
 }
 
 .maljani-sales-summary {
-    padding: 12px 16px;
-    margin-bottom: 18px;
-    font-size: 1em;
-    color: #222;
+    background: #f1f5f9;
+    padding: 24px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    border: 1px solid var(--mj-border);
 }
 
-.maljani-form-group {
-    margin-bottom: 15px;
+.maljani-sales-summary p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: var(--mj-text-main);
 }
 
-.maljani-form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
+.maljani-sales-summary strong {
+    color: var(--mj-secondary);
+    font-weight: 600;
 }
 
-.maljani-injected-sales-form {
-    margin: 20px 0;
+/* Stepper Styles */
+.maljani-stepper {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.maljani-stepper-line {
+    position: absolute;
+    top: 15px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: var(--mj-border);
+    z-index: 1;
+}
+
+.maljani-step {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.maljani-step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--mj-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--mj-text-muted);
+    transition: all 0.3s;
+}
+
+.maljani-step-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--mj-text-muted);
+}
+
+.maljani-step.active .maljani-step-circle {
+    background: var(--mj-primary);
+    border-color: var(--mj-primary);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.maljani-step.active .maljani-step-label {
+    color: var(--mj-primary);
+}
+
+.maljani-step.completed .maljani-step-circle {
+    background: #10b981;
+    border-color: #10b981;
+    color: #fff;
+}
+
+/* Alerts */
+.notice {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+.notice-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.notice-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.notice-info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .maljani-sales-form-container {
+        padding: 24px;
+        margin: 20px;
+    }
+
+    .maljani-step-label {
+        display: none;
+    }
 }
