@@ -73,6 +73,25 @@ class Maljani_Activator {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
 
+        // Create agencies table
+        $agencies_table = $wpdb->prefix . 'maljani_agencies';
+        $agency_sql = "CREATE TABLE IF NOT EXISTS $agencies_table (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(191) NOT NULL,
+            contact_name VARCHAR(191),
+            contact_email VARCHAR(191),
+            contact_phone VARCHAR(32),
+            commission_rate DECIMAL(5,2) DEFAULT 0.00,
+            commission_percent DECIMAL(5,2) DEFAULT 0.00,
+            user_id BIGINT UNSIGNED DEFAULT 0,
+            notes TEXT,
+            agency_name VARCHAR(191),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) $charset_collate;";
+        dbDelta($agency_sql);
+
         // Migration: add columns that may be missing on existing installs
         self::run_migrations($wpdb, $table_name);
     }
@@ -87,9 +106,38 @@ class Maljani_Activator {
         if (!in_array('agency_comm_disputed_note', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_comm_disputed_note` TEXT DEFAULT NULL AFTER `agent_commission_status`");
         }
-
         // Ensure the status column supports all four values
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `agent_commission_status` ENUM('unpaid','paid','received','disputed') DEFAULT 'unpaid'");
+
+        // Ensure policy_sale has agency_id for agency-association
+        if (!in_array('agency_id', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_id` BIGINT UNSIGNED DEFAULT NULL AFTER `agent_id`");
+        }
+        // Also ensure payment_status and policy_status have all values
+        $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `payment_status` ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending'");
+        $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `policy_status` ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed'");
+
+        // Migrate agencies table columns
+        $agencies_table = $wpdb->prefix . 'maljani_agencies';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$agencies_table'") === $agencies_table) {
+            $ag_cols = $wpdb->get_col("DESCRIBE `$agencies_table`", 0);
+            $ag_add = [
+                'contact_name'   => "VARCHAR(191) DEFAULT NULL AFTER `name`",
+                'contact_email'  => "VARCHAR(191) DEFAULT NULL",
+                'contact_phone'  => "VARCHAR(32) DEFAULT NULL",
+                'user_id'        => "BIGINT UNSIGNED DEFAULT 0",
+                'notes'          => "TEXT DEFAULT NULL",
+                'agency_name'    => "VARCHAR(191) DEFAULT NULL",
+                'commission_rate'=> "DECIMAL(5,2) DEFAULT 0.00",
+                'created_at'     => "DATETIME DEFAULT CURRENT_TIMESTAMP",
+                'updated_at'     => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+            ];
+            foreach ($ag_add as $col => $def) {
+                if (!in_array($col, $ag_cols)) {
+                    $wpdb->query("ALTER TABLE `$agencies_table` ADD COLUMN `$col` $def");
+                }
+            }
+        }
     }
 
 }

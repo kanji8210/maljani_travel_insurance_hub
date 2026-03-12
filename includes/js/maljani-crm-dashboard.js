@@ -62,6 +62,10 @@ jQuery(document).ready(function($) {
                     html += `<span class="crm-text-muted">In Progress</span>`;
                 }
 
+                if (p.doc_buttons) {
+                    html += ` ` + p.doc_buttons + ``;
+                }
+
                 html += `</td></tr>`;
             });
             html += '</tbody></table>';

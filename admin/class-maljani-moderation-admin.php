@@ -31,6 +31,13 @@ class Maljani_Moderation_Admin {
             $sale_id = intval($_POST['sale_id']);
             $wpdb->update($table_sales, ['payment_status' => 'confirmed', 'workflow_status' => 'paid'], ['id' => $sale_id]);
             echo '<div class="notice notice-success is-dismissible"><p>Payment confirmed for Sale #' . $sale_id . '</p></div>';
+            // Auto-send receipt email to client
+            if (class_exists('Maljani_Invoice')) {
+                $sent = Maljani_Invoice::send_receipt_email($sale_id);
+                if ($sent) {
+                    echo '<div class="notice notice-info is-dismissible"><p>✉️ Receipt automatically emailed to client.</p></div>';
+                }
+            }
         }
 
         // Get Summary Stats
@@ -218,6 +225,14 @@ class Maljani_Moderation_Admin {
                                         <?php endif; ?>
 
                                         <a href="<?php echo admin_url('admin.php?page=maljani_policy_sales&sale_id=' . $sale->id); ?>" class="button button-small">Quick Edit</a>
+
+                                        <?php
+                                        // Invoice / Receipt / Email buttons
+                                        if (class_exists('Maljani_Invoice')) {
+                                            $is_paid = $sale->payment_status === 'confirmed';
+                                            echo Maljani_Invoice::doc_buttons(intval($sale->id), $is_paid);
+                                        }
+                                        ?>
                                     </div>
                                 </td>
                             </tr>
@@ -262,5 +277,9 @@ class Maljani_Moderation_Admin {
             .mj-action-stack { display: flex; flex-direction: column; gap: 5px; }
         </style>
         <?php
+        // Output email-button JS
+        if (class_exists('Maljani_Invoice')) {
+            Maljani_Invoice::print_email_js();
+        }
     }
 }

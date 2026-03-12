@@ -1015,10 +1015,21 @@ class Maljani_Sales_Page
                 }
             }
 
-            // Get Financial Configurations
-            $aggregator_comm_pct = floatval(get_post_meta($policy_id, '_policy_aggregator_comm_pct', true) ?: 0);
-            $agency_comm_pct     = floatval(get_post_meta($policy_id, '_policy_agency_comm_pct', true) ?: 0);
-            $client_fee_pct      = floatval(get_post_meta($policy_id, '_policy_client_fee_pct', true) ?: 0);
+            // --- Flexible Fee Configuration Helper ---
+            // Reads new type/value meta; falls back to old _pct meta for backward compatibility
+            $calc_fee = function(string $type_key, string $val_key, string $legacy_pct_key, float $base) use ($policy_id): float {
+                $type = get_post_meta($policy_id, $type_key, true) ?: 'percent';
+                $val  = get_post_meta($policy_id, $val_key, true);
+                if ($val === '' || $val === false) {
+                    // Fallback to legacy percent key
+                    $val  = floatval(get_post_meta($policy_id, $legacy_pct_key, true) ?: 0);
+                    $type = 'percent';
+                } else {
+                    $val = floatval($val);
+                }
+                if ($type === 'fixed') return round($val, 2);
+                return round(($base * $val) / 100, 2);
+            };
 
             $current_user = wp_get_current_user();
             $user_role    = ($current_user->exists()) ? $current_user->roles[0] : '';
@@ -1026,27 +1037,26 @@ class Maljani_Sales_Page
             $is_insured   = ($user_role === 'insured');
 
             // Aggregator (Maljani) commission — earned from insurer, deducted from net
-            $maljani_comm_amount = round(($premium * $aggregator_comm_pct) / 100, 2);
+            $maljani_comm_amount = $calc_fee('_policy_aggregator_comm_type', '_policy_aggregator_comm_value', '_policy_aggregator_comm_pct', $premium);
 
             // Net to Insurer = premium minus aggregator commission
-            // (Maljani keeps the aggregator cut; only the remainder is owed to the insurer)
             $net_to_insurer = round($premium - $maljani_comm_amount, 2);
 
-            // Service Fee logic differs by channel:
-            //   Direct client → fee is ADDED to what the client pays (Maljani keeps it)
-            //   Agency sale   → fee is recorded for agency liability tracking; NOT added to client price
-            $service_fee_amount = round(($premium * $client_fee_pct) / 100, 2);
-            if ($is_agent) {
-                // Client pays only the premium; agency owes the service fee separately
-                $amount_tot_client = $premium;
+            // Service Fee: read from global settings (Settings → Global Fees).
+            // Per-policy service fee meta is deprecated; we now use the global option.
+            $global_svc_type  = get_option('maljani_fee_service_type',  'percent');
+            $global_svc_val   = floatval(get_option('maljani_fee_service_value', 0));
+            if ($global_svc_type === 'fixed') {
+                $service_fee_amount = round($global_svc_val, 2);
             } else {
-                $amount_tot_client = round($premium + $service_fee_amount, 2);
+                $service_fee_amount = $global_svc_val > 0 ? round(($premium * $global_svc_val) / 100, 2) : 0;
             }
+            $amount_tot_client = $is_agent ? $premium : round($premium + $service_fee_amount, 2);
 
-            // Agency commission — paid by insurer directly to agency; tracked for visibility only
+            // Agency commission — paid by insurer directly to agency; Maljani tracks for visibility
             $agent_comm_amount = 0;
             if ($is_agent) {
-                $agent_comm_amount = round(($premium * $agency_comm_pct) / 100, 2);
+                $agent_comm_amount = $calc_fee('_policy_agency_comm_type', '_policy_agency_comm_value', '_policy_agency_comm_pct', $premium);
             }
 
             // Générer un numéro de police unique

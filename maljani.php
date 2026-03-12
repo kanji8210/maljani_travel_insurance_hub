@@ -47,6 +47,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-user-dashboar
 // Add client dashboard
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-client-dashboard.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.php';
+// Include invoice engine
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-invoice.php';
 
 // Initialize
 // Maljani_Registration::init(); // Handled in the class file itself

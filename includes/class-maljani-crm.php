@@ -221,6 +221,13 @@ class Maljani_CRM {
             ORDER BY p.id DESC
         ");
 
+        if (class_exists('Maljani_Invoice')) {
+            foreach ($policies as $p) {
+                $is_paid = $p->payment_status === 'confirmed';
+                $p->doc_buttons = Maljani_Invoice::doc_buttons(intval($p->id), $is_paid, 'crm');
+            }
+        }
+
         return new WP_REST_Response(['success' => true, 'policies' => $policies], 200);
     }
 

@@ -160,7 +160,46 @@ class Maljani_Admin_Menu {
     }
 
     public function render_dashboard() {
-        echo '<h1>Maljani Travel Dashboard</h1>';
+        global $wpdb;
+        $tbl = $wpdb->prefix . 'policy_sale';
+        $today_sales  = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE DATE(created_at)=CURDATE()");
+        $month_sales  = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())");
+        $tot_prem     = $wpdb->get_var("SELECT SUM(premium) FROM $tbl WHERE policy_status!='archived'");
+        $pending_mod  = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE policy_status='unconfirmed'");
+        $active_pol   = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE policy_status='active'");
+        $disputed     = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE agent_commission_status='disputed'");
+        $stats = [
+            ['📋', 'Sales Today',         intval($today_sales),         '#ede9fe', admin_url('admin.php?page=policy_sales')],
+            ['📅', 'Sales This Month',     intval($month_sales),         '#dbeafe', admin_url('admin.php?page=policy_sales')],
+            ['⏳', 'Pending Moderation',  intval($pending_mod),         '#fef9c3', admin_url('admin.php?page=maljani_moderation')],
+            ['✅', 'Active Policies',     intval($active_pol),          '#d1fae5', admin_url('admin.php?page=policy_sales&status=active')],
+            ['⚠️','Disputed Commissions', intval($disputed),            '#fee2e2', admin_url('admin.php?page=policy_sales')],
+            ['💰', 'Total Premium',       '$'.number_format(floatval($tot_prem),0), '#f0fdf4', admin_url('admin.php?page=policy_sales')],
+        ];
+        echo '<div class="wrap">';
+        echo '<h1 style="font-family:Inter,sans-serif;margin-bottom:20px">🌍 Maljani Travel — Admin Overview</h1>';
+        echo '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">';
+        foreach ($stats as [$icon,$label,$val,$bg,$url]) {
+            echo "<a href='".esc_url($url)."' style='text-decoration:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.15s;'";
+            echo " onmouseover='this.style.boxShadow=\"0 4px 12px rgba(79,70,229,.15)\"' onmouseout='this.style.boxShadow=\"0 1px 3px rgba(0,0,0,.06)\"'>";
+            echo "<div style='width:48px;height:48px;border-radius:12px;background:{$bg};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0'>{$icon}</div>";
+            echo "<div><div style='font-size:28px;font-weight:800;color:#1e293b;line-height:1'>{$val}</div><div style='font-size:13px;color:#64748b;margin-top:4px'>{$label}</div></div></a>";
+        }
+        echo '</div>';
+        // Quick links
+        $links = [
+            ['📋 Policy Sales',    admin_url('admin.php?page=policy_sales')],
+            ['🛡️ Moderation',      admin_url('admin.php?page=maljani_moderation')],
+            ['🏢 Agencies',        admin_url('admin.php?page=maljani_agencies_admin')],
+            ['👤 Clients',         admin_url('admin.php?page=maljani_clients_admin')],
+            ['⚙️ Settings',        admin_url('admin.php?page=maljani_settings')],
+            ['📄 Pages',           admin_url('admin.php?page=maljani_pages_admin')],
+        ];
+        echo '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+        foreach ($links as [$label,$url]) {
+            echo "<a href='".esc_url($url)."' style='background:#4f46e5;color:#fff;border-radius:8px;padding:8px 16px;text-decoration:none;font-size:13px;font-weight:600;font-family:Inter,sans-serif'>{$label}</a>";
+        }
+        echo '</div></div>';
     }
 
     public function render_settings() {

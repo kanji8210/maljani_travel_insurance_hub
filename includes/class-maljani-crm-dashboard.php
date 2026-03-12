@@ -34,10 +34,40 @@ class Maljani_CRM_Dashboard {
 
         // We fetch basic info directly for initial render to avoid too many loading spinners
         global $wpdb;
-        $agency_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d", get_current_user_id()));
-        
+        // Multi-tier agency lookup — handles all legacy and new associations
+        $uid = get_current_user_id();
+        // 1. By user_id column (new agencies admin creates this)
+        $agency_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1",
+            $uid
+        ));
+        // 2. Fallback: user meta 'agency_id' (may be set on agent registration)
         if (!$agency_id) {
-             return '<div class="maljani-crm-msg">Your account is not linked to an agency profile. Please contact support.</div>';
+            $meta_agency_id = get_user_meta($uid, 'agency_id', true);
+            if ($meta_agency_id) {
+                $agency_id = intval($meta_agency_id);
+            }
+        }
+        // 3. Fallback: user meta 'maljani_agency_id'
+        if (!$agency_id) {
+            $meta_agency_id = get_user_meta($uid, 'maljani_agency_id', true);
+            if ($meta_agency_id) {
+                $agency_id = intval($meta_agency_id);
+            }
+        }
+        // 4. Fallback: agent's user login matches agency name (loose match for old data)
+        if (!$agency_id) {
+            $user = get_userdata($uid);
+            if ($user) {
+                $agency_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}maljani_agencies WHERE name = %s OR agency_name = %s LIMIT 1",
+                    $user->display_name, $user->display_name
+                ));
+            }
+        }
+
+        if (!$agency_id) {
+             return '<div class="maljani-crm-msg">Your account is not linked to an agency profile. Please contact your Maljani administrator.</div>';
         }
 
         $agency = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE id = %d", $agency_id));
@@ -175,9 +205,11 @@ class Maljani_CRM_Dashboard {
 
         <script>
             function showModal(id) { document.getElementById(id).classList.add('active'); }
-            function hideAllModals() { document.querySelectorAll('.crm-modal').forEach(m => m.classList.remove('active')); }
         </script>
         <?php
+        if (class_exists('Maljani_Invoice')) {
+            Maljani_Invoice::print_email_js();
+        }
     }
 
     private function get_agency_stats($agency_id) {
