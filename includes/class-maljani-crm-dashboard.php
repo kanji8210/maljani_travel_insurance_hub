@@ -71,6 +71,25 @@ class Maljani_CRM_Dashboard {
         }
 
         $agency = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE id = %d", $agency_id));
+        
+        if ($agency && isset($agency->status)) {
+            if ($agency->status === 'pending') {
+                return '<div class="maljani-crm-msg" style="max-width:600px; margin:40px auto; padding:40px; text-align:center; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 16px; border-top: 4px solid #f59e0b; border-bottom: 1px solid rgba(255,255,255,0.2);">
+                            <span style="font-size:48px; display:block; margin-bottom:16px;">⏳</span>
+                            <h2 style="color:#d97706; margin-top:0; font-family:\'Inter\', sans-serif;">Account Pending Approval</h2>
+                            <p style="color:#475569; font-size:16px; line-height:1.6;">Thank you for registering your agency. Your account is currently <strong>under review</strong> by our administrators.</p>
+                            <p style="color:#475569; font-size:16px; line-height:1.6;">You will be notified once your account is approved and you can start managing clients and selling policies.</p>
+                        </div>';
+            } elseif ($agency->status === 'rejected') {
+                return '<div class="maljani-crm-msg" style="max-width:600px; margin:40px auto; padding:40px; text-align:center; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 16px; border-top: 4px solid #ef4444; border-bottom: 1px solid rgba(255,255,255,0.2);">
+                            <span style="font-size:48px; display:block; margin-bottom:16px;">❌</span>
+                            <h2 style="color:#ef4444; margin-top:0; font-family:\'Inter\', sans-serif;">Account Rejected</h2>
+                            <p style="color:#475569; font-size:16px; line-height:1.6;">We are sorry, but your agency application was not approved.</p>
+                            <p style="color:#475569; font-size:16px; line-height:1.6;">Please contact our support team for more information.</p>
+                        </div>';
+            }
+        }
+
         $stats = $this->get_agency_stats($agency_id);
 
         ob_start();

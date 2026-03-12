@@ -132,6 +132,9 @@ class Maljani_Registration {
             global $wpdb;
             $wpdb->insert($wpdb->prefix . 'maljani_agencies', [
                 'name' => sanitize_text_field($_POST['agency_name'] ?: $name . " Agency"),
+                'contact_name' => $name,
+                'contact_email' => $email,
+                'contact_phone' => sanitize_text_field($_POST['phone']),
                 'user_id' => $user_id,
                 'commission_rate' => 10.00,
                 'status' => 'pending'

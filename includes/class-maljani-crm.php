@@ -112,7 +112,7 @@ class Maljani_CRM {
         }
 
         $table = $wpdb->prefix . 'maljani_agencies';
-        return $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d", $user_id));
+        return $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d AND status = 'approved'", $user_id));
     }
 
     // --- CLIENTS ---

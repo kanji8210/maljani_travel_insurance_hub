@@ -51,16 +51,32 @@ class Maljani_Agencies_Admin {
                     'contact_phone'   => sanitize_text_field($_POST['contact_phone'] ?? ''),
                     'commission_rate' => floatval($_POST['commission_rate']),
                     'user_id'         => $user_id,
+                    'status'          => 'approved', // Admin creates are auto-approved
                     'notes'           => sanitize_textarea_field($_POST['notes'] ?? ''),
                     'created_at'      => current_time('mysql', 1),
                     'updated_at'      => current_time('mysql', 1),
                 ]);
                 echo '<div class="notice notice-success is-dismissible"><p>Agency created' . ($user_id ? ' and WP user linked.' : '.') . '</p></div>';
             }
+
+            if ($action === 'approve_agency') {
+                $id = intval($_POST['agency_id']);
+                $wpdb->update($tbl, ['status' => 'approved', 'updated_at' => current_time('mysql', 1)], ['id' => $id]);
+                echo '<div class="notice notice-success is-dismissible"><p>Agency approved.</p></div>';
+            }
+
+            if ($action === 'reject_agency') {
+                $id = intval($_POST['agency_id']);
+                $wpdb->update($tbl, ['status' => 'rejected', 'updated_at' => current_time('mysql', 1)], ['id' => $id]);
+                echo '<div class="notice notice-error is-dismissible"><p>Agency rejected.</p></div>';
+            }
         }
 
         // ── Data ─────────────────────────────────────────────────────────────
-        $agencies = $wpdb->get_results("SELECT * FROM $tbl ORDER BY created_at DESC");
+        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : 'approved';
+        $agencies = $wpdb->get_results($wpdb->prepare("SELECT * FROM $tbl WHERE status = %s ORDER BY created_at DESC", $status_filter));
+        
+        $pending_count = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE status = 'pending'");
 
         // Performance stats per agency (join with sales)
         $perf = [];
@@ -114,7 +130,14 @@ class Maljani_Agencies_Admin {
         <div class="mja wrap">
             <div class="mja-header">
                 <h1 style="margin:0">🏢 Manage Agencies</h1>
-                <button type="button" class="mj-b mj-pri" onclick="document.getElementById('mja-new-form').style.display=document.getElementById('mja-new-form').style.display==='none'?'':'none'">+ Add New Agency</button>
+                <div style="display:flex; gap:10px;">
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'pending'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='pending'?'mj-pri':'mj-sec'; ?>">
+                        ⏳ Pending Approvals <?php if($pending_count > 0) echo "<span style='background:#f43f5e; color:#fff; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:4px;'>$pending_count</span>"; ?>
+                    </a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'approved'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='approved'?'mj-pri':'mj-sec'; ?>">✅ Approved</a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'rejected'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='rejected'?'mj-pri':'mj-sec'; ?>">❌ Rejected</a>
+                    <button type="button" class="mj-b mj-pri" onclick="document.getElementById('mja-new-form').style.display=document.getElementById('mja-new-form').style.display==='none'?'':'none'" style="margin-left:10px;">+ Add New Agency</button>
+                </div>
             </div>
 
             <!-- Add New Form -->
@@ -177,9 +200,24 @@ class Maljani_Agencies_Admin {
                             </td>
                             <td>
                                 <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                    <button type="button" class="mj-b mj-pri tedit-ag" data-id="<?php echo $a->id; ?>">✏️ Edit</button>
-                                    <a href="<?php echo esc_url(add_query_arg(['page'=>'policy_sales','status'=>''],admin_url('admin.php')).'&view_agency='.$a->id); ?>" class="mj-b mj-sec">📊 View Sales</a>
-                                    <button type="button" class="mj-b mj-sec tcomm" data-id="<?php echo $a->id; ?>">💰 Commissions</button>
+                                    <?php if ($a->status === 'pending'): ?>
+                                        <form method="post" style="display:inline;">
+                                            <?php wp_nonce_field('maljani_agency_nonce'); ?>
+                                            <input type="hidden" name="maljani_agency_action" value="approve_agency">
+                                            <input type="hidden" name="agency_id" value="<?php echo esc_attr($a->id); ?>">
+                                            <button type="submit" class="mj-b" style="background:#10b981; color:#fff; border:none;">Approve</button>
+                                        </form>
+                                        <form method="post" style="display:inline;">
+                                            <?php wp_nonce_field('maljani_agency_nonce'); ?>
+                                            <input type="hidden" name="maljani_agency_action" value="reject_agency">
+                                            <input type="hidden" name="agency_id" value="<?php echo esc_attr($a->id); ?>">
+                                            <button type="submit" class="mj-b" style="background:#f43f5e; color:#fff; border:none;" onclick="return confirm('Reject this application?');">Reject</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <button type="button" class="mj-b mj-pri tedit-ag" data-id="<?php echo $a->id; ?>">✏️ Edit</button>
+                                        <a href="<?php echo esc_url(add_query_arg(['page'=>'policy_sales','status'=>''],admin_url('admin.php')).'&view_agency='.$a->id); ?>" class="mj-b mj-sec">📊 View Sales</a>
+                                        <button type="button" class="mj-b mj-sec tcomm" data-id="<?php echo $a->id; ?>">💰 Commissions</button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

@@ -86,6 +86,7 @@ class Maljani_Activator {
             user_id BIGINT UNSIGNED DEFAULT 0,
             notes TEXT,
             agency_name VARCHAR(191),
+            status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
@@ -128,6 +129,7 @@ class Maljani_Activator {
                 'user_id'        => "BIGINT UNSIGNED DEFAULT 0",
                 'notes'          => "TEXT DEFAULT NULL",
                 'agency_name'    => "VARCHAR(191) DEFAULT NULL",
+                'status'         => "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' AFTER `agency_name`",
                 'commission_rate'=> "DECIMAL(5,2) DEFAULT 0.00",
                 'created_at'     => "DATETIME DEFAULT CURRENT_TIMESTAMP",
                 'updated_at'     => "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
@@ -135,6 +137,11 @@ class Maljani_Activator {
             foreach ($ag_add as $col => $def) {
                 if (!in_array($col, $ag_cols)) {
                     $wpdb->query("ALTER TABLE `$agencies_table` ADD COLUMN `$col` $def");
+                    
+                    // If adding status column, existing agencies should be grandfathered in as 'approved'
+                    if ($col === 'status') {
+                        $wpdb->query("UPDATE `$agencies_table` SET `status` = 'approved'");
+                    }
                 }
             }
         }
