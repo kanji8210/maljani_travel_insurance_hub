@@ -449,15 +449,18 @@ class Maljani_Filter {
 
             echo '<li class="maljani-policy-card">';
             
-            // Header: Title and Insurer Emblem
+            // Header: Centered Logo and Title
             echo '<div class="policy-card-header">';
-            echo '  <div class="policy-title-box">';
-            echo '    <h3><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
-            echo '    <span class="policy-region" style="font-size:12px; color:#64748b;">📍 ' . esc_html($region_name) . '</span>';
-            echo '  </div>';
             if ($insurer_logo) {
-                echo '  <img src="' . esc_url($insurer_logo) . '" alt="' . esc_attr($insurer_name) . '" class="insurer-emblem" title="Insurer: ' . esc_attr($insurer_name) . '">';
+                echo '  <div class="insurer-logo-wrapper">';
+                echo '    <img src="' . esc_url($insurer_logo) . '" alt="' . esc_attr($insurer_name) . '" class="insurer-emblem">';
+                echo '  </div>';
             }
+            echo '  <div class="policy-title-box">';
+            echo '    <span class="policy-category-badge">' . esc_html($region_name) . '</span>';
+            echo '    <h3><a href="' . esc_url(get_permalink($policy_id)) . '">' . esc_html(get_the_title($policy_id)) . '</a></h3>';
+            echo '    <p class="underwriter-name">by ' . esc_html($insurer_name ?: 'Approved Partner') . '</p>';
+            echo '  </div>';
             echo '</div>';
 
             // Body: Metadata rows
@@ -475,15 +478,16 @@ class Maljani_Filter {
                 echo '</div>';
             }
 
-            echo '  <div class="policy-meta-row">';
-            echo '    <span class="policy-label">Underwriter</span>';
-            echo '    <span>' . esc_html($insurer_name ?: 'Approved Partner') . '</span>';
-            echo '  </div>';
             echo '</div>';
             
-            // Footer: Actions
-            echo '<div class="policy-card-footer">';
-            $sale_page_id = get_option('maljani_page_policy_sale'); // Use the generic slug if possible, or fallback
+            echo '<div class="policy-card-actions">';
+            echo '  <div class="benefits-link-container">';
+            echo '    <span class="see-benefits-link see-benefits" data-policy-id="' . esc_attr($policy_id) . '">';
+            echo '      <span class="icon">🔍</span> View Full Benefits & Coverage';
+            echo '    </span>';
+            echo '  </div>';
+            
+            $sale_page_id = get_option('maljani_page_policy_sale'); 
             if (!$sale_page_id) $sale_page_id = get_option('maljani_policy_sale_page');
 
             if ($premium && $days > 0 && $sale_page_id) {
@@ -493,24 +497,22 @@ class Maljani_Filter {
                     'return' => isset($_POST['return']) ? $_POST['return'] : '',
                     'days' => $days
                 ], get_permalink($sale_page_id));
-                echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Select Plan</a>';
+                echo '<a href="' . esc_url($sale_url) . '" class="policy-buy-btn">Choose This Plan</a>';
             } else {
-                echo '<button class="policy-buy-btn" style="opacity:0.5; cursor:not-allowed;" disabled>Select Plan</button>';
+                echo '<button class="policy-buy-btn" style="opacity:0.5; cursor:not-allowed;" disabled>Choose This Plan</button>';
             }
-            
-            echo '<span class="see-benefits-link see-benefits" data-policy-id="' . esc_attr($policy_id) . '">View Full Coverage & Benefits</span>';
             
             // Benefits Hidden Modal Content
             $benefits = get_post_meta($policy_id, '_policy_benefits', true);
             echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
-            echo '  <div class="popup-benefits-content" style="max-width:400px; padding:30px; background:white; border-radius:16px;">';
-            echo '    <h4 style="margin-bottom:15px; font-size:18px; font-weight:800; border-bottom:1px solid #eee; padding-bottom:10px;">🛡️ Coverage Benefits</h4>';
-            echo '    <div style="font-size:14px; color:#475569; line-height:1.6;">' . wp_kses_post($benefits ?: 'Contact support for detailed benefits.') . '</div>';
-            echo '    <button onclick="jQuery(\'#policy-benefits-' . esc_attr($policy_id) . '\').hide();" style="margin-top:20px; width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; cursor:pointer;">Close</button>';
+            echo '  <div class="popup-benefits-content" style="max-width:400px; padding:30px; background:white; border-radius:24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">';
+            echo '    <h4 style="margin-bottom:20px; font-size:20px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:15px; color:#1e293b;">🛡️ Coverage Benefits</h4>';
+            echo '    <div style="font-size:15px; color:#64748b; line-height:1.7;">' . wp_kses_post($benefits ?: 'Contact support for detailed benefits.') . '</div>';
+            echo '    <button onclick="jQuery(\'#policy-benefits-' . esc_attr($policy_id) . '\').hide();" style="margin-top:25px; width:100%; padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; font-weight:700; cursor:pointer; color:#475569; transition:all 0.2s;">Close</button>';
             echo '  </div>';
             echo '</div>';
             
-            echo '</div>'; // footer
+            echo '</div>'; // actions
             echo '</li>';
         } catch (Exception $e) {
             echo '<li class="maljani-policy-item error">Erreur lors de l\'affichage de la policy : ' . esc_html($e->getMessage()) . '</li>';

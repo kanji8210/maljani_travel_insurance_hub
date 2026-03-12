@@ -205,6 +205,24 @@ class Policy_CPT {
                         <option value="EUR" <?php selected($currency, 'EUR'); ?>>EUR</option>
                     </select>
                 </div>
+                <!-- New Financial Fields -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                    <div class="mj-form-group">
+                        <label>Aggregator Commission (%)</label>
+                        <input type="number" name="aggregator_commission_pct" value="<?php echo esc_attr(get_post_meta($post->ID, '_policy_aggregator_comm_pct', true) ?: '0'); ?>" step="0.01" class="mj-input" placeholder="e.g. 15.00">
+                        <p class="description">What insurer pays Maljani.</p>
+                    </div>
+                    <div class="mj-form-group">
+                        <label>Agency Commission (%)</label>
+                        <input type="number" name="agency_commission_pct" value="<?php echo esc_attr(get_post_meta($post->ID, '_policy_agency_comm_pct', true) ?: '0'); ?>" step="0.01" class="mj-input" placeholder="e.g. 10.00">
+                        <p class="description">Paid to agency by insurer.</p>
+                    </div>
+                    <div class="mj-form-group">
+                        <label>Client Service Fee (%)</label>
+                        <input type="number" name="client_service_fee_pct" value="<?php echo esc_attr(get_post_meta($post->ID, '_policy_client_fee_pct', true) ?: '0'); ?>" step="0.01" class="mj-input" placeholder="e.g. 5.00">
+                        <p class="description">Added to client's price.</p>
+                    </div>
+                </div>
                 <div class="mj-form-group">
                     <label>Pricing Rules (Duration based)</label>
                     <table class="mj-premium-table" id="day-premium-table">
@@ -319,6 +337,17 @@ class Policy_CPT {
             }
         }
         update_post_meta($post_id, '_policy_day_premiums', $premiums);
+
+        // Save Financial Settings
+        if (isset($_POST['aggregator_commission_pct'])) {
+            update_post_meta($post_id, '_policy_aggregator_comm_pct', floatval($_POST['aggregator_commission_pct']));
+        }
+        if (isset($_POST['agency_commission_pct'])) {
+            update_post_meta($post_id, '_policy_agency_comm_pct', floatval($_POST['agency_commission_pct']));
+        }
+        if (isset($_POST['client_service_fee_pct'])) {
+            update_post_meta($post_id, '_policy_client_fee_pct', floatval($_POST['client_service_fee_pct']));
+        }
 
         if (isset($_POST['policy_feature_img'])) {
             update_post_meta($post_id, '_policy_feature_img', intval($_POST['policy_feature_img']));

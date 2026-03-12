@@ -80,6 +80,55 @@ class Maljani_User_Dashboard {
                     break;
             }
         }
+
+        // Agent commission actions (POST)
+        $this->handle_agency_commission_actions();
+    }
+
+    /**
+     * Handle agency-side commission mark-received and dispute actions.
+     */
+    public function handle_agency_commission_actions() {
+        if (!isset($_POST['mj_comm_action']) || !is_user_logged_in()) {
+            return;
+        }
+
+        $current_user = wp_get_current_user();
+        if (!in_array('agent', (array) $current_user->roles)) {
+            return; // Only agents
+        }
+
+        if (!isset($_POST['mj_comm_nonce']) || !wp_verify_nonce($_POST['mj_comm_nonce'], 'mj_agent_comm_nonce')) {
+            return;
+        }
+
+        global $wpdb;
+        $table   = $wpdb->prefix . 'policy_sale';
+        $sale_id = intval($_POST['sale_id'] ?? 0);
+
+        // Verify this sale belongs to this agent
+        $sale = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, agent_commission_status FROM $table WHERE id = %d AND agent_id = %d",
+            $sale_id, $current_user->ID
+        ));
+
+        if (!$sale) return;
+
+        $action = sanitize_text_field($_POST['mj_comm_action']);
+
+        if ($action === 'mark_received' && $sale->agent_commission_status === 'paid') {
+            $wpdb->update($table, ['agent_commission_status' => 'received'], ['id' => $sale_id]);
+        } elseif ($action === 'dispute' && in_array($sale->agent_commission_status, ['paid', 'received'])) {
+            $note = sanitize_textarea_field($_POST['dispute_note'] ?? '');
+            $wpdb->update($table, [
+                'agent_commission_status'    => 'disputed',
+                'agency_comm_disputed_note'  => $note,
+            ], ['id' => $sale_id]);
+        }
+
+        // Redirect to prevent double-POST
+        wp_redirect(add_query_arg('comm_updated', '1', wp_get_referer() ?: get_permalink()));
+        exit;
     }
     
     public function render_login_form() {
@@ -830,6 +879,117 @@ class Maljani_User_Dashboard {
     private function handle_policy_view() {
         // Fonction pour affichage détaillé d'une police (utilisée via AJAX)
         // Implémentée dans handle_policy_details_ajax()
+    }
+
+    /**
+     * Render the Agency Commissions tab section.
+     * Shows all sales by this agent that have a commission, with status and action buttons.
+     */
+    public function render_agency_commissions_section($user_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+
+        $sales = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, policy_number, insured_names, premium, agent_commission_amount, agent_commission_status, agency_comm_disputed_note, created_at
+             FROM $table
+             WHERE agent_id = %d AND agent_commission_amount > 0
+             ORDER BY created_at DESC",
+            $user_id
+        ));
+
+        if (isset($_GET['comm_updated'])) {
+            echo '<div class="notice notice-success" style="margin-bottom:16px;"><p>Commission status updated.</p></div>';
+        }
+
+        $status_labels = [
+            'unpaid'   => ['label' => 'Unpaid',   'color' => '#f59e0b', 'bg' => '#fef3c7'],
+            'paid'     => ['label' => 'Paid',     'color' => '#10b981', 'bg' => '#d1fae5'],
+            'received' => ['label' => 'Received', 'color' => '#3b82f6', 'bg' => '#dbeafe'],
+            'disputed' => ['label' => 'Disputed', 'color' => '#ef4444', 'bg' => '#fee2e2'],
+        ];
+        ?>
+        <div class="mj-comm-section">
+            <h3 style="margin-bottom:20px;">&#128181; My Commissions</h3>
+
+            <?php if (empty($sales)): ?>
+                <div style="text-align:center;padding:40px;background:#f8fafc;border-radius:12px;">
+                    <p style="color:#64748b;">No commission records found. Commissions appear once a sale earns one.</p>
+                </div>
+            <?php else: ?>
+                <div style="overflow-x:auto;">
+                    <table class="policies-table" style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>Sale #</th>
+                                <th>Client</th>
+                                <th>Sale Date</th>
+                                <th>Premium</th>
+                                <th>Commission</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($sales as $sale):
+                            $st = $sale->agent_commission_status ?: 'unpaid';
+                            $st_info = $status_labels[$st] ?? $status_labels['unpaid'];
+                        ?>
+                            <tr>
+                                <td><strong><?php echo esc_html($sale->policy_number); ?></strong></td>
+                                <td><?php echo esc_html($sale->insured_names); ?></td>
+                                <td><?php echo date('M j, Y', strtotime($sale->created_at)); ?></td>
+                                <td><?php echo number_format($sale->premium, 2); ?></td>
+                                <td><strong><?php echo number_format($sale->agent_commission_amount, 2); ?></strong></td>
+                                <td>
+                                    <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
+                                        background:<?php echo $st_info['bg']; ?>;color:<?php echo $st_info['color']; ?>;">
+                                        <?php echo esc_html($st_info['label']); ?>
+                                    </span>
+                                    <?php if ($st === 'disputed' && $sale->agency_comm_disputed_note): ?>
+                                        <div style="font-size:11px;color:#ef4444;margin-top:4px;"><?php echo esc_html($sale->agency_comm_disputed_note); ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <div style="display:flex;flex-direction:column;gap:6px;">
+
+                                    <?php if ($st === 'paid'): ?>
+                                        <!-- Mark as Received -->
+                                        <form method="post" style="margin:0;">
+                                            <?php wp_nonce_field('mj_agent_comm_nonce', 'mj_comm_nonce'); ?>
+                                            <input type="hidden" name="mj_comm_action" value="mark_received">
+                                            <input type="hidden" name="sale_id" value="<?php echo esc_attr($sale->id); ?>">
+                                            <button type="submit" style="background:#3b82f6;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;">&#10003; Mark Received</button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if (in_array($st, ['paid', 'received'])): ?>
+                                        <!-- Dispute -->
+                                        <details style="margin:0;">
+                                            <summary style="color:#ef4444;font-size:12px;cursor:pointer;font-weight:600;">&#9888; Dispute</summary>
+                                            <form method="post" style="margin-top:8px;">
+                                                <?php wp_nonce_field('mj_agent_comm_nonce', 'mj_comm_nonce'); ?>
+                                                <input type="hidden" name="mj_comm_action" value="dispute">
+                                                <input type="hidden" name="sale_id" value="<?php echo esc_attr($sale->id); ?>">
+                                                <textarea name="dispute_note" rows="2" placeholder="Briefly explain the dispute..." style="width:100%;font-size:12px;border:1px solid #fca5a5;border-radius:6px;padding:6px;resize:vertical;"></textarea>
+                                                <button type="submit" style="margin-top:4px;background:#ef4444;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Submit Dispute</button>
+                                            </form>
+                                        </details>
+                                    <?php endif; ?>
+
+                                    <?php if (!in_array($st, ['paid', 'received', 'disputed'])): ?>
+                                        <span style="color:#94a3b8;font-size:12px;">Awaiting payment from insurer</span>
+                                    <?php endif; ?>
+
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 }
 

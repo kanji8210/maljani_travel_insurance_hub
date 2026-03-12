@@ -56,6 +56,15 @@ class Maljani_Admin_Menu {
             [$this, 'render_policy_sales']
         );
 
+        add_submenu_page(
+            'maljani_travel',
+            'Sales Moderation',
+            '🛡️ Sales Moderation',
+            'edit_maljani_policies', // Maljani Admin, Editor can access
+            'maljani_moderation',
+            [$this, 'render_moderation_admin']
+        );
+
 
 
         // Sous-menu Database Tools
@@ -164,6 +173,13 @@ class Maljani_Admin_Menu {
         echo '<h1>Policy Sales</h1>';
         // render maljani sales page
         Maljani_Policy_Sales_Admin::render_sales_table();
+    }
+
+    public function render_moderation_admin() {
+        if (!class_exists('Maljani_Moderation_Admin')) {
+            require_once plugin_dir_path(__FILE__) . 'class-maljani-moderation-admin.php';
+        }
+        Maljani_Moderation_Admin::render_page();
     }
 
     public function render_database_tools() {

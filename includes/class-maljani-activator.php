@@ -54,9 +54,16 @@ class Maljani_Activator {
             agent_id BIGINT UNSIGNED,
             agent_name VARCHAR(191),
             amount_paid DECIMAL(10,2),
+            service_fee_amount DECIMAL(10,2) DEFAULT 0.00,
+            maljani_commission_amount DECIMAL(10,2) DEFAULT 0.00,
+            agent_commission_amount DECIMAL(10,2) DEFAULT 0.00,
+            agent_commission_status ENUM('unpaid','paid','received','disputed') DEFAULT 'unpaid',
+            agency_comm_disputed_note TEXT,
+            net_to_insurer DECIMAL(10,2) DEFAULT 0.00,
             payment_reference VARCHAR(191),
             payment_status ENUM('confirmed','failed','pending') DEFAULT 'pending',
             policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
+            workflow_status ENUM('draft','pending_review','submitted_to_insurer','approved','active') DEFAULT 'draft',
             terms LONGTEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -65,6 +72,24 @@ class Maljani_Activator {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+
+        // Migration: add columns that may be missing on existing installs
+        self::run_migrations($wpdb, $table_name);
+    }
+
+    /**
+     * Safely add any missing columns to an existing table.
+     * dbDelta does not ALTER existing columns, so we do it manually.
+     */
+    public static function run_migrations($wpdb, $table_name) {
+        $columns = $wpdb->get_col("DESCRIBE `$table_name`", 0);
+
+        if (!in_array('agency_comm_disputed_note', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_comm_disputed_note` TEXT DEFAULT NULL AFTER `agent_commission_status`");
+        }
+
+        // Ensure the status column supports all four values
+        $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `agent_commission_status` ENUM('unpaid','paid','received','disputed') DEFAULT 'unpaid'");
     }
 
 }
@@ -92,5 +117,15 @@ add_action('admin_init', function() {
         Maljani_Activator::activate();
         wp_redirect(remove_query_arg('maljani_create_table') . '&maljani_table_created=1');
         exit;
+    }
+
+    // Always run migrations to ensure new columns exist on existing installs
+    if (current_user_can('manage_options')) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'policy_sale';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
+            require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
+            Maljani_Activator::run_migrations($wpdb, $table_name);
+        }
     }
 });

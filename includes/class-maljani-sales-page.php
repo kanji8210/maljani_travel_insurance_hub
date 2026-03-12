@@ -787,9 +787,21 @@ class Maljani_Sales_Page
                         <div class="maljani-sales-summary">
                             <p><strong>Policy:</strong> <?php echo esc_html($policy_title); ?></p>
                             <p><strong>Region:</strong> <?php echo esc_html($region_name ?: $region_title); ?></p>
-                            <p><strong>Premium (Amount to pay):</strong> <span
-                                    id="premium-currency"><?php echo esc_html($currency); ?></span> <span
-                                    id="premium-amount"><?php echo esc_html($premium); ?></span></p>
+                            <?php
+                            // Calculate fee display values for the summary
+                            $fee_pct_display    = floatval(get_post_meta($policy_id, '_policy_client_fee_pct', true) ?: 0);
+                            $service_fee_disp   = $fee_pct_display > 0 ? round(($premium * $fee_pct_display) / 100, 2) : 0;
+                            $total_client_disp  = $is_agent ? $premium : round($premium + $service_fee_disp, 2);
+                            ?>
+                            <p><strong>Premium (Base):</strong> <span id="premium-currency"><?php echo esc_html($currency); ?></span> <span id="premium-amount"><?php echo esc_html($premium); ?></span></p>
+                            <?php if ($service_fee_disp > 0): ?>
+                                <?php if ($is_agent): ?>
+                                    <p style="color:#6366f1;font-size:13px;"><strong>Service Fee:</strong> <?php echo esc_html($currency); ?> <?php echo number_format($service_fee_disp, 2); ?> <em>(paid by agency — not added to client price)</em></p>
+                                <?php else: ?>
+                                    <p><strong>Service Fee:</strong> <?php echo esc_html($currency); ?> <?php echo number_format($service_fee_disp, 2); ?></p>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                            <p style="font-size:16px;font-weight:700;border-top:2px solid #e5e7eb;padding-top:8px;margin-top:4px;"><strong>Total to Pay:</strong> <?php echo esc_html($currency); ?> <?php echo number_format($total_client_disp, 2); ?></p>
                             <p><strong>Days covered:</strong> <span id="days-covered"><?php echo esc_html($days); ?></span></p>
                             <?php if ($should_prefill): ?>
                                 <?php if ($is_insured && !$buying_for_self): ?>
@@ -1003,10 +1015,39 @@ class Maljani_Sales_Page
                 }
             }
 
+            // Get Financial Configurations
+            $aggregator_comm_pct = floatval(get_post_meta($policy_id, '_policy_aggregator_comm_pct', true) ?: 0);
+            $agency_comm_pct     = floatval(get_post_meta($policy_id, '_policy_agency_comm_pct', true) ?: 0);
+            $client_fee_pct      = floatval(get_post_meta($policy_id, '_policy_client_fee_pct', true) ?: 0);
+
             $current_user = wp_get_current_user();
-            $user_role = ($current_user->exists()) ? $current_user->roles[0] : '';
-            $is_agent = ($user_role === 'agent');
-            $is_insured = ($user_role === 'insured');
+            $user_role    = ($current_user->exists()) ? $current_user->roles[0] : '';
+            $is_agent     = ($user_role === 'agent');
+            $is_insured   = ($user_role === 'insured');
+
+            // Aggregator (Maljani) commission — earned from insurer, deducted from net
+            $maljani_comm_amount = round(($premium * $aggregator_comm_pct) / 100, 2);
+
+            // Net to Insurer = premium minus aggregator commission
+            // (Maljani keeps the aggregator cut; only the remainder is owed to the insurer)
+            $net_to_insurer = round($premium - $maljani_comm_amount, 2);
+
+            // Service Fee logic differs by channel:
+            //   Direct client → fee is ADDED to what the client pays (Maljani keeps it)
+            //   Agency sale   → fee is recorded for agency liability tracking; NOT added to client price
+            $service_fee_amount = round(($premium * $client_fee_pct) / 100, 2);
+            if ($is_agent) {
+                // Client pays only the premium; agency owes the service fee separately
+                $amount_tot_client = $premium;
+            } else {
+                $amount_tot_client = round($premium + $service_fee_amount, 2);
+            }
+
+            // Agency commission — paid by insurer directly to agency; tracked for visibility only
+            $agent_comm_amount = 0;
+            if ($is_agent) {
+                $agent_comm_amount = round(($premium * $agency_comm_pct) / 100, 2);
+            }
 
             // Générer un numéro de police unique
             $policy_number = 'POL-' . date('Ymd') . '-' . mt_rand(1000, 9999);
@@ -1029,10 +1070,16 @@ class Maljani_Sales_Page
                 'country_of_origin' => sanitize_text_field($_POST['country_of_origin']),
                 'agent_id' => get_current_user_id(),
                 'agent_name' => ($is_agent || $is_insured) ? $current_user->display_name : '',
-                'amount_paid' => $premium,
+                'amount_paid' => $amount_tot_client,
+                'service_fee_amount' => $service_fee_amount,
+                'maljani_commission_amount' => $maljani_comm_amount,
+                'agent_commission_amount' => $agent_comm_amount,
+                'agent_commission_status' => 'unpaid',
+                'net_to_insurer' => $net_to_insurer,
                 'payment_reference' => sanitize_text_field($_POST['payment_reference'] ?? ''),
                 'payment_status' => 'pending',
                 'policy_status' => 'unconfirmed',
+                'workflow_status' => 'draft',
                 'terms' => isset($_POST['accept_terms']) ? 1 : 0 // Acceptation des conditions
             ]);
             if ($result) {

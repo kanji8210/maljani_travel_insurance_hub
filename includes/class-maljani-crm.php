@@ -73,8 +73,20 @@ class Maljani_CRM {
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'record_payment'],
-                'permission_callback' => [$this, 'check_agency_permission'] // Agencies can submit payment references
+                'permission_callback' => [$this, 'check_agency_permission']
             ]
+        ]);
+
+        register_rest_route($namespace, '/commissions/(?P<id>\d+)/dispute', [
+            'methods' => 'POST',
+            'callback' => [$this, 'dispute_commission'],
+            'permission_callback' => [$this, 'check_agency_permission']
+        ]);
+
+        register_rest_route($namespace, '/commissions/(?P<id>\d+)/mark-received', [
+            'methods' => 'POST',
+            'callback' => [$this, 'mark_commission_received'],
+            'permission_callback' => [$this, 'check_agency_permission']
         ]);
     }
 
@@ -316,11 +328,12 @@ class Maljani_CRM {
         $agency_id = $this->get_current_agency_id();
         if (!$agency_id) return new WP_REST_Response(['success' => false, 'message' => 'Not an agency'], 403);
 
-        $table = $wpdb->prefix . 'maljani_payments';
-        $where = $agency_id === 'admin' ? "1=1" : $wpdb->prepare("agency_id = %d AND type = 'agency_to_maljani'", $agency_id);
+        // For agencies, "payments" tab should show their commissions from policy_sale
+        $table = $wpdb->prefix . 'policy_sale';
+        $where = $agency_id === 'admin' ? "1=1" : $wpdb->prepare("agency_id = %d", $agency_id);
         
-        $payments = $wpdb->get_results("SELECT * FROM $table WHERE $where ORDER BY id DESC");
-        return new WP_REST_Response(['success' => true, 'payments' => $payments], 200);
+        $commissions = $wpdb->get_results("SELECT id, policy_number, insured_names, premium, agent_commission_amount as amount, agent_commission_status as status, created_at FROM $table WHERE $where AND agent_commission_amount > 0 ORDER BY id DESC");
+        return new WP_REST_Response(['success' => true, 'payments' => $commissions], 200);
     }
     
     public function record_payment(WP_REST_Request $request) {
@@ -356,7 +369,55 @@ class Maljani_CRM {
             Maljani_Workflow::log_audit('payment', $payment_id, 'reference_submitted', get_current_user_id(), ['reference' => $reference, 'amount' => $amount]);
         }
 
-        return new WP_REST_Response(['success' => true, 'payment_id' => $payment_id], 200);
+    }
+
+    public function dispute_commission(WP_REST_Request $request) {
+        global $wpdb;
+        $sale_id = intval($request->get_param('id'));
+        $table = $wpdb->prefix . 'policy_sale';
+
+        $agency_id = $this->get_current_agency_id();
+        if (!$agency_id) return new WP_REST_Response(['success' => false, 'message' => 'Unauthorized'], 403);
+
+        if ($agency_id !== 'admin') {
+            $owner = $wpdb->get_var($wpdb->prepare("SELECT agency_id FROM $table WHERE id = %d", $sale_id));
+            if ($owner != $agency_id) return new WP_REST_Response(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $wpdb->update($table, [
+            'agent_commission_status'    => 'disputed',
+            'agency_comm_disputed_note'  => sanitize_textarea_field($request->get_param('reason')),
+        ], ['id' => $sale_id]);
+
+        if (class_exists('Maljani_Workflow')) {
+            Maljani_Workflow::log_audit('policy', $sale_id, 'commission_disputed', get_current_user_id(), ['reason' => sanitize_text_field($request->get_param('reason'))]);
+        }
+
+        return new WP_REST_Response(['success' => true], 200);
+    }
+
+    public function mark_commission_received(WP_REST_Request $request) {
+        global $wpdb;
+        $sale_id = intval($request->get_param('id'));
+        $table   = $wpdb->prefix . 'policy_sale';
+
+        $agency_id = $this->get_current_agency_id();
+        if (!$agency_id) return new WP_REST_Response(['success' => false, 'message' => 'Unauthorized'], 403);
+
+        // Verify this sale belongs to the agent's agency
+        if ($agency_id !== 'admin') {
+            $owner = $wpdb->get_var($wpdb->prepare("SELECT agency_id FROM $table WHERE id = %d", $sale_id));
+            if ($owner != $agency_id) return new WP_REST_Response(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $current_status = $wpdb->get_var($wpdb->prepare("SELECT agent_commission_status FROM $table WHERE id = %d", $sale_id));
+        if ($current_status !== 'paid') {
+            return new WP_REST_Response(['success' => false, 'message' => 'Commission must be in paid status to mark as received'], 400);
+        }
+
+        $wpdb->update($table, ['agent_commission_status' => 'received'], ['id' => $sale_id]);
+
+        return new WP_REST_Response(['success' => true], 200);
     }
 }
 
