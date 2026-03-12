@@ -202,6 +202,12 @@ add_filter('template_include', function($template) {
             return $plugin_template;
         }
     }
+    if (is_singular('maljani_policy')) {
+        $plugin_template = plugin_dir_path(__FILE__) . 'templates/single-maljani_policy.php';
+        if (file_exists($plugin_template)) {
+            return $plugin_template;
+        }
+    }
     if (is_singular('insurer_profile')) {
         $plugin_template = plugin_dir_path(__FILE__) . 'templates/single-profile.php';
         if (file_exists($plugin_template)) {
