@@ -50,6 +50,9 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.ph
 // Include invoice engine
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-invoice.php';
 
+// API & Payment Integration
+require_once plugin_dir_path(__FILE__) . 'includes/api/class-maljani-api-endpoints.php';
+
 // Initialize
 // Maljani_Registration::init(); // Handled in the class file itself
 

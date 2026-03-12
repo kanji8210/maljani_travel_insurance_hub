@@ -1093,7 +1093,50 @@ class Maljani_Sales_Page
                 'terms' => isset($_POST['accept_terms']) ? 1 : 0 // Acceptation des conditions
             ]);
             if ($result) {
-                // Vérifier si l'utilisateur est connecté
+                $sale_id = $wpdb->insert_id;
+
+                // --- Pesapal Integration Check ---
+                $pesapal_key = get_option('maljani_pesapal_consumer_key');
+                if (!empty($pesapal_key)) {
+                    require_once plugin_dir_path(__FILE__) . 'api/class-maljani-pesapal-gateway.php';
+                    $gateway = new Maljani_Pesapal_Gateway();
+                    
+                    $insurer_id = get_post_meta($policy_id, '_policy_insurer', true);
+                    $insurer_pesapal_id = $insurer_id ? get_post_meta($insurer_id, '_insurer_pesapal_merchant_id', true) : '';
+
+                    $split_payload = [];
+                    if (!empty($insurer_pesapal_id)) {
+                        // Split Payment: Premium to Insurer, rest to Maljani (implied)
+                        $split_payload[] = [
+                            'merchant_id' => $insurer_pesapal_id,
+                            'amount'      => (float)$net_to_insurer
+                        ];
+                    }
+
+                    $billing_info = [
+                        'email_address' => sanitize_email($_POST['insured_email']),
+                        'phone_number'  => sanitize_text_field($_POST['insured_phone']),
+                        'first_name'    => explode(' ', sanitize_text_field($_POST['insured_names']))[0],
+                        'last_name'     => ''
+                    ];
+
+                    $order_resp = $gateway->create_order(
+                        $sale_id,
+                        $amount_tot_client,
+                        'Insurance Policy Purchase: ' . $policy_number,
+                        $billing_info,
+                        $split_payload
+                    );
+
+                    if (!is_wp_error($order_resp) && isset($order_resp['redirect_url'])) {
+                        // Update sale with merchant reference if available
+                        $wpdb->update($table, ['payment_reference' => $order_resp['order_tracking_id'] ?? ''], ['id' => $sale_id]);
+                        wp_redirect($order_resp['redirect_url']);
+                        exit;
+                    }
+                }
+
+                // Fallback to existing manual redirect logic if Pesapal not active or failed
                 if ($current_user->exists()) {
                     // Utilisateur connecté - rediriger vers le dashboard configuré
                     $dashboard_page_id = get_option('maljani_user_dashboard_page');

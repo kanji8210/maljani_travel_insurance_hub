@@ -58,6 +58,7 @@ class Insurer_Profile_CPT {
         $feature_img_url = $feature_img_id ? wp_get_attachment_url($feature_img_id) : '';
         $website = get_post_meta($post->ID, '_insurer_website', true);
         $linkedin = get_post_meta($post->ID, '_insurer_linkedin', true);
+        $pesapal_id = get_post_meta($post->ID, '_insurer_pesapal_merchant_id', true);
 
         ?>
         <style>
@@ -114,6 +115,7 @@ class Insurer_Profile_CPT {
                 <div class="maljani-tab-link active" data-tab="basic">Basic Info</div>
                 <div class="maljani-tab-link" data-tab="profile">Profile & Media</div>
                 <div class="maljani-tab-link" data-tab="links">External Links</div>
+                <div class="maljani-tab-link" data-tab="api" style="color:#0ea5e9">API & Payment</div>
             </div>
 
             <!-- Tab: Basic -->
@@ -190,6 +192,15 @@ class Insurer_Profile_CPT {
                 <div class="mj-form-group">
                     <label for="insurer_linkedin">LinkedIn Page</label>
                     <input type="url" id="insurer_linkedin" name="insurer_linkedin" value="<?php echo esc_attr($linkedin); ?>" class="mj-input" placeholder="https://linkedin.com/company/insurer" />
+                </div>
+            </div>
+
+            <!-- Tab: API & Payment -->
+            <div id="tab-api" class="maljani-tab-content">
+                <div class="mj-form-group">
+                    <label for="insurer_pesapal_id">Pesapal Merchant ID (for Split Payments)</label>
+                    <input type="text" id="insurer_pesapal_id" name="insurer_pesapal_id" value="<?php echo esc_attr($pesapal_id); ?>" class="mj-input" placeholder="e.g. 5ca... " />
+                    <p class="description">If provided, insurance premiums will be automatically routed to this Merchant ID via Pesapal Split Payment. If empty, funds are kept in Maljani's main account.</p>
                 </div>
             </div>
         </div>
@@ -308,6 +319,9 @@ class Insurer_Profile_CPT {
         }
         if (isset($_POST['insurer_linkedin'])) {
             update_post_meta($post_id, '_insurer_linkedin', esc_url_raw($_POST['insurer_linkedin']));
+        }
+        if (isset($_POST['insurer_pesapal_id'])) {
+            update_post_meta($post_id, '_insurer_pesapal_merchant_id', sanitize_text_field($_POST['insurer_pesapal_id']));
         }
     }
 }

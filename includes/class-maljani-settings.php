@@ -38,6 +38,12 @@ class Maljani_Settings {
         foreach ($inv_fields as $f) register_setting('maljani_settings_group', $f, ['sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_inv_vat_enabled', ['type'=>'boolean','sanitize_callback'=>'rest_sanitize_boolean']);
         register_setting('maljani_settings_group', 'maljani_inv_vat_rate',    ['sanitize_callback'=>'floatval']);
+
+        // Pesapal Gateway Settings
+        register_setting('maljani_settings_group', 'maljani_pesapal_consumer_key', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_pesapal_consumer_secret', ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_pesapal_mode', ['default' => 'sandbox', 'sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_pesapal_ipn_id', ['sanitize_callback' => 'sanitize_text_field']);
     }
 
     // ── Shortcode auto-inject helpers ─────────────────────────────────────────
@@ -295,6 +301,46 @@ textarea.mj-in { resize:vertical; }
                                     <label for="resp_body">Body</label>
                                     <textarea id="resp_body" name="maljani_support_email_response_body" class="mj-in" rows="5"><?php echo esc_textarea(get_option('maljani_support_email_response_body',"Hello,\n\nA support representative has replied to your message:\n\n{response}\n\nRegards")); ?></textarea>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Pesapal Integration ────────────────────── -->
+                <div class="mj-settings-card">
+                    <div class="mj-settings-card-head">
+                        <div class="card-icon" style="background:#eff6ff">💳</div>
+                        <div>
+                            <h2>Pesapal Payment Gateway</h2>
+                            <p>Configure your Pesapal v3.0 API keys for automated premium collection and split payments.</p>
+                        </div>
+                    </div>
+                    <div class="mj-settings-card-body">
+                        <div class="mj-sf-grid">
+                            <div class="mj-sf">
+                                <label for="pesapal_key">Consumer Key</label>
+                                <input id="pesapal_key" type="text" name="maljani_pesapal_consumer_key" class="mj-in" 
+                                       value="<?php echo esc_attr(get_option('maljani_pesapal_consumer_key')); ?>" placeholder="e.g. qre4e4... ">
+                            </div>
+                            <div class="mj-sf">
+                                <label for="pesapal_secret">Consumer Secret</label>
+                                <input id="pesapal_secret" type="password" name="maljani_pesapal_consumer_secret" class="mj-in" 
+                                       value="<?php echo esc_attr(get_option('maljani_pesapal_consumer_secret')); ?>">
+                            </div>
+                        </div>
+                        <div class="mj-sf-grid" style="margin-top:10px">
+                            <div class="mj-sf">
+                                <label for="pesapal_mode">Environment</label>
+                                <select id="pesapal_mode" name="maljani_pesapal_mode" class="mj-in">
+                                    <option value="sandbox" <?php selected(get_option('maljani_pesapal_mode'), 'sandbox'); ?>>Sandbox (Testing)</option>
+                                    <option value="live" <?php selected(get_option('maljani_pesapal_mode'), 'live'); ?>>Live (Production)</option>
+                                </select>
+                            </div>
+                            <div class="mj-sf">
+                                <label>IPN Registration ID</label>
+                                <input type="text" name="maljani_pesapal_ipn_id" class="mj-in" readonly 
+                                       value="<?php echo esc_attr(get_option('maljani_pesapal_ipn_id')); ?>" placeholder="Automatically registered...">
+                                <span class="hint">The system will automatically register this when you save valid keys.</span>
                             </div>
                         </div>
                     </div>

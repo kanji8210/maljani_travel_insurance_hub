@@ -171,11 +171,11 @@ class Maljani_Agencies_Admin {
             <div class="mja-header">
                 <h1 style="margin:0">🏢 Manage Agencies</h1>
                 <div style="display:flex; gap:10px;">
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'pending'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='pending'?'mj-pri':'mj-sec'; ?>">
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'pending'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='pending'?'mj-pri':'mj-sec'; ?>">
                         ⏳ Pending Approvals <?php if($pending_count > 0) echo "<span style='background:#f43f5e; color:#fff; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:4px;'>$pending_count</span>"; ?>
                     </a>
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'approved'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='approved'?'mj-pri':'mj-sec'; ?>">✅ Approved</a>
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'rejected'], admin_url('admin.php?page=maljani_agencies'))); ?>" class="mj-b <?php echo $status_filter==='rejected'?'mj-pri':'mj-sec'; ?>">❌ Rejected</a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'approved'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='approved'?'mj-pri':'mj-sec'; ?>">✅ Approved</a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'rejected'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='rejected'?'mj-pri':'mj-sec'; ?>">❌ Rejected</a>
                     <button type="button" class="mj-b mj-pri" onclick="document.getElementById('mja-new-form').style.display=document.getElementById('mja-new-form').style.display==='none'?'':'none'" style="margin-left:10px;">+ Add New Agency</button>
                 </div>
             </div>
