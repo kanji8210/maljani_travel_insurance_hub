@@ -112,6 +112,19 @@ class Maljani_CRM {
         }
 
         $table = $wpdb->prefix . 'maljani_agencies';
+        
+        // Check if the user is a sub-agent (employee) linked via user meta
+        $linked_agency_id = get_user_meta($user_id, 'agency_id', true);
+        if ($linked_agency_id) {
+            // Verify the parent agency is still approved
+            $status = $wpdb->get_var($wpdb->prepare("SELECT status FROM $table WHERE id = %d", $linked_agency_id));
+            if ($status === 'approved') {
+                return intval($linked_agency_id);
+            }
+            return null; // Agency rejected or pending
+        }
+
+        // Otherwise, check if they are the primary owner of an agency
         return $wpdb->get_var($wpdb->prepare("SELECT id FROM $table WHERE user_id = %d AND status = 'approved'", $user_id));
     }
 

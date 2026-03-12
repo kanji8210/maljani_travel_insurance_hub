@@ -12,7 +12,8 @@ class Maljani_Agencies_Admin {
         // ── Handle POST actions ──────────────────────────────────────────────
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['maljani_agency_action']) && wp_verify_nonce($_POST['_wpnonce'], 'maljani_agency_nonce')) {
             $action = sanitize_text_field($_POST['maljani_agency_action']);
-
+            
+            // ... (keep existing agency update/create/approve/reject logic) ...
             if ($action === 'update_agency') {
                 $id = intval($_POST['agency_id']);
                 $wpdb->update($tbl, [
@@ -69,6 +70,45 @@ class Maljani_Agencies_Admin {
                 $id = intval($_POST['agency_id']);
                 $wpdb->update($tbl, ['status' => 'rejected', 'updated_at' => current_time('mysql', 1)], ['id' => $id]);
                 echo '<div class="notice notice-error is-dismissible"><p>Agency rejected.</p></div>';
+            }
+
+            // --- Employee Management Actions ---
+            if ($action === 'add_agency_employee') {
+                $agency_id = intval($_POST['agency_id']);
+                $email = sanitize_email($_POST['emp_email']);
+                $fname = sanitize_text_field($_POST['emp_first_name']);
+                $lname = sanitize_text_field($_POST['emp_last_name']);
+
+                if (email_exists($email)) {
+                    echo '<div class="notice notice-error is-dismissible"><p>Error: Email already in use.</p></div>';
+                } else {
+                    $pw = wp_generate_password(12, false);
+                    $uid = wp_create_user($email, $pw, $email); // Use email as username
+                    
+                    if (!is_wp_error($uid)) {
+                        wp_update_user([
+                            'ID' => $uid,
+                            'first_name' => $fname,
+                            'last_name' => $lname,
+                            'role' => 'agent'
+                        ]);
+                        // Link sub-agent to parent agency using user meta
+                        update_user_meta($uid, 'agency_id', $agency_id);
+                        echo '<div class="notice notice-success is-dismissible"><p>Employee added successfully and linked to agency.</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error is-dismissible"><p>' . $uid->get_error_message() . '</p></div>';
+                    }
+                }
+            }
+
+            if ($action === 'remove_agency_employee') {
+                $emp_id = intval($_POST['employee_user_id']);
+                // Unlink them
+                delete_user_meta($emp_id, 'agency_id');
+                // Optional: Delete the actual user if they only exist for this purpose
+                // require_once(ABSPATH.'wp-admin/includes/user.php');
+                // wp_delete_user($emp_id);
+                echo '<div class="notice notice-success is-dismissible"><p>Employee unlinked from agency.</p></div>';
             }
         }
 
@@ -217,6 +257,7 @@ class Maljani_Agencies_Admin {
                                         <button type="button" class="mj-b mj-pri tedit-ag" data-id="<?php echo $a->id; ?>">✏️ Edit</button>
                                         <a href="<?php echo esc_url(add_query_arg(['page'=>'policy_sales','status'=>''],admin_url('admin.php')).'&view_agency='.$a->id); ?>" class="mj-b mj-sec">📊 View Sales</a>
                                         <button type="button" class="mj-b mj-sec tcomm" data-id="<?php echo $a->id; ?>">💰 Commissions</button>
+                                        <button type="button" class="mj-b mj-sec temp" data-id="<?php echo $a->id; ?>">👥 Employees</button>
                                     <?php endif; ?>
                                 </div>
                             </td>
@@ -276,6 +317,69 @@ class Maljani_Agencies_Admin {
                                 <?php endif; ?>
                             </td>
                         </tr>
+                        <!-- Employee Management Row -->
+                        <tr id="age-emp-<?php echo $a->id; ?>" style="display:none">
+                            <td colspan="5" style="background:#fafafa;padding:20px;border-bottom:1px solid #e2e8f0;">
+                                <h4 style="margin:0 0 16px;color:#0f172a;font-size:14px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">👥 Manage Employees — <?php echo esc_html($a->name ?? $a->agency_name ?? ''); ?></h4>
+                                
+                                <!-- List Existing Employees -->
+                                <?php
+                                $employees = get_users([
+                                    'role' => 'agent',
+                                    'meta_key' => 'agency_id',
+                                    'meta_value' => $a->id,
+                                    'meta_compare' => '='
+                                ]);
+                                ?>
+                                <table class="comm-view-tbl" style="margin-bottom:20px;">
+                                    <thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                    <?php if(empty($employees)): ?>
+                                        <tr><td colspan="3" style="color:#64748b;text-align:center;">No employees currently linked.</td></tr>
+                                    <?php else: foreach($employees as $emp): ?>
+                                        <tr>
+                                            <td><?php echo esc_html($emp->first_name . ' ' . $emp->last_name); ?></td>
+                                            <td><?php echo esc_html($emp->user_email); ?></td>
+                                            <td>
+                                                <form method="post" style="display:inline;" onsubmit="return confirm('Remove this employee from the agency?');">
+                                                    <?php wp_nonce_field('maljani_agency_nonce'); ?>
+                                                    <input type="hidden" name="maljani_agency_action" value="remove_agency_employee">
+                                                    <input type="hidden" name="employee_user_id" value="<?php echo esc_attr($emp->ID); ?>">
+                                                    <button type="submit" class="mj-b" style="background:#f1f5f9;color:#f43f5e;border-color:#f43f5e;padding:4px 8px;">Remove</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; endif; ?>
+                                    </tbody>
+                                </table>
+
+                                <!-- Form to add a new employee -->
+                                <div style="background:#fff;padding:16px;border-radius:8px;border:1px dashed #cbd5e1;">
+                                    <h5 style="margin:0 0 10px;font-size:13px;color:#475569;">Add New Sub-Agent (Employee)</h5>
+                                    <form method="post" style="display:flex;gap:10px;align-items:flex-end;">
+                                        <?php wp_nonce_field('maljani_agency_nonce'); ?>
+                                        <input type="hidden" name="maljani_agency_action" value="add_agency_employee">
+                                        <input type="hidden" name="agency_id" value="<?php echo esc_attr($a->id); ?>">
+                                        
+                                        <div style="flex:1;">
+                                            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">First Name *</label>
+                                            <input type="text" name="emp_first_name" required style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                                        </div>
+                                        <div style="flex:1;">
+                                            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Last Name</label>
+                                            <input type="text" name="emp_last_name" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                                        </div>
+                                        <div style="flex:2;">
+                                            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Email Address *</label>
+                                            <input type="email" name="emp_email" required style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+                                        </div>
+                                        <div>
+                                            <button type="submit" class="mj-b mj-pri" style="height:33px;">+ Add User</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -289,12 +393,21 @@ class Maljani_Agencies_Admin {
                 const r = document.getElementById('age-' + id);
                 r.style.display = r.style.display === 'none' ? '' : 'none';
                 document.getElementById('agc-' + id).style.display = 'none';
+                document.getElementById('age-emp-' + id).style.display = 'none';
             }));
             document.querySelectorAll('.tcomm').forEach(b => b.addEventListener('click', function(){
                 const id = this.dataset.id;
                 const r = document.getElementById('agc-' + id);
                 r.style.display = r.style.display === 'none' ? '' : 'none';
                 document.getElementById('age-' + id).style.display = 'none';
+                document.getElementById('age-emp-' + id).style.display = 'none';
+            }));
+            document.querySelectorAll('.temp').forEach(b => b.addEventListener('click', function(){
+                const id = this.dataset.id;
+                const r = document.getElementById('age-emp-' + id);
+                r.style.display = r.style.display === 'none' ? '' : 'none';
+                document.getElementById('age-' + id).style.display = 'none';
+                document.getElementById('agc-' + id).style.display = 'none';
             }));
             document.querySelectorAll('.cancel-ag').forEach(b => b.addEventListener('click', function(){
                 document.getElementById('age-' + this.dataset.id).style.display = 'none';
