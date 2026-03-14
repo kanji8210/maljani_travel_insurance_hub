@@ -39,66 +39,124 @@ class Maljani_Filter {
         ob_start();
         try {
     ?>
-    <div class="maljani-filter-container wizard-layout">
-        <div class="maljani-wizard-wrapper" data-columns="<?php echo esc_attr($columns); ?>">
+    <div class="maljani-filter-container wizard-layout" 
+         x-data="{ 
+            step: 1, 
+            region: '', 
+            departure: '', 
+            returnDate: '',
+            days: 0,
+            loading: false,
+            results: '',
+            calculateDays() {
+                if (this.departure && this.returnDate) {
+                    const d1 = new Date(this.departure);
+                    const d2 = new Date(this.returnDate);
+                    if (d2 > d1) {
+                        this.days = Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
+                    } else {
+                        this.days = 0;
+                    }
+                }
+            },
+            async generateQuote() {
+                if (!this.departure || !this.returnDate) {
+                    alert('Please select both departure and return dates.');
+                    return;
+                }
+                if (this.days <= 0) {
+                    alert('Return date must be after departure date.');
+                    return;
+                }
+                
+                this.loading = true;
+                this.step = 3;
+                
+                try {
+                    const response = await jQuery.post(maljaniFilter.ajax_url, {
+                        action: 'maljani_filter_policies',
+                        departure: this.departure,
+                        return: this.returnDate,
+                        region: this.region,
+                        security: maljaniFilter.security
+                    });
+                    
+                    if (response.success && response.data && response.data.html) {
+                        setTimeout(() => {
+                            this.results = response.data.html;
+                            this.loading = false;
+                            // Initialize Lucide after results load
+                            setTimeout(() => { if(window.lucide) lucide.createIcons(); }, 100);
+                        }, 1500);
+                    } else {
+                        alert('No policies found.');
+                        this.step = 2;
+                        this.loading = false;
+                    }
+                } catch (e) {
+                    alert('Error loading policies.');
+                    this.step = 2;
+                    this.loading = false;
+                }
+            }
+         }">
+        <div class="maljani-wizard-wrapper" x-show="!results">
             <div class="wizard-progress">
-                <div class="progress-step active" data-step="1">
-                    <span class="step-num">1</span>
+                <div class="progress-step" :class="{ 'active': step === 1, 'completed': step > 1 }">
+                    <span class="step-num" x-show="step <= 1">1</span>
+                    <span class="step-num completed" x-show="step > 1"><i data-lucide="check" style="width:16px;height:16px;"></i></span>
                     <span class="step-label">Destination</span>
                 </div>
-                <div class="progress-step" data-step="2">
-                    <span class="step-num">2</span>
+                <div class="progress-step" :class="{ 'active': step === 2, 'completed': step > 2 }">
+                    <span class="step-num" x-show="step <= 2">2</span>
+                    <span class="step-num completed" x-show="step > 2"><i data-lucide="check" style="width:16px;height:16px;"></i></span>
                     <span class="step-label">Dates</span>
                 </div>
-                <div class="progress-step" data-step="3">
+                <div class="progress-step" :class="{ 'active': step === 3 }">
                     <span class="step-num">3</span>
                     <span class="step-label">Results</span>
                 </div>
                 <div class="progress-line">
-                    <div class="progress-fill"></div>
+                    <div class="progress-fill" :style="'width: ' + ((step - 1) / 2 * 100) + '%'"></div>
                 </div>
             </div>
 
-            <form id="maljani-policy-filter-form" class="wizard-form">
+            <form id="maljani-policy-filter-form" class="wizard-form" @submit.prevent="generateQuote">
                 <!-- STEP 1: DESTINATION -->
-                <div class="wizard-step active" id="step-destination">
+                <div class="wizard-step" :class="{ 'active': step === 1 }" x-show="step === 1">
                     <div class="step-header">
                         <h2>Which region are you traveling to?</h2>
                         <p>Select your destination to see specific coverage plans.</p>
                     </div>
                     <div class="region-grid">
-                        <div class="region-card active" data-region="">
-                            <div class="region-icon">🌍</div>
+                        <div class="region-card" :class="{ 'active': region === '' }" @click="region = ''; step = 2">
+                            <div class="region-icon"><i data-lucide="globe"></i></div>
                             <span class="region-name">Worldwide</span>
                         </div>
                         <?php
                         $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
                         if (!is_wp_error($regions)) {
                             foreach ($regions as $region) {
-                                $icon = '';
+                                $icon = 'map-pin';
                                 $name = esc_html($region->name);
-                                if (stripos($name, 'Europe') !== false) $icon = '🏰';
-                                elseif (stripos($name, 'Africa') !== false) $icon = '🦁';
-                                elseif (stripos($name, 'Asia') !== false) $icon = '⛩️';
-                                elseif (stripos($name, 'America') !== false) $icon = '🗽';
-                                else $icon = '📍';
+                                if (stripos($name, 'Europe') !== false) $icon = 'palmtree';
+                                elseif (stripos($name, 'Africa') !== false) $icon = 'mountain';
+                                elseif (stripos($name, 'Asia') !== false) $icon = 'landmark';
+                                elseif (stripos($name, 'America') !== false) $icon = 'flag';
                                 
-                                echo '<div class="region-card" data-region="' . esc_attr($region->term_id) . '">';
-                                echo '  <div class="region-icon">' . $icon . '</div>';
+                                echo '<div class="region-card" :class="{ \'active\': region == \'' . esc_attr($region->term_id) . '\' }" @click="region = \'' . esc_attr($region->term_id) . '\'; step = 2">';
+                                echo '  <div class="region-icon"><i data-lucide="' . $icon . '"></i></div>';
                                 echo '  <span class="region-name">' . $name . '</span>';
                                 echo '</div>';
                             }
                         }
                         ?>
                     </div>
-                    <input type="hidden" name="region_id" id="maljani-region-input" value="">
-                    <div class="wizard-actions">
-                        <button type="button" class="mj-btn-next" data-next="step-dates">Continue to Dates →</button>
-                    </div>
+                    <input type="hidden" name="region_id" x-model="region">
                 </div>
 
                 <!-- STEP 2: DATES -->
-                <div class="wizard-step" id="step-dates">
+                <div class="wizard-step" :class="{ 'active': step === 2 }" x-show="step === 2">
                     <div class="step-header">
                         <h2>When is your trip?</h2>
                         <p>We need your travel dates to calculate the exact premium.</p>
@@ -107,36 +165,36 @@ class Maljani_Filter {
                         <div class="filter-group">
                             <label>Departure Date</label>
                             <div class="input-with-icon">
-                                <span class="input-icon">📅</span>
-                                <input type="date" name="departure" class="filter-input" required>
+                                <span class="input-icon"><i data-lucide="calendar"></i></span>
+                                <input type="date" name="departure" class="filter-input" x-model="departure" @change="calculateDays" required>
                             </div>
                         </div>
                         <div class="filter-group">
                             <label>Return Date</label>
                             <div class="input-with-icon">
-                                <span class="input-icon">🛫</span>
-                                <input type="date" name="return" class="filter-input" required>
+                                <span class="input-icon"><i data-lucide="plane-takeoff"></i></span>
+                                <input type="date" name="return" class="filter-input" x-model="returnDate" @change="calculateDays" required>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="trip-summary-box" style="display:none;">
-                        <span class="summary-icon">⏱️</span>
-                        <span class="summary-text">Trip Duration: <strong id="trip-duration-display">0</strong> days</span>
+                    <div class="trip-summary-box" x-show="days > 0" x-transition>
+                        <span class="summary-icon"><i data-lucide="clock"></i></span>
+                        <span class="summary-text">Trip Duration: <strong x-text="days"></strong> days</span>
                     </div>
 
                     <div class="wizard-actions">
-                        <button type="button" class="mj-btn-back" data-back="step-destination">← Back</button>
-                        <button type="button" class="mj-btn-next mj-btn-primary" data-next="step-results" id="mj-trigger-results">Generate Quote ✨</button>
+                        <button type="button" class="mj-btn-back" @click="step = 1"><i data-lucide="arrow-left" style="width:18px;height:18px;display:inline;vertical-align:middle;margin-right:8px;"></i> Back</button>
+                        <button type="submit" class="mj-btn-next mj-btn-primary">Generate Quote <i data-lucide="sparkles" style="width:18px;height:18px;display:inline;vertical-align:middle;margin-left:8px;"></i></button>
                     </div>
                 </div>
 
-                <!-- STEP 3: LOADING / RESULTS ANCHOR -->
-                <div class="wizard-step" id="step-results">
+                <!-- STEP 3: LOADING -->
+                <div class="wizard-step" :class="{ 'active': step === 3 }" x-show="step === 3 && loading">
                     <div class="results-transition">
                         <div class="transition-loader">
                             <div class="pulse-ring"></div>
-                            <span class="loader-icon">🛡️</span>
+                            <span class="loader-icon"><i data-lucide="shield-check" style="width:48px;height:48px;"></i></span>
                         </div>
                         <h3>Finding your perfect plans...</h3>
                         <p>Comparing coverage and benefits from our partners.</p>
@@ -145,13 +203,12 @@ class Maljani_Filter {
             </form>
         </div>
 
-        <div id="maljani-policy-results" class="wizard-results-container" style="display:none;">
+        <div id="maljani-policy-results" class="wizard-results-container" x-show="results" x-transition>
             <div class="results-toolbar">
-                <button class="mj-btn-outline" onclick="location.reload()">🔄 Start New Quote</button>
+                <button class="mj-btn-outline" @click="results = ''; step = 1"><i data-lucide="refresh-cw" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:8px;"></i> Start New Quote</button>
                 <div id="active-filters-summary"></div>
             </div>
-            <div class="maljani-results-grid-anchor">
-                <?php $this->render_policy_list(array(), 0, $columns); ?>
+            <div class="maljani-results-grid-anchor" x-html="results">
             </div>
         </div>
     </div>
@@ -171,42 +228,120 @@ class Maljani_Filter {
      */
     public function render_filter_form_only($atts = array()) {
         $atts = shortcode_atts(array(
-            'redirect' => '', // URL to redirect to with filter parameters
+            'redirect' => '', 
         ), $atts);
         
         ob_start();
         try {
     ?>
-    <div class="maljani-filter-form-only">
-        <form id="maljani-filter-form-standalone" method="get" action="<?php echo esc_url($atts['redirect'] ? $atts['redirect'] : ''); ?>" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-            <label style="margin:0;color:#222;">
-                Departure Date:
-                <input type="date" name="departure" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
-            </label>
-            <label style="margin:0;color:#222;">
-                Return Date:
-                <input type="date" name="return" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;" required>
-            </label>
-            <label style="margin:0;color:#222;">
-                Filter by type/region:
-                <select name="region_id" style="margin-left:8px;padding:8px;border:1px solid #ddd;color:#222;">
-                    <option value="">All Regions</option>
-                    <?php
-                    $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
-                    if (!is_wp_error($regions)) {
-                        foreach ($regions as $region) {
-                            echo '<option value="' . esc_attr($region->term_id) . '">' . esc_html($region->name) . '</option>';
+    <div class="maljani-filter-container compact-wizard" 
+         x-data="{ 
+            step: 1, 
+            region: '', 
+            departure: '', 
+            returnDate: '',
+            redirectUrl: '<?php echo esc_url($atts['redirect']); ?>',
+            submitForm() {
+                if (!this.departure || !this.returnDate) {
+                    alert('Please select travel dates.');
+                    return;
+                }
+                if (this.redirectUrl) {
+                    const url = new URL(this.redirectUrl, window.location.origin);
+                    url.searchParams.set('departure', this.departure);
+                    url.searchParams.set('return', this.returnDate);
+                    if (this.region) url.searchParams.set('region_id', this.region);
+                    window.location.href = url.toString();
+                } else {
+                    // Fallback to standard submit if no redirect
+                    document.getElementById('compact-submit-btn').click();
+                }
+            }
+         }">
+        
+        <div class="maljani-wizard-wrapper">
+            <!-- COMPACT STEPPER -->
+            <div class="wizard-progress compact">
+                <div class="progress-step" :class="{ 'active': step === 1, 'completed': step > 1 }">
+                    <span class="step-num" x-show="step <= 1">1</span>
+                    <span class="step-num completed" x-show="step > 1"><i data-lucide="check" style="width:14px;height:14px;"></i></span>
+                    <span class="step-label">Destination</span>
+                </div>
+                <div class="progress-step" :class="{ 'active': step === 2 }">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Dates</span>
+                </div>
+                <div class="progress-line">
+                    <div class="progress-fill" :style="'width: ' + ((step - 1) * 100) + '%'"></div>
+                </div>
+            </div>
+
+            <form id="maljani-compact-filter-form" class="wizard-form" @submit.prevent="submitForm">
+                <!-- STEP 1: DESTINATION (Compact Grid) -->
+                <div class="wizard-step" :class="{ 'active': step === 1 }" x-show="step === 1" x-transition>
+                    <div class="step-header">
+                        <h3>Where to?</h3>
+                        <p>Select your region to quick-start your quote.</p>
+                    </div>
+                    <div class="region-grid compact">
+                        <div class="region-card" :class="{ 'active': region === '' }" @click="region = ''; step = 2">
+                            <div class="region-icon"><i data-lucide="globe"></i></div>
+                            <span class="region-name">Worldwide</span>
+                        </div>
+                        <?php
+                        $regions = get_terms(array('taxonomy' => 'policy_region', 'hide_empty' => false));
+                        if (!is_wp_error($regions)) {
+                            foreach ($regions as $region) {
+                                $icon = 'map-pin';
+                                $name = esc_html($region->name);
+                                if (stripos($name, 'Europe') !== false) $icon = 'palmtree';
+                                elseif (stripos($name, 'Africa') !== false) $icon = 'mountain';
+                                elseif (stripos($name, 'Asia') !== false) $icon = 'landmark';
+                                elseif (stripos($name, 'America') !== false) $icon = 'flag';
+                                
+                                echo '<div class="region-card" :class="{ \'active\': region == \'' . esc_attr($region->term_id) . '\' }" @click="region = \'' . esc_attr($region->term_id) . '\'; step = 2">';
+                                echo '  <div class="region-icon"><i data-lucide="' . $icon . '"></i></div>';
+                                echo '  <span class="region-name">' . $name . '</span>';
+                                echo '</div>';
+                            }
                         }
-                    }
-                    ?>
-                </select>
-            </label>
-            <button type="submit" style="padding:10px 24px;border:1px solid #222;color:#222;cursor:pointer;">Search Policies</button>
-        </form>
+                        ?>
+                    </div>
+                    <input type="hidden" name="region_id" x-model="region">
+                </div>
+
+                <!-- STEP 2: DATES -->
+                <div class="wizard-step" :class="{ 'active': step === 2 }" x-show="step === 2" x-transition>
+                    <div class="step-header">
+                        <h3>Travel Dates</h3>
+                    </div>
+                    <div class="date-input-group">
+                        <div class="filter-input-wrapper">
+                            <label>Departure</label>
+                            <input type="date" x-model="departure" class="filter-input" required>
+                        </div>
+                        <div class="filter-input-wrapper">
+                            <label>Return</label>
+                            <input type="date" x-model="returnDate" class="filter-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="wizard-actions">
+                        <button type="button" @click="step = 1" class="mj-btn-text">
+                            <i data-lucide="chevron-left"></i> Change Region
+                        </button>
+                        <button type="submit" class="mj-btn-primary">
+                            Get Quote <i data-lucide="sparkles"></i>
+                        </button>
+                    </div>
+                    <button type="submit" id="compact-submit-btn" style="display:none;"></button>
+                </div>
+            </form>
+        </div>
     </div>
     <?php
         } catch (Exception $e) {
-            echo '<div class="error">Error displaying filter form: ' . esc_html($e->getMessage()) . '</div>';
+            echo '<div class="error">Error: ' . esc_html($e->getMessage()) . '</div>';
         }
         return ob_get_clean();
     }
@@ -361,11 +496,29 @@ class Maljani_Filter {
 
     public function enqueue_scripts() {
         try {
-            // Enqueue filter script and localize AJAX parameters (include legacy keys)
+            // Enqueue Alpine.js
+            wp_enqueue_script(
+                'alpinejs',
+                'https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js',
+                array(),
+                '3.x.x',
+                true
+            );
+
+            // Enqueue Lucide Icons
+            wp_enqueue_script(
+                'lucide-icons',
+                'https://unpkg.com/lucide@latest',
+                array(),
+                'latest',
+                true
+            );
+
+            // Enqueue filter script and localize AJAX parameters
             wp_enqueue_script(
                 'maljani-filter',
                 plugin_dir_url(__FILE__) . '/js/maljani-filter.js',
-                array('jquery'),
+                array('jquery', 'alpinejs', 'lucide-icons'),
                 defined('MALJANI_VERSION') ? MALJANI_VERSION : null,
                 true
             );
@@ -397,7 +550,9 @@ class Maljani_Filter {
 
             if ($query->have_posts()) {
                 if ($days > 0) {
-                    echo '<h2 style="color:#222;">Policies found for ' . esc_html($days) . ' days of travel</h2>';
+                    echo '<div class="results-header">';
+                    echo '  <h2>Policies found for <strong>' . esc_html($days) . ' days</strong> of travel</h2>';
+                    echo '</div>';
                 }
                 echo '<ul class="maljani-policy-grid-ajax">';
                 while ($query->have_posts()) {
@@ -406,7 +561,11 @@ class Maljani_Filter {
                 }
                 echo '</ul>';
             } else {
-                echo '<p style="color:#222;">Please widen your search - no policy was found to match your criteria</p>';
+                echo '<div class="no-results-box">';
+                echo '  <div class="no-results-icon"><i data-lucide="search-x"></i></div>';
+                echo '  <h3>No policies found</h3>';
+                echo '  <p>Please widen your search or try different travel dates. No policy was found to match your criteria.</p>';
+                echo '</div>';
             }
             wp_reset_postdata();
         } catch (Exception $e) {
@@ -483,7 +642,7 @@ class Maljani_Filter {
             echo '<div class="policy-card-actions">';
             echo '  <div class="benefits-link-container">';
             echo '    <span class="see-benefits-link see-benefits" data-policy-id="' . esc_attr($policy_id) . '">';
-            echo '      <span class="icon">🔍</span> View Full Benefits & Coverage';
+            echo '      <span class="icon"><i data-lucide="search"></i></span> View Full Benefits & Coverage';
             echo '    </span>';
             echo '  </div>';
             
@@ -505,8 +664,8 @@ class Maljani_Filter {
             // Benefits Hidden Modal Content
             $benefits = get_post_meta($policy_id, '_policy_benefits', true);
             echo '<div class="policy-benefits-popup" id="policy-benefits-' . esc_attr($policy_id) . '" style="display:none;">';
-            echo '  <div class="popup-benefits-content" style="max-width:400px; padding:30px; background:white; border-radius:24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">';
-            echo '    <h4 style="margin-bottom:20px; font-size:20px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:15px; color:#1e293b;">🛡️ Coverage Benefits</h4>';
+            echo '  <div class="popup-benefits-content" style="max-width:400px; padding:30px; background:white; border-radius:32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid rgba(255,255,255,0.8); backdrop-filter: blur(10px);">';
+            echo '    <h4 style="margin-bottom:20px; font-size:20px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:15px; color:#1e293b; display:flex; align-items:center; gap:10px;"><i data-lucide="shield-check" style="color:#4f46e5;"></i> Coverage Benefits</h4>';
             echo '    <div style="font-size:15px; color:#64748b; line-height:1.7;">' . wp_kses_post($benefits ?: 'Contact support for detailed benefits.') . '</div>';
             echo '    <button onclick="jQuery(\'#policy-benefits-' . esc_attr($policy_id) . '\').hide();" style="margin-top:25px; width:100%; padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; font-weight:700; cursor:pointer; color:#475569; transition:all 0.2s;">Close</button>';
             echo '  </div>';
