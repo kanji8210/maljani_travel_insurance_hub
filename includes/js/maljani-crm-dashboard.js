@@ -7,8 +7,37 @@ jQuery(document).ready(function($) {
         $('.crm-tab').removeClass('active');
         $(this).addClass('active');
         $('.crm-section').removeClass('active');
-        $('#crm-' + $(this).data('target')).addClass('active');
+        const target = $('#crm-' + $(this).data('target'));
+        target.addClass('active');
+        
+        // Trigger reveal animations for the new section
+        triggerStagger(target);
+        
         loadData($(this).data('target'));
+    });
+
+    function triggerStagger(container) {
+        const elements = container.find('.stagger-up');
+        elements.removeClass('appear');
+        elements.each(function(i) {
+            $(this).css('transition-delay', (i * 0.1) + 's');
+            // Small timeout to ensure browser picks up the class removal for transition
+            setTimeout(() => $(this).addClass('appear'), 50);
+        });
+    }
+
+    // Intersection Observer for initial load
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                triggerStagger($(entry.target));
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    $('.maljani-crm-dashboard').each(function() {
+        revealObserver.observe(this);
     });
 
     function loadData(tab) {

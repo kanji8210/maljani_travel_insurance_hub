@@ -95,7 +95,7 @@ class Maljani_CRM_Dashboard {
         ob_start();
         ?>
         <div class="maljani-crm-dashboard" id="maljani-crm-app">
-            <header class="crm-header">
+            <header class="crm-header stagger-up">
                 <div class="crm-header-info">
                     <h2>Agency Portal</h2>
                     <p class="agency-name">🏢 <?php echo esc_html($agency->name); ?> (<?php echo esc_html($agency->commission_rate); ?>% Comms)</p>
@@ -108,21 +108,21 @@ class Maljani_CRM_Dashboard {
             </header>
 
             <div class="crm-stats-grid">
-                <div class="crm-stat-card">
+                <div class="crm-stat-card stagger-up">
                     <span class="stat-icon">💰</span>
                     <div class="stat-data">
                         <span class="stat-label">Total Commission</span>
                         <span class="stat-value">$<?php echo number_format($stats['total_commission'], 2); ?></span>
                     </div>
                 </div>
-                <div class="crm-stat-card">
+                <div class="crm-stat-card stagger-up">
                     <span class="stat-icon">📄</span>
                     <div class="stat-data">
                         <span class="stat-label">Active Policies</span>
                         <span class="stat-value"><?php echo $stats['active_count']; ?></span>
                     </div>
                 </div>
-                <div class="crm-stat-card">
+                <div class="crm-stat-card stagger-up">
                     <span class="stat-icon">⏳</span>
                     <div class="stat-data">
                         <span class="stat-label">Pending Review</span>
@@ -133,7 +133,7 @@ class Maljani_CRM_Dashboard {
             
             <main class="crm-content">
                 <!-- CLIENTS VIEW -->
-                <section id="crm-clients" class="crm-section active">
+                <section id="crm-clients" class="crm-section active stagger-up">
                     <div class="crm-toolbar">
                         <h3>Your Clients</h3>
                         <button class="crm-btn crm-btn-primary" onclick="showModal('crm-add-client-modal')">+ Add New Client</button>
@@ -142,7 +142,7 @@ class Maljani_CRM_Dashboard {
                 </section>
 
                 <!-- POLICIES VIEW -->
-                <section id="crm-policies" class="crm-section">
+                <section id="crm-policies" class="crm-section stagger-up">
                     <div class="crm-toolbar">
                         <h3>Policy Workflow</h3>
                         <button class="crm-btn crm-btn-primary" onclick="showModal('crm-create-policy-modal')">+ Create Policy Draft</button>
@@ -151,7 +151,7 @@ class Maljani_CRM_Dashboard {
                 </section>
 
                 <!-- PAYMENTS/COMMISSIONS VIEW -->
-                <section id="crm-payments" class="crm-section">
+                <section id="crm-payments" class="crm-section stagger-up">
                     <div class="crm-toolbar">
                         <h3>Commission Ledger</h3>
                         <p>Track your earnings for all confirmed policies.</p>
