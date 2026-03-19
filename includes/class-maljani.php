@@ -127,6 +127,11 @@ class Maljani {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-maljani-policy-verification.php';
 
+		/**
+		 * The class responsible for Tick (React) App integration
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-maljani-tick-app.php';
+
 		$this->loader = new Maljani_Loader();
 
 	}

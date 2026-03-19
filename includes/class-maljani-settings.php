@@ -1,5 +1,12 @@
 <?php
-// includes/class-maljani-settings.php
+/**
+ * Maljani_Settings Class
+ * Handles plugin administration settings and page allocations.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // Exit if accessed directly.
+}
 
 class Maljani_Settings {
     public function __construct() {
@@ -44,6 +51,10 @@ class Maljani_Settings {
         register_setting('maljani_settings_group', 'maljani_pesapal_consumer_secret', ['sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_pesapal_mode', ['default' => 'sandbox', 'sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_pesapal_ipn_id', ['sanitize_callback' => 'sanitize_text_field']);
+        // GraphQL Security
+        register_setting('maljani_settings_group', 'maljani_graphql_allowed_origins', ['sanitize_callback' => 'sanitize_textarea_field']);
+        register_setting('maljani_settings_group', 'maljani_graphql_app_secret',      ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_security_max_login_retries', ['default'=>5, 'sanitize_callback'=>'intval']);
     }
 
     // ── Shortcode auto-inject helpers ─────────────────────────────────────────
@@ -160,7 +171,7 @@ textarea.mj-in { resize:vertical; }
     // ── Render ────────────────────────────────────────────────────────────────
     public static function render_settings_page() {
         self::print_styles();
-        $all_pages = get_posts(['post_type'=>'page','post_status'=>['publish','draft'],'numberposts'=>-1,'orderby'=>'title','order'=>'ASC']);
+        $all_pages = get_posts(['post_type'=>'page','post_status'=>['publish','draft'],'numberposts'=>-1,'orderby'=>'title','order'=>'ASC']) ?: [];
 
         // Read fee options
         $svc_type  = get_option('maljani_fee_service_type',  'percent');
@@ -250,19 +261,28 @@ textarea.mj-in { resize:vertical; }
                                 ['opt'=>'maljani_user_dashboard_page',    'label'=>'User Dashboard Page'],
                                 ['opt'=>'maljani_policy_sale_page',       'label'=>'Policy Sale Page'],
                             ];
-                            foreach ($page_fields as $pf):
+                            foreach ($page_fields as $pf) {
                                 $sel = intval(get_option($pf['opt']));
                             ?>
                             <div class="mj-sf">
                                 <label for="<?php echo esc_attr($pf['opt']);?>"><?php echo esc_html($pf['label']);?></label>
                                 <select id="<?php echo esc_attr($pf['opt']);?>" name="<?php echo esc_attr($pf['opt']);?>" class="mj-in">
                                     <option value="">— Select page —</option>
-                                    <?php foreach ($all_pages as $p):?>
-                                        <option value="<?php echo $p->ID;?>" <?php selected($sel,$p->ID);?>><?php echo esc_html($p->post_title);?> (#<?php echo $p->ID;?>)</option>
-                                    <?php endforeach;?>
+                                    <?php 
+                                    if (is_array($all_pages)) {
+                                        foreach ($all_pages as $p) {
+                                            if (!is_object($p)) continue;
+                                            $pid    = isset($p->ID) ? $p->ID : 0;
+                                            $ptitle = isset($p->post_title) ? $p->post_title : '';
+                                            ?>
+                                            <option value="<?php echo $pid;?>" <?php selected($sel,$pid);?>><?php echo esc_html($ptitle);?> (#<?php echo $pid;?>)</option>
+                                            <?php 
+                                        }
+                                    }
+                                    ?>
                                 </select>
                             </div>
-                            <?php endforeach;?>
+                            <?php } ?>
                         </div>
                     </div>
                 </div>
@@ -341,6 +361,39 @@ textarea.mj-in { resize:vertical; }
                                 <input type="text" name="maljani_pesapal_ipn_id" class="mj-in" readonly 
                                        value="<?php echo esc_attr(get_option('maljani_pesapal_ipn_id')); ?>" placeholder="Automatically registered...">
                                 <span class="hint">The system will automatically register this when you save valid keys.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── GraphQL & App Security ────────────────── -->
+                <div class="mj-settings-card">
+                    <div class="mj-settings-card-head">
+                        <div class="card-icon" style="background:#fef2f2">🛡️</div>
+                        <div>
+                            <h2>GraphQL &amp; App Security</h2>
+                            <p>Protect your headless front-end applications and restrict API access.</p>
+                        </div>
+                    </div>
+                    <div class="mj-settings-card-body">
+                        <div class="mj-sf">
+                            <label for="gql_origins">Allowed Front-end Origins (CORS)</label>
+                            <textarea id="gql_origins" name="maljani_graphql_allowed_origins" class="mj-in" rows="2" 
+                                      placeholder="https://app.maljani.com, http://localhost:3000"><?php echo esc_textarea(get_option('maljani_graphql_allowed_origins')); ?></textarea>
+                            <span class="hint">Comma-separated list of domains allowed to make cross-origin requests. Leave empty for all (not recommended).</span>
+                        </div>
+                        <div class="mj-sf-grid">
+                            <div class="mj-sf">
+                                <label for="gql_secret">Application Secret Key</label>
+                                <input id="gql_secret" type="text" name="maljani_graphql_app_secret" class="mj-in" 
+                                       value="<?php echo esc_attr(get_option('maljani_graphql_app_secret')); ?>" placeholder="Enter a random string...">
+                                <span class="hint">Frontend apps must send this in the <code>X-Maljani-App-Secret</code> header.</span>
+                            </div>
+                            <div class="mj-sf">
+                                <label for="gql_retries">Max Login Retries (IP Block)</label>
+                                <input id="gql_retries" type="number" name="maljani_security_max_login_retries" class="mj-in" 
+                                       value="<?php echo esc_attr(get_option('maljani_security_max_login_retries', 5)); ?>" min="1" max="20">
+                                <span class="hint">Number of failed login attempts before an IP is blocked for 1 hour.</span>
                             </div>
                         </div>
                     </div>

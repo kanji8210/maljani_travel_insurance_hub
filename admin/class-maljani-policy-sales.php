@@ -93,9 +93,26 @@ class Maljani_Policy_Sales_Admin {
 
     private static function badge(string $val, string $type = 'policy'): string {
         $maps = [
-            'policy'     => ['active'=>['#d1fae5','#065f46','✅'],'unconfirmed'=>['#fef9c3','#713f12','⏳'],'pending_review'=>['#dbeafe','#1e40af','🔍'],'archived'=>['#f1f5f9','#475569','📦'],'cancelled'=>['#fee2e2','#991b1b','❌']],
-            'payment'    => ['paid'=>['#d1fae5','#065f46','💰'],'pending'=>['#fef9c3','#713f12','⏳'],'unconfirmed'=>['#e0e7ff','#3730a3','❓'],'failed'=>['#fee2e2','#991b1b','❌']],
-            'commission' => ['unpaid'=>['#fef9c3','#713f12','⏳'],'paid'=>['#d1fae5','#065f46','✅'],'received'=>['#dbeafe','#1e40af','📬'],'disputed'=>['#fee2e2','#991b1b','⚠️']],
+            'policy'     => [
+                'active'         => ['#d1fae5','#065f46','✅'],
+                'verified'       => ['#dbeafe','#1e40af','🎖️'], // Application Done, Not Paid
+                'unconfirmed'    => ['#fef9c3','#713f12','⏳'],
+                'pending_review' => ['#f3f4f6','#374151','🔍'],
+                'archived'       => ['#f1f5f9','#475569','📦'],
+                'cancelled'      => ['#fee2e2','#991b1b','❌']
+            ],
+            'payment'    => [
+                'paid'           => ['#d1fae5','#065f46','💰'],
+                'pending'        => ['#fef9c3','#713f12','⏳'],
+                'unconfirmed'    => ['#e0e7ff','#3730a3','❓'],
+                'failed'         => ['#fee2e2','#991b1b','❌']
+            ],
+            'commission' => [
+                'unpaid'         => ['#fef9c3','#713f12','⏳'],
+                'paid'           => ['#d1fae5','#065f46','✅'],
+                'received'       => ['#dbeafe','#1e40af','📬'],
+                'disputed'       => ['#fee2e2','#991b1b','⚠️']
+            ],
         ];
         [$bg,$col,$ic] = $maps[$type][$val] ?? ['#f1f5f9','#475569','?'];
         return "<span style='display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:{$bg};color:{$col};'>{$ic} " . strtoupper(str_replace('_',' ',$val)) . "</span>";
@@ -179,7 +196,7 @@ class Maljani_Policy_Sales_Admin {
 <form method="get" class="mjps-filters">
     <input type="hidden" name="page" value="policy_sales">
     <div><label>Search</label><input type="text" name="s" value="<?php echo esc_attr($search);?>" placeholder="Name, email, #…" style="width:180px"></div>
-    <div><label>Policy Status</label><select name="status"><option value="">All</option><?php foreach(['unconfirmed','pending_review','active','archived','cancelled'] as $s):?><option value="<?php echo $s;?>" <?php selected($fst,$s);?>><?php echo ucwords(str_replace('_',' ',$s));?></option><?php endforeach;?></select></div>
+    <div><label>Policy Status</label><select name="status"><option value="">All</option><?php foreach(['verified','active','unconfirmed','pending_review','archived','cancelled'] as $s):?><option value="<?php echo $s;?>" <?php selected($fst,$s);?>><?php echo ucwords(str_replace('_',' ',$s));?></option><?php endforeach;?></select></div>
     <div><label>Payment</label><select name="pay_status"><option value="">All</option><?php foreach(['pending','paid','unconfirmed','failed'] as $s):?><option value="<?php echo $s;?>" <?php selected($fpt,$s);?>><?php echo ucfirst($s);?></option><?php endforeach;?></select></div>
     <div><label>From</label><input type="date" name="date_from" value="<?php echo esc_attr($dfrom);?>"></div>
     <div><label>To</label><input type="date" name="date_to" value="<?php echo esc_attr($dto);?>"></div>
@@ -212,6 +229,7 @@ class Maljani_Policy_Sales_Admin {
     <td><?php echo self::badge($pst,'policy');?><br><small style="color:#64748b"><?php echo esc_html($an);?></small></td>
     <td><?php echo self::badge($pay,'payment');?><?php if(floatval($s->agent_commission_amount??0)>0): echo '<br>'.self::badge($cst,'commission'); endif;?></td>
     <td><div class="mj-btns">
+        <a href="<?php echo admin_url('admin-post.php?action=maljani_print_verification&sale_id='.$s->id);?>" target="_blank" class="mj-b mj-b-pri" style="background:#059669;border-color:#059669">🎖️ Verify</a>
         <button type="button" class="mj-b mj-b-sec tfin" data-id="<?php echo $s->id;?>">💰 Fin</button>
         <button type="button" class="mj-b mj-b-pri tedit" data-id="<?php echo $s->id;?>">✏️ Edit</button>
         <a href="<?php echo esc_url($arc);?>" class="mj-b mj-b-red" onclick="return confirm('Archive?')">📦</a>
@@ -230,7 +248,7 @@ class Maljani_Policy_Sales_Admin {
         <?php wp_nonce_field('maljani_quick_status_'.$s->id);?>
         <input type="hidden" name="maljani_quick_status" value="1"><input type="hidden" name="sale_id" value="<?php echo esc_attr($s->id);?>">
         <div><label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block">Policy Status</label>
-            <select name="policy_status"><?php foreach(['unconfirmed','pending_review','active','archived','cancelled'] as $ss):?><option value="<?php echo $ss;?>" <?php selected($pst,$ss);?>><?php echo ucwords(str_replace('_',' ',$ss));?></option><?php endforeach;?></select></div>
+            <select name="policy_status"><?php foreach(['verified','active','unconfirmed','pending_review','archived','cancelled'] as $ss):?><option value="<?php echo $ss;?>" <?php selected($pst,$ss);?>><?php echo ucwords(str_replace('_',' ',$ss));?></option><?php endforeach;?></select></div>
         <div><label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block">Payment</label>
             <select name="payment_status"><?php foreach(['pending','paid','unconfirmed','failed'] as $ss):?><option value="<?php echo $ss;?>" <?php selected($pay,$ss);?>><?php echo ucfirst($ss);?></option><?php endforeach;?></select></div>
         <?php if(floatval($s->agent_commission_amount??0)>0):?>

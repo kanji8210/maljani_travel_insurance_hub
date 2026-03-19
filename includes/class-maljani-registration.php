@@ -12,7 +12,15 @@ class Maljani_Registration {
 
     public function __construct() {
         add_shortcode('maljani_registration_portal', [$this, 'render_portal']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('init', [$this, 'handle_registration_submission']);
+    }
+
+    public function enqueue_assets() {
+        global $post;
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'maljani_registration_portal')) {
+            wp_enqueue_style('maljani-registration', plugin_dir_url(__FILE__) . 'css/maljani-registration.css', [], time());
+        }
     }
 
     public function render_portal() {
@@ -23,13 +31,14 @@ class Maljani_Registration {
         ob_start();
         ?>
         <div class="maljani-registration-portal">
-            <div class="registration-card glass-morphism">
-                <div class="registration-header">
+            <div class="registration-card-minimal">
+                <div class="registration-header stagger-up">
+                    <span class="hub-pill">Secure Access</span>
                     <h2>Join Maljani Travel Hub</h2>
                     <p>Select your account type to continue</p>
                 </div>
 
-                <div class="role-selector">
+                <div class="role-selector stagger-up" style="animation-delay: 0.1s;">
                     <div class="role-option active" data-role="insured">
                         <span class="role-icon">🛡️</span>
                         <div class="role-desc">
@@ -40,13 +49,13 @@ class Maljani_Registration {
                     <div class="role-option" data-role="agent">
                         <span class="role-icon">🏢</span>
                         <div class="role-desc">
-                            <strong>Travel Agency / Partner</strong>
-                            <span>Manage policies for your clients</span>
+                            <strong>Travel Agency</strong>
+                            <span>Manage policies for clients</span>
                         </div>
                     </div>
                 </div>
 
-                <form id="mj-unified-reg-form" method="POST" action="">
+                <form id="mj-unified-reg-form" method="POST" action="" class="stagger-up" style="animation-delay: 0.2s;">
                     <?php wp_nonce_field('maljani_registration', 'mj_reg_nonce'); ?>
                     <input type="hidden" name="account_type" id="mj-selected-role" value="insured">
                     

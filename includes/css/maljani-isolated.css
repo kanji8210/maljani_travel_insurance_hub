@@ -1,0 +1,48 @@
+/* 
+ * Maljani Isolated Styles - Minimalist System
+ * Used for components that need style isolation from the theme
+ */
+
+:root {
+    --mj-primary: #2d5cf7;
+    --mj-accent: #050505;
+}
+
+.maljani-icon-container {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Outfit', sans-serif;
+}
+
+.maljani-icon {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.maljani-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.maljani-icon.size-small { font-size: 14px; width: 14px; height: 14px; }
+.maljani-icon.size-medium { font-size: 20px; width: 20px; height: 20px; }
+.maljani-icon.size-large { font-size: 32px; width: 32px; height: 32px; }
+.maljani-icon.size-xlarge { font-size: 48px; width: 48px; height: 48px; }
+
+.maljani-icon-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.maljani-icon-link:hover .maljani-icon {
+    color: var(--mj-primary);
+    transform: scale(1.1);
+}
+
+.icon-text {
+    font-weight: 500;
+    font-size: 0.9em;
+}

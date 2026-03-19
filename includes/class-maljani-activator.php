@@ -93,6 +93,19 @@ class Maljani_Activator {
         ) $charset_collate;";
         dbDelta($agency_sql);
 
+        // Register custom roles
+        add_role('agent', __('Agent', 'maljani'), [
+            'read' => true,
+            'edit_posts' => false,
+            'delete_posts' => false,
+        ]);
+
+        add_role('insured', __('Insured', 'maljani'), [
+            'read' => true,
+            'edit_posts' => false,
+            'delete_posts' => false,
+        ]);
+
         // Migration: add columns that may be missing on existing installs
         self::run_migrations($wpdb, $table_name);
     }

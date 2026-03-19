@@ -18,22 +18,28 @@ class Policy_CPT {
             'not_found_in_trash' => 'No policies found in Trash.',
         ];
         $args = [
-            'labels'        => $labels,
-            'public'        => true,
-            'has_archive'   => true,
-            'rewrite'       => ['slug' => 'policy'],
-            'supports'      => ['title', 'editor', 'thumbnail', 'custom-fields'],
-            'show_in_rest'  => true,
-            'show_in_menu'  => 'maljani_travel',
+            'labels'              => $labels,
+            'public'              => true,
+            'has_archive'         => true,
+            'rewrite'             => ['slug' => 'policy'],
+            'supports'            => ['title', 'editor', 'thumbnail', 'custom-fields', 'excerpt'],
+            'show_in_rest'        => true,
+            'show_in_menu'        => 'maljani_travel',
+            'show_in_graphql'     => true,
+            'graphql_single_name' => 'Policy',
+            'graphql_plural_name' => 'Policies',
         ];
         register_post_type('policy', $args);
 
         register_taxonomy('policy_region', 'policy', [
-            'label'             => 'Regions',
-            'rewrite'           => ['slug' => 'policy-region'],
-            'hierarchical'      => true,
-            'show_in_rest'      => true,
-            'show_admin_column' => true,
+            'label'               => 'Regions',
+            'rewrite'             => ['slug' => 'policy-region'],
+            'hierarchical'        => true,
+            'show_in_rest'        => true,
+            'show_admin_column'   => true,
+            'show_in_graphql'     => true,
+            'graphql_single_name' => 'Region',
+            'graphql_plural_name' => 'Regions',
         ]);
 
         add_action('add_meta_boxes',       [$this, 'add_meta_boxes']);

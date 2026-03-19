@@ -59,9 +59,13 @@ class Maljani_API_Endpoints {
         global $wpdb;
         $table = $wpdb->prefix . 'policy_sale';
         
-        // 1. Update Payment Status
+        // 1. Update Payment and Policy Status
         $wpdb->update($table, 
-            ['payment_status' => 'confirmed', 'payment_reference' => $tracking_id],
+            [
+                'payment_status'    => 'confirmed', 
+                'payment_reference' => $tracking_id,
+                'policy_status'     => 'active'
+            ],
             ['id' => $sale_id]
         );
 

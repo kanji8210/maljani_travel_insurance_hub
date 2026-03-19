@@ -40,6 +40,11 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-sales-page.ph
 require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-policy-sales.php';
 //add admin menu
 require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-admin-menu.php';
+// data transfer export/import
+require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-data-transfer.php';
+new Maljani_Data_Transfer();
+// Policy Verification Certificate
+require_once plugin_dir_path( __FILE__ ) . 'admin/class-maljani-verification-certificate.php';
 // Add agent registration
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-insured-reg.php';
 // Add user dashboard
@@ -49,6 +54,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-client-dashboar
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.php';
 // Include invoice engine
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-invoice.php';
+// Include GraphQL Authentication Layer
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-graphql-auth.php';
 
 // API & Payment Integration
 require_once plugin_dir_path(__FILE__) . 'includes/api/class-maljani-api-endpoints.php';

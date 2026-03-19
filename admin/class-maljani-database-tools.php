@@ -53,7 +53,7 @@ class Maljani_Database_Tools {
                 net_to_insurer DECIMAL(10,2) DEFAULT 0.00,
                 payment_reference VARCHAR(191),
                 payment_status ENUM('confirmed','failed','pending') DEFAULT 'pending',
-                policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
+                policy_status ENUM('approved','unconfirmed','verified','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
                 workflow_status ENUM('draft','pending_review','submitted_to_insurer','approved','active','verification_ready') DEFAULT 'draft',
                 terms LONGTEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

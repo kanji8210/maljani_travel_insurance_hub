@@ -39,7 +39,7 @@ class Maljani_Client_Dashboard
         ob_start();
 ?>
         <div class="maljani-client-dashboard">
-            <header class="client-header">
+            <header class="client-header stagger-up">
                 <div class="header-welcome">
                     <span class="hub-pill">Policyholder Portal</span>
                     <h2>Hello, <?php echo esc_html($current_user->first_name ?: $current_user->display_name); ?></h2>
@@ -53,13 +53,13 @@ class Maljani_Client_Dashboard
                 </div>
             </header>
 
-            <nav class="client-tabs">
+            <nav class="client-tabs stagger-up" style="animation-delay: 0.1s;">
                 <button class="client-tab active" data-target="my-policies">My Policies</button>
                 <button class="client-tab" data-target="my-profile">Profile Settings</button>
                 <button class="client-tab" data-target="get-support">Support</button>
             </nav>
 
-            <div class="client-content">
+            <div class="client-content stagger-up" style="animation-delay: 0.2s;">
                 <!-- POLICIES VIEW -->
                 <section id="my-policies" class="client-section active">
                     <?php if (empty($policies)): ?>
@@ -67,13 +67,13 @@ class Maljani_Client_Dashboard
                             <span class="empty-icon">🛡️</span>
                             <h3>No policies found</h3>
                             <p>You haven't purchased any travel insurance policies yet.</p>
-                            <a href="<?php echo home_url('/buy'); ?>" class="mj-btn-primary">Browse Plans</a>
+                            <a href="<?php echo home_url('/buy'); ?>" class="btn-download" style="max-width: 200px; margin: 20px auto;">Browse Plans</a>
                         </div>
                     <?php
         else: ?>
                         <div class="policy-grid">
-                            <?php foreach ($policies as $policy): ?>
-                                <div class="policy-card glass-morphism">
+                            <?php foreach ($policies as $i => $policy): ?>
+                                <div class="policy-card" style="animation-delay: <?php echo 0.3 + ($i * 0.1); ?>s;">
                                     <div class="policy-card-header">
                                         <span class="policy-id">#<?php echo esc_html($policy->policy_number); ?></span>
                                         <span class="status-badge <?php echo esc_attr($policy->policy_status); ?>">
@@ -83,16 +83,16 @@ class Maljani_Client_Dashboard
                                     <div class="policy-card-body">
                                         <h4><?php echo esc_html($policy->insured_names); ?></h4>
                                         <div class="policy-meta">
-                                            <div class="meta-row"><span>Region:</span> <strong><?php echo esc_html($policy->region); ?></strong></div>
-                                            <div class="meta-row"><span>Dates:</span> <strong><?php echo esc_html($policy->departure); ?> - <?php echo esc_html($policy->return); ?></strong></div>
+                                            <div class="meta-row"><span>Region</span> <strong><?php echo esc_html($policy->region); ?></strong></div>
+                                            <div class="meta-row"><span>Dates</span> <strong><?php echo esc_html($policy->departure); ?> — <?php echo esc_html($policy->return); ?></strong></div>
                                         </div>
                                     </div>
                                     <div class="policy-card-footer">
-                                        <?php if ($policy->policy_status === 'active'): ?>
+                                        <?php if ($policy->policy_status === 'active' || $policy->policy_status === 'confirmed'): ?>
                                             <a href="?maljani_action=download_pdf&id=<?php echo $policy->id; ?>" class="btn-download">Download PDF</a>
                                         <?php
                 else: ?>
-                                            <span class="pending-note">Available once activated</span>
+                                            <span class="pending-note" style="color: var(--mj-text-muted); font-size: 0.85rem;">Available once activated</span>
                                         <?php
                 endif; ?>
                                     </div>
@@ -108,23 +108,28 @@ class Maljani_Client_Dashboard
                 <section id="my-profile" class="client-section">
                     <div class="profile-form-container">
                         <h3>Account Details</h3>
-                        <!-- Profile editing logic would be integrated here -->
-                        <p>Contact your agency or support to update primary account information.</p>
-                        <div class="user-info-card">
-                            <p><strong>Email:</strong> <?php echo esc_html($current_user->user_email); ?></p>
-                            <p><strong>Username:</strong> <?php echo esc_html($current_user->user_login); ?></p>
+                        <div class="user-info-card" style="padding: 30px; border: 1px solid var(--mj-border); background: var(--mj-bg);">
+                            <div class="mj-row">
+                                <span class="mj-label">Email</span>
+                                <span class="mj-value"><?php echo esc_html($current_user->user_email); ?></span>
+                            </div>
+                            <div class="mj-row">
+                                <span class="mj-label">Username</span>
+                                <span class="mj-value"><?php echo esc_html($current_user->user_login); ?></span>
+                            </div>
+                            <p style="margin-top: 20px; font-size: 0.9rem; color: var(--mj-text-muted);">Contact support to update your primary account information.</p>
                         </div>
                     </div>
                 </section>
 
                 <!-- SUPPORT VIEW -->
                 <section id="get-support" class="client-section">
-                    <div class="support-welcome">
+                    <div class="support-welcome" style="max-width: 600px;">
                         <h3>Need Assistance?</h3>
-                        <p>Our support team is available to help you with any questions regarding your coverage.</p>
-                        <div class="support-options">
-                            <button class="mj-btn-primary" onclick="window.maljaniChat.open()">Start Live Chat</button>
-                            <p class="support-email">Or email us at: support@maljani.com</p>
+                        <p>Our support team is available to help you with any questions regarding your coverage or technical issues.</p>
+                        <div class="support-options" style="margin-top: 30px; display: flex; flex-direction: column; gap: 20px;">
+                            <button class="btn-download" onclick="window.maljaniChat.open()" style="border: none; cursor: pointer;">Start Live Chat</button>
+                            <p class="support-email" style="font-weight: 700;">support@maljani.com</p>
                         </div>
                     </div>
                 </section>

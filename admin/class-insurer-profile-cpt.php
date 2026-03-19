@@ -17,14 +17,17 @@ class Insurer_Profile_CPT {
             'not_found'          => 'No insurer profiles found.',
             'not_found_in_trash' => 'No insurer profiles found in Trash.'
         );
-        $args =array(
-            'labels'             => $labels,
-            'public'             => true,
-            'has_archive'        => true,
-            'rewrite'            => array('slug' => 'insurer-profile'),
-            'supports'           => array('title', 'editor', 'thumbnail', 'custom-fields'),
-            'show_in_rest'       => true,
-            'show_in_menu'       => 'maljani_travel',
+        $args = array(
+            'labels'              => $labels,
+            'public'              => true,
+            'has_archive'         => true,
+            'rewrite'             => array('slug' => 'insurer-profile'),
+            'supports'            => array('title', 'editor', 'thumbnail', 'custom-fields'),
+            'show_in_rest'        => true,
+            'show_in_menu'        => 'maljani_travel',
+            'show_in_graphql'     => true,
+            'graphql_single_name' => 'Insurer',
+            'graphql_plural_name' => 'Insurers',
         );
         //add wp function
         register_post_type('insurer_profile', $args);

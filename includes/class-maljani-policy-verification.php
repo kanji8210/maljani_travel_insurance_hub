@@ -174,6 +174,9 @@ class Maljani_Policy_Verification {
      * Afficher les détails de vérification de la police
      */
     private function show_policy_verification($sale) {
+        // Enqueue verification styles
+        wp_enqueue_style('maljani-verification', plugin_dir_url(__FILE__) . 'css/maljani-verification.css', [], MALJANI_VERSION);
+
         // Récupérer les informations de la police
         $policy_title = get_the_title($sale->policy_id);
         $insurer_id = get_post_meta($sale->policy_id, '_policy_insurer', true);
@@ -197,174 +200,79 @@ class Maljani_Policy_Verification {
         }
         
         ?>
-        <style>
-        .verification-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 8px;
-        }
-        .verification-header h1 {
-            margin: 0;
-            font-size: 28px;
-        }
-        .verification-header .status {
-            font-size: 18px;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .policy-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin: 30px 0;
-        }
-        .detail-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        .detail-section h3 {
-            margin-top: 0;
-            color: #333;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .detail-label {
-            font-weight: bold;
-            color: #555;
-        }
-        .detail-value {
-            color: #333;
-        }
-        .insurer-info {
-            text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-            background: #fff;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-        }
-        .insurer-logo {
-            max-height: 60px;
-            max-width: 200px;
-            margin-bottom: 10px;
-        }
-        .verification-footer {
-            text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            background: #e8f5e8;
-            border-radius: 8px;
-            color: #2d5a2d;
-        }
-        @media (max-width: 768px) {
-            .policy-details {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-        }
-        </style>
-        
-        <div class="verification-header">
-            <h1>✓ Policy Verification Successful</h1>
-            <div class="status">This travel insurance policy is VALID and AUTHENTIC</div>
+        <?php
+        $is_paid = ($sale->policy_status === 'active');
+        $status_label = $is_paid ? 'Authenticity Verified' : 'Application Verified';
+        $status_msg   = $is_paid ? 'Insurance policy is valid and active.' : 'Insurance application is verified (Payment Pending).';
+        $badge_color  = $is_paid ? '#059669' : '#2563eb';
+        ?>
+        <div class="verification-header-minimal">
+            <span class="verification-badge" style="background: <?php echo $badge_color; ?>"><?php echo esc_html($status_label); ?></span>
+            <h1><?php echo $is_paid ? 'Insurance policy is valid' : 'Application is verified'; ?></h1>
+            <p><?php echo esc_html($status_msg); ?></p>
         </div>
         
         <?php if ($insurer_logo || $insurer_name): ?>
-        <div class="insurer-info">
+        <div class="insurer-minimal-box">
             <?php if ($insurer_logo): ?>
-                <img src="<?php echo esc_url($insurer_logo); ?>" alt="Insurer Logo" class="insurer-logo">
+                <img src="<?php echo esc_url($insurer_logo); ?>" alt="Insurer Logo" class="insurer-emblem-gray">
             <?php endif; ?>
-            <h3><?php echo esc_html($insurer_name ?: 'Insurance Company'); ?></h3>
-            <p>Authorized Insurance Provider</p>
+            <div class="insurer-text">
+                <h3><?php echo esc_html($insurer_name ?: 'Insurance Company'); ?></h3>
+                <span class="insurer-label">Authorized Partner</span>
+            </div>
         </div>
         <?php endif; ?>
         
-        <div class="policy-details">
-            <div class="detail-section">
-                <h3>📋 Policy Information</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Policy Number:</span>
-                    <span class="detail-value"><?php echo esc_html($sale->policy_number); ?></span>
+        <div class="policy-details-asymmetric">
+            <div class="detail-block">
+                <h3>Policy Info</h3>
+                <div class="mj-row">
+                    <span class="mj-label">Number</span>
+                    <span class="mj-value">#<?php echo esc_html($sale->policy_number); ?></span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Product:</span>
-                    <span class="detail-value"><?php echo esc_html($policy_title); ?></span>
+                <div class="mj-row">
+                    <span class="mj-label">Product</span>
+                    <span class="mj-value"><?php echo esc_html($policy_title); ?></span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Coverage Period:</span>
-                    <span class="detail-value">
-                        <?php echo esc_html($sale->departure); ?> to <?php echo esc_html($sale->return); ?>
-                        <?php if ($duration_days): ?>
-                            <br><small>(<?php echo $duration_days; ?> days)</small>
-                        <?php endif; ?>
+                <div class="mj-row">
+                    <span class="mj-label">Period</span>
+                    <span class="mj-value">
+                        <?php echo esc_html($sale->departure); ?> — <?php echo esc_html($sale->return); ?>
                     </span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">
-                        <strong style="color: <?php echo $sale->policy_status === 'confirmed' ? '#28a745' : '#ffc107'; ?>;">
-                            <?php echo ucfirst($sale->policy_status); ?>
-                        </strong>
+                <div class="mj-row">
+                    <span class="mj-label">Status</span>
+                    <span class="mj-value status-<?php echo esc_attr($sale->policy_status); ?>" style="color: <?php echo $badge_color; ?>; font-weight: 800;">
+                        <?php echo strtoupper(str_replace('_',' ',$sale->policy_status)); ?>
+                        <?php if (!$is_paid) echo ' (PAYMENT PENDING)'; ?>
                     </span>
                 </div>
             </div>
             
-            <div class="detail-section">
-                <h3>👤 Insured Person</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Name:</span>
-                    <span class="detail-value"><?php echo esc_html($sale->insured_names); ?></span>
+            <div class="detail-block">
+                <h3>Insured Person</h3>
+                <div class="mj-row">
+                    <span class="mj-label">Full Name</span>
+                    <span class="mj-value"><?php echo esc_html($sale->insured_names); ?></span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Passport Number:</span>
-                    <span class="detail-value"><?php echo esc_html($sale->passport_number); ?></span>
+                <div class="mj-row">
+                    <span class="mj-label">Passport</span>
+                    <span class="mj-value"><?php echo esc_html($sale->passport_number); ?></span>
                 </div>
-                <?php if ($sale->insured_dob): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Date of Birth:</span>
-                    <span class="detail-value"><?php echo esc_html($sale->insured_dob); ?></span>
-                </div>
-                <?php endif; ?>
-                <div class="detail-row">
-                    <span class="detail-label">Country of Origin:</span>
-                    <span class="detail-value">KENYA</span>
+                <div class="mj-row">
+                    <span class="mj-label">Origin</span>
+                    <span class="mj-value">KENYA</span>
                 </div>
             </div>
         </div>
         
-        <div class="detail-section">
-            <h3>🏥 Coverage Details</h3>
-            <div style="font-size: 16px; line-height: 1.6;">
-                • <strong>Medical Transportation/Repatriation:</strong> EUR 36,000<br>
-                • <strong>Medical Expenses Abroad:</strong> EUR 36,000<br>
-                • <strong>Emergency Medical Assistance:</strong> 24/7 Available<br>
-                • <strong>Premium Paid:</strong> <?php echo esc_html($sale->premium ?: 'N/A'); ?> USD
+        <div class="verification-footer-minimal">
+            <div class="security-meta">
+                <p><strong>Verification Hash:</strong> <?php echo substr(md5($sale->id . $sale->policy_number), 0, 12); ?></p>
+                <p>Checked on <?php echo date('F j, Y'); ?></p>
             </div>
-        </div>
-        
-        <div class="verification-footer">
-            <p><strong>🔒 Security Information:</strong></p>
-            <p>This verification was conducted on <?php echo date('F j, Y \a\t g:i A'); ?></p>
-            <p>Verification ID: <?php echo substr(md5($sale->id . $sale->policy_number), 0, 8); ?></p>
-            <p><small>For additional verification or support, please contact the insurance provider.</small></p>
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px;">
-            <a href="<?php echo home_url(); ?>" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Return to Homepage
-            </a>
+            <a href="<?php echo home_url(); ?>" class="mj-link-back">Return to portal</a>
         </div>
         <?php
     }

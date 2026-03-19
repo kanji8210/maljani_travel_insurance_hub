@@ -157,6 +157,16 @@ class Maljani_Admin_Menu {
             'manage_options',
             'edit-tags.php?taxonomy=policy_region&post_type=policy'
         );
+
+        // Export/Import Data
+        add_submenu_page(
+            'maljani_travel',
+            'Export/Import Data',
+            '📥 Export/Import',
+            'manage_options',
+            'maljani_data_transfer',
+            [$this, 'render_data_transfer']
+        );
     }
 
     public function render_dashboard() {
@@ -290,6 +300,13 @@ class Maljani_Admin_Menu {
             require_once plugin_dir_path(__FILE__) . 'class-maljani-diagnostics.php';
         }
         Maljani_Diagnostics::render_page();
+    }
+
+    public function render_data_transfer() {
+        if (!class_exists('Maljani_Data_Transfer')) {
+            require_once plugin_dir_path(__FILE__) . 'class-maljani-data-transfer.php';
+        }
+        Maljani_Data_Transfer::render_page();
     }
 }
 new Maljani_Admin_Menu();
