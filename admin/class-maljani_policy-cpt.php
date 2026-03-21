@@ -154,6 +154,8 @@ class Policy_CPT {
         $feature_img_url = $feature_img_id ? wp_get_attachment_url($feature_img_id) : '';
         $currency        = get_post_meta($post->ID, '_policy_currency',       true) ?: 'KSH';
         $payment_details = get_post_meta($post->ID, '_policy_payment_details',true);
+        $saved_countries = get_post_meta($post->ID, '_policy_countries',      true);
+        $countries_json  = is_array($saved_countries) ? json_encode($saved_countries) : '[]';
 
         // Flexible fee fields (aggregator comm + agency comm only — service fee is global)
         $agg_type = get_post_meta($post->ID, '_policy_aggregator_comm_type',  true) ?: 'percent';
@@ -443,10 +445,11 @@ textarea.mj-in { resize: vertical; }
     <nav class="mj-cpt-nav" aria-label="Policy sections">
         <?php
         $tabs = [
-            ['id' => 'basic',    'icon' => '🗂️',  'label' => 'Basic Info'],
-            ['id' => 'coverage', 'icon' => '🛡️',  'label' => 'Coverage'],
-            ['id' => 'pricing',  'icon' => '💲',  'label' => 'Pricing'],
-            ['id' => 'media',    'icon' => '🖼️',  'label' => 'Media & Notes'],
+            ['id' => 'basic',      'icon' => '🗂️',  'label' => 'Basic Info'],
+            ['id' => 'countries',  'icon' => '🌍',  'label' => 'Countries'],
+            ['id' => 'coverage',   'icon' => '🛡️',  'label' => 'Coverage'],
+            ['id' => 'pricing',    'icon' => '💲',  'label' => 'Pricing'],
+            ['id' => 'media',      'icon' => '🖼️',  'label' => 'Media & Notes'],
         ];
         foreach ($tabs as $i => $t):
         ?>
@@ -508,6 +511,46 @@ textarea.mj-in { resize: vertical; }
                     <button type="button" id="add_policy_region" class="mj-btn mj-btn-primary">Add</button>
                 </div>
             </div>
+        </div>
+
+        <!-- ── Countries ─────────────────────────────────────── -->
+        <div id="mjp-countries" class="mj-panel" role="tabpanel" aria-labelledby="tab-countries">
+            <h2 class="mj-panel-title" data-icon="🌍">Countries Covered</h2>
+
+            <!-- Preset buttons -->
+            <div class="mj-field">
+                <label>Quick Fill Presets</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="mj-btn mj-btn-primary" id="preset-schengen">🇪🇺 Schengen Zone</button>
+                    <button type="button" class="mj-btn mj-btn-ghost"   id="preset-worldwide">🌐 Worldwide</button>
+                    <button type="button" class="mj-btn mj-btn-ghost"   id="preset-africa">🌍 Africa</button>
+                    <button type="button" class="mj-btn mj-btn-ghost"   id="preset-clear">✕ Clear All</button>
+                </div>
+            </div>
+
+            <!-- Manual add -->
+            <div class="mj-field">
+                <label for="country-add-input">Add Country</label>
+                <div style="display:flex;gap:8px">
+                    <input type="text" id="country-add-input" class="mj-in" placeholder="e.g. France, Germany…" list="country-datalist" autocomplete="off">
+                    <datalist id="country-datalist"></datalist>
+                    <button type="button" class="mj-btn mj-btn-primary" id="country-add-btn">+ Add</button>
+                </div>
+                <span class="hint">Type a country name or use a preset above. Countries appear as tags below.</span>
+            </div>
+
+            <!-- Tags display -->
+            <div class="mj-field">
+                <label>Selected Countries <span id="country-count" style="font-weight:400;color:#94a3b8">(0)</span></label>
+                <div id="country-tags" style="display:flex;flex-wrap:wrap;gap:8px;min-height:44px;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc"></div>
+            </div>
+
+            <!-- Hidden serialised field -->
+            <input type="hidden" name="policy_countries" id="policy-countries-hidden" value="<?php echo esc_attr($countries_json); ?>">
+
+            <p style="font-size:11px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin-top:4px">
+                ℹ️ Countries are shown in the quote flow so clients can verify their destination is covered. For <strong>Schengen</strong> policies, use the preset to auto-fill all 27 member states.
+            </p>
         </div>
 
         <!-- ── Coverage ──────────────────────────────────────── -->
@@ -706,6 +749,18 @@ textarea.mj-in { resize: vertical; }
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
         if (!isset($_POST['policy_meta_box_nonce']) || !wp_verify_nonce($_POST['policy_meta_box_nonce'], 'policy_meta_box')) return;
         if (!current_user_can('edit_post', $post_id)) return;
+
+        // Countries covered
+        if (isset($_POST['policy_countries'])) {
+            $raw_countries = $_POST['policy_countries'];
+            if (is_array($raw_countries)) {
+                $countries = array_map('sanitize_text_field', $raw_countries);
+            } else {
+                // comma-separated string fallback
+                $countries = array_filter(array_map('trim', explode(',', sanitize_textarea_field($raw_countries))));
+            }
+            update_post_meta($post_id, '_policy_countries', array_values($countries));
+        }
 
         $text_fields = [
             'policy_insurer'     => ['meta' => '_policy_insurer',       'fn' => 'intval'],

@@ -70,6 +70,16 @@ function maljani_register_policy_graphql_fields() {
         },
     ] );
 
+    // ── Countries covered — stored as serialised array ──────────────────────
+    register_graphql_field( 'Policy', 'policyCountries', [
+        'type'        => [ 'list_of' => 'String' ],
+        'description' => 'List of countries covered by this policy.',
+        'resolve'     => function ( $post ) {
+            $countries = get_post_meta( $post->databaseId, '_policy_countries', true );
+            return is_array( $countries ) ? $countries : [];
+        },
+    ] );
+
     // ── Insurer name — resolved from linked insurer_profile post ───────────
     register_graphql_field( 'Policy', 'policyInsurerName', [
         'type'        => 'String',
