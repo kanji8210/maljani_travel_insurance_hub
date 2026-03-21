@@ -16,10 +16,59 @@ class Maljani_API_Endpoints {
 
     public function register_routes() {
         register_rest_route('maljani/v1', '/pesapal/callback', [
-            'methods'  => 'GET',
-            'callback' => [$this, 'handle_pesapal_ipn'],
-            'permission_callback' => '__return_true'
+            'methods'             => 'GET',
+            'callback'            => [$this, 'handle_pesapal_ipn'],
+            'permission_callback' => '__return_true',
         ]);
+
+        // ── Section 15.2: Public policy verification endpoint ─────────────────
+        register_rest_route('maljani/v1', '/verify', [
+            'methods'             => 'GET',
+            'permission_callback' => '__return_true',
+            'args'                => [
+                'policy_no' => [
+                    'required'          => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+                'passport'  => [
+                    'required'          => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
+            'callback'            => [$this, 'verify_policy'],
+        ]);
+    }
+
+    /**
+     * Public policy verification.
+     * GET /wp-json/maljani/v1/verify?policy_no=MAL-1234&passport=AB123456
+     */
+    public function verify_policy( WP_REST_Request $request ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+
+        $sale = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE policy_number = %s AND passport_number = %s LIMIT 1",
+            $request->get_param('policy_no'),
+            $request->get_param('passport')
+        ) );
+
+        if ( ! $sale ) {
+            return new WP_REST_Response(
+                [ 'valid' => false, 'message' => 'No matching policy found.' ],
+                404
+            );
+        }
+
+        return new WP_REST_Response( [
+            'valid'        => true,
+            'insuredNames' => $sale->insured_names,
+            'departure'    => $sale->departure,
+            'return'       => $sale->return,
+            'region'       => $sale->region,
+            'policyTitle'  => get_the_title( intval( $sale->policy_id ) ),
+            'status'       => $sale->policy_status,
+        ], 200 );
     }
 
     /**

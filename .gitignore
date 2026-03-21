@@ -1,0 +1,16 @@
+# ── React / Vite frontend (not part of the deployed WP plugin) ──────────────
+tick/
+frontend/
+
+# ── OS / Editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*~
+
+# ── PHP composer vendor ──────────────────────────────────────────────────────
+vendor/
+
+# ── Node (if any tooling is added at plugin root) ────────────────────────────
+node_modules/

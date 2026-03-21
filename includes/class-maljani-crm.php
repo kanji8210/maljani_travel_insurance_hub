@@ -50,9 +50,14 @@ class Maljani_CRM {
 
         register_rest_route($namespace, '/policies/(?P<id>\d+)', [
             [
-                'methods' => 'PUT',
-                'callback' => [$this, 'update_policy'],
-                'permission_callback' => [$this, 'check_agency_permission']
+                'methods'             => 'GET',
+                'callback'            => [$this, 'get_policy'],
+                'permission_callback' => [$this, 'check_agency_permission'],
+            ],
+            [
+                'methods'             => 'PUT',
+                'callback'            => [$this, 'update_policy'],
+                'permission_callback' => [$this, 'check_agency_permission'],
             ]
         ]);
         
@@ -242,6 +247,64 @@ class Maljani_CRM {
         }
 
         return new WP_REST_Response(['success' => true, 'policies' => $policies], 200);
+    }
+
+    /**
+     * GET /maljani-crm/v1/policies/{id}
+     * Returns a single sale record with a signed pdfUrl (Section 15.3).
+     */
+    public function get_policy( WP_REST_Request $request ) {
+        global $wpdb;
+        $agency_id = $this->get_current_agency_id();
+        if ( ! $agency_id ) {
+            return new WP_REST_Response( ['success' => false, 'message' => 'Not authorised'], 403 );
+        }
+
+        $sale_id = intval( $request->get_param('id') );
+        $table   = $wpdb->prefix . 'policy_sale';
+
+        $sale = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE id = %d LIMIT 1",
+            $sale_id
+        ) );
+
+        if ( ! $sale ) {
+            return new WP_REST_Response( ['success' => false, 'message' => 'Sale not found'], 404 );
+        }
+
+        // Authorisation: admin can see any; agency sees only its own sales.
+        if ( $agency_id !== 'admin' && intval( $sale->agency_id ) !== intval( $agency_id ) ) {
+            return new WP_REST_Response( ['success' => false, 'message' => 'Forbidden'], 403 );
+        }
+
+        // Section 15.3: Attach a signed PDF URL for the headless frontend.
+        $sale->pdfUrl = $this->build_signed_pdf_url( $sale );
+
+        return new WP_REST_Response( $sale, 200 );
+    }
+
+    /**
+     * Build a signed PDF URL using the existing verification hash.
+     * The URL is safe to expose to the authenticated sale owner.
+     */
+    private function build_signed_pdf_url( $sale ) {
+        if ( ! class_exists('Maljani_PDF_Generator') ) {
+            // Fallback to direct PHP URL (requires WP session)
+            return plugins_url(
+                'includes/generate-policy-pdf.php?sale_id=' . intval( $sale->id ),
+                MALJANI_PLUGIN_FILE
+            );
+        }
+
+        $token = Maljani_PDF_Generator::generate_verification_hash(
+            $sale->id,
+            $sale->policy_number,
+            $sale->passport_number
+        );
+
+        return rest_url( 'maljani/v1/policy-pdf' )
+            . '?sale_id=' . intval( $sale->id )
+            . '&token=' . rawurlencode( $token );
     }
 
     public function create_policy_draft(WP_REST_Request $request) {
