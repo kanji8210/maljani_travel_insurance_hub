@@ -24,6 +24,7 @@ function maljani_register_policy_graphql_fields() {
 
     // ── Simple string fields ────────────────────────────────────────────────
     $simple_fields = [
+        'maljaniFeatureTags'   => '_policy_feature_tags',
         'policyDescription'    => '_policy_description',
         'policyCoverDetails'   => '_policy_cover_details',
         'policyBenefits'       => '_policy_benefits',
@@ -36,8 +37,12 @@ function maljani_register_policy_graphql_fields() {
         register_graphql_field( 'Policy', $gql_key, [
             'type'        => 'String',
             'description' => 'Policy meta: ' . $meta_key,
-            'resolve'     => function ( $post ) use ( $meta_key ) {
-                return get_post_meta( $post->databaseId, $meta_key, true ) ?: '';
+            'resolve'     => function ( $post ) use ( $gql_key, $meta_key ) {
+                $val = get_post_meta( $post->databaseId, $meta_key, true );
+                if ( $gql_key === 'policyCurrency' && empty( $val ) ) {
+                    return 'KES';
+                }
+                return $val ?: '';
             },
         ] );
     }
@@ -108,6 +113,24 @@ function maljani_register_policy_graphql_fields() {
                 return wp_get_attachment_url( $logo_id );
             }
             return get_post_meta( $insurer_id, '_insurer_logo', true ) ?: '';
+        },
+    ] );
+
+    // ── User phone field ──────────────────────────────────────────────────
+    register_graphql_field( 'User', 'phone', [
+        'type'        => 'String',
+        'description' => 'User phone number from meta.',
+        'resolve'     => function ( $user ) {
+            return get_user_meta( $user->databaseId, 'phone', true ) ?: '';
+        },
+    ] );
+ 
+    // ── Feature tags field ────────────────────────────────────────────────
+    register_graphql_field( 'Policy', 'maljaniFeatureTags', [
+        'type'        => 'String',
+        'description' => 'Feature tags for the policy thumbnail.',
+        'resolve'     => function ( $post ) {
+            return get_post_meta( $post->databaseId, '_policy_feature_tags', true ) ?: '';
         },
     ] );
 }

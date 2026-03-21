@@ -70,14 +70,19 @@ class Policy_CPT {
             'policyNotCovered'    => '_policy_not_covered',
             'policyCurrency'      => '_policy_currency',
             'policyPaymentDetails'=> '_policy_payment_details',
+            'policyFeatureTags'   => '_policy_feature_tags',
         ];
 
         foreach ( $simple_fields as $gql_key => $meta_key ) {
             register_graphql_field( 'Policy', $gql_key, [
                 'type'        => 'String',
                 'description' => 'Policy meta: ' . $meta_key,
-                'resolve'     => function ( $post ) use ( $meta_key ) {
-                    return get_post_meta( $post->databaseId, $meta_key, true ) ?: '';
+                'resolve'     => function ( $post ) use ( $gql_key, $meta_key ) {
+                    $val = get_post_meta( $post->databaseId, $meta_key, true );
+                    if ( $gql_key === 'policyCurrency' && empty( $val ) ) {
+                        return 'KES';
+                    }
+                    return $val ?: '';
                 },
             ] );
         }
@@ -152,7 +157,8 @@ class Policy_CPT {
         $day_premiums    = get_post_meta($post->ID, '_policy_day_premiums',   true);
         $feature_img_id  = get_post_meta($post->ID, '_policy_feature_img',   true);
         $feature_img_url = $feature_img_id ? wp_get_attachment_url($feature_img_id) : '';
-        $currency        = get_post_meta($post->ID, '_policy_currency',       true) ?: 'KSH';
+        $feature_tags    = get_post_meta($post->ID, '_policy_feature_tags',   true);
+        $currency        = get_post_meta($post->ID, '_policy_currency',       true) ?: 'KES';
         $payment_details = get_post_meta($post->ID, '_policy_payment_details',true);
         $saved_countries = get_post_meta($post->ID, '_policy_countries',      true);
         $countries_json  = is_array($saved_countries) ? json_encode($saved_countries) : '[]';
@@ -493,6 +499,16 @@ textarea.mj-in { resize: vertical; }
             </div>
 
             <div class="mj-field">
+                <label for="policy_feature_tags">Thumbnail Feature Tags</label>
+                <input id="policy_feature_tags" type="text" name="policy_feature_tags"
+                       value="<?php echo esc_attr($feature_tags);?>"
+                       class="mj-in"
+                       placeholder="e.g. Medical $100K, Baggage $2K, Flight Delay"
+                       aria-describedby="tags-hint">
+                <span id="tags-hint" class="hint">Comma-separated tags shown on the policy card thumbnail.</span>
+            </div>
+
+            <div class="mj-field">
                 <label for="policy_region_select">Primary Region</label>
                 <div class="mj-region-wrap">
                     <select id="policy_region_select" name="policy_region" class="mj-in">
@@ -578,7 +594,8 @@ textarea.mj-in { resize: vertical; }
             <div class="mj-field">
                 <label for="policy_currency">Display Currency</label>
                 <select id="policy_currency" name="policy_currency" class="mj-in" style="max-width:200px">
-                    <option value="KSH" <?php selected($currency,'KSH');?>>KSH — Kenyan Shilling</option>
+                    <option value="KES" <?php selected($currency,'KES');?>>KES — Kenyan Shilling</option>
+                    <option value="KSH" <?php selected($currency,'KSH');?>>KSH — KSH (legacy)</option>
                     <option value="USD" <?php selected($currency,'USD');?>>USD — US Dollar</option>
                     <option value="EUR" <?php selected($currency,'EUR');?>>EUR — Euro</option>
                 </select>
@@ -763,9 +780,10 @@ textarea.mj-in { resize: vertical; }
         }
 
         $text_fields = [
-            'policy_insurer'     => ['meta' => '_policy_insurer',       'fn' => 'intval'],
-            'policy_description' => ['meta' => '_policy_description',   'fn' => 'sanitize_text_field'],
-            'policy_currency'    => ['meta' => '_policy_currency',      'fn' => 'sanitize_text_field'],
+            'policy_insurer'      => ['meta' => '_policy_insurer',       'fn' => 'intval'],
+            'policy_description'  => ['meta' => '_policy_description',   'fn' => 'sanitize_text_field'],
+            'policy_feature_tags' => ['meta' => '_policy_feature_tags',  'fn' => 'sanitize_text_field'],
+            'policy_currency'     => ['meta' => '_policy_currency',      'fn' => 'sanitize_text_field'],
         ];
         foreach ($text_fields as $post_key => $cfg) {
             if (isset($_POST[$post_key])) {
