@@ -10,8 +10,10 @@ class Maljani_GraphQL_Auth {
 
     public function __construct() {
         // Flush WPGraphQL schema cache when plugin version changes.
-        // This ensures new outputFields are immediately visible after plugin updates.
+        // Hooked on both plugins_loaded AND graphql_init so it fires
+        // even if the first admin page hasn't been visited yet.
         add_action('plugins_loaded', [$this, 'maybe_flush_graphql_schema'], 1);
+        add_action('graphql_init',   [$this, 'maybe_flush_graphql_schema'], 1);
 
         // Global CORS for preflight
         add_action('init', [$this, 'handle_global_cors'], 1);
@@ -35,11 +37,21 @@ class Maljani_GraphQL_Auth {
      * Prevents stale schemas after plugin updates that add new outputFields.
      */
     public function maybe_flush_graphql_schema(): void {
-        if (!function_exists('WPGraphQL')) return;
-        $stored = get_option('maljani_gql_schema_version', '');
-        if ($stored !== MALJANI_VERSION) {
+        // WPGraphQL is a class — function_exists() always returns false for it.
+        if ( ! class_exists( 'WPGraphQL' ) ) return;
+        $stored = get_option( 'maljani_gql_schema_version', '' );
+        if ( $stored !== MALJANI_VERSION ) {
+            // Clear the in-memory schema instance
             \WPGraphQL::clear_schema();
-            update_option('maljani_gql_schema_version', MALJANI_VERSION);
+            // Also delete persisted schema transients (WPGraphQL stores schema as transients)
+            delete_transient( 'wpgraphql_schema' );
+            global $wpdb;
+            $wpdb->query(
+                "DELETE FROM {$wpdb->options}
+                  WHERE option_name LIKE '_transient_wpgraphql%'
+                     OR option_name LIKE '_transient_timeout_wpgraphql%'"
+            );
+            update_option( 'maljani_gql_schema_version', MALJANI_VERSION );
         }
     }
 
