@@ -125,7 +125,10 @@ class Maljani_GraphQL_Auth {
             ],
             'outputFields' => [
                 'authToken' => ['type' => 'String'],
-                'user' => ['type' => 'User'],
+                'user'      => ['type' => 'User'],
+                // Scalar fields avoid WPGraphQL User type permission gate on unauthenticated requests
+                'userName'  => ['type' => 'String'],
+                'userRole'  => ['type' => 'String'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
                 $email = sanitize_email($input['email']);
@@ -154,8 +157,13 @@ class Maljani_GraphQL_Auth {
                     'role' => ($account_type === 'agent' ? 'agent' : 'insured'),
                 ]);
 
-                // Send WordPress "Set your password" welcome email to the new user
-                wp_new_user_notification($user_id, null, 'user');
+                // Send welcome email — wrapped in try/catch as wp_mail() may be
+                // unconfigured in local/staging environments and would throw a fatal.
+                try {
+                    wp_new_user_notification($user_id, null, 'user');
+                } catch (\Exception $e) {
+                    // Non-fatal: user was created successfully, email delivery is best-effort
+                }
 
                 if ($account_type === 'agent') {
                     global $wpdb;
@@ -175,7 +183,9 @@ class Maljani_GraphQL_Auth {
                 $token = $this->generate_token($user_id);
                 return [
                     'authToken' => $token,
-                    'user' => get_user_by('id', $user_id),
+                    'user'      => get_user_by('id', $user_id),
+                    'userName'  => sanitize_text_field($input['fullName']),
+                    'userRole'  => $account_type,
                 ];
             }
         ]);

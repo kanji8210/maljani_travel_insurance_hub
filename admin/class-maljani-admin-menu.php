@@ -60,15 +60,15 @@ class Maljani_Admin_Menu {
     }
 
     public function register_menu() {
-        // Menu principal — always use favicon URL directly; CSS above handles the visual display
-        $menu_icon = esc_url( $this->favicon_url() );
+        // Pass 'none' to prevent WordPress from rendering an unstyled <img> tag.
+        // The actual logo is injected via background-image CSS in inject_favicon_and_menu_icon_css().
         add_menu_page(
             'Travel Insurance Center-Kenya',
             'TIC-Kenya',
             'manage_options',
             'maljani_travel',
             [$this, 'render_dashboard'],
-            $menu_icon,
+            'none',
             2
         );
 

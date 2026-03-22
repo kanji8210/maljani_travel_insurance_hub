@@ -7,6 +7,135 @@ class Maljani_Policy_Verification {
         add_action('template_redirect', [$this, 'handle_verification_request']);
         add_filter('query_vars', [$this, 'add_query_vars']);
         add_shortcode('maljani_verify_policy', [$this, 'render_verification_form']);
+        add_action('rest_api_init', [$this, 'register_rest_routes']);
+    }
+
+    /**
+     * Register the public JSON verification endpoint.
+     * GET /wp-json/maljani/v1/verify?policy_no=MAL-XXXXX&passport=XXXXXXXX
+     */
+    public function register_rest_routes() {
+        register_rest_route('maljani/v1', '/verify', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [$this, 'rest_verify_policy'],
+            'permission_callback' => '__return_true', // Public endpoint — read-only, no PII beyond what caller already knows
+            'args' => [
+                'policy_no' => [
+                    'required'          => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => fn($v) => !empty(trim($v)),
+                ],
+                'passport'  => [
+                    'required'          => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => fn($v) => !empty(trim($v)),
+                ],
+            ],
+        ]);
+
+        /**
+         * GET /wp-json/maljani/v1/my-policies
+         * Returns the authenticated user's own policy purchases.
+         */
+        register_rest_route('maljani/v1', '/my-policies', [
+            'methods'             => \WP_REST_Server::READABLE,
+            'callback'            => [$this, 'rest_get_my_policies'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+        ]);
+    }
+
+    public function rest_verify_policy(\WP_REST_Request $request) {
+        $policy_no = strtoupper(trim($request->get_param('policy_no')));
+        $passport  = strtoupper(trim($request->get_param('passport')));
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        $sale  = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, policy_number, insured_names, passport_number,
+                    departure, `return`, region, policy_status, amount, policy_id
+             FROM {$table}
+             WHERE policy_number = %s AND UPPER(passport_number) = %s
+             LIMIT 1",
+            $policy_no, $passport
+        ));
+
+        if (!$sale) {
+            return new \WP_REST_Response([
+                'valid'   => false,
+                'message' => 'No matching policy found. Please check the policy number and passport number.',
+            ], 200);
+        }
+
+        $policy_title = get_the_title($sale->policy_id);
+
+        // Resolve insurer name from post meta
+        $insurer_name = get_post_meta($sale->policy_id, '_policy_insurer_name', true);
+        if (empty($insurer_name)) {
+            $insurer_id = get_post_meta($sale->policy_id, '_policy_insurer', true);
+            if ($insurer_id) {
+                $insurer_name = get_post_meta($insurer_id, '_insurer_name', true);
+            }
+        }
+
+        return new \WP_REST_Response([
+            'valid'          => true,
+            'policyNumber'   => $sale->policy_number,
+            'insuredName'    => $sale->insured_names,
+            'passportNumber' => $sale->passport_number,
+            'departure'      => $sale->departure,
+            'return'         => $sale->return,
+            'region'         => $sale->region,
+            'policyTitle'    => $policy_title ?: 'Travel Insurance Policy',
+            'insurer'        => $insurer_name ?: 'Authorized Insurer',
+            'policyStatus'   => $sale->policy_status,
+            'verifiedAt'     => gmdate('c'),
+        ], 200);
+    }
+
+    /**
+     * GET /wp-json/maljani/v1/my-policies
+     * Returns the logged-in traveler's own policy purchase history.
+     */
+    public function rest_get_my_policies(\WP_REST_Request $request) {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            return new \WP_REST_Response(['code' => 'not_logged_in', 'message' => 'You must be logged in.'], 401);
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, policy_number, policy_id, departure, `return`, region,
+                    policy_status, payment_status, amount_paid,
+                    insured_names, passengers, created_at
+             FROM {$table}
+             WHERE agent_id = %d
+             ORDER BY created_at DESC
+             LIMIT 50",
+            $user_id
+        ));
+
+        $policies = array_map(function($row) {
+            return [
+                'id'            => (int) $row->id,
+                'policyNumber'  => $row->policy_number,
+                'policyTitle'   => get_the_title($row->policy_id) ?: 'Travel Insurance',
+                'departure'     => $row->departure,
+                'return'        => $row->return,
+                'region'        => $row->region,
+                'policyStatus'  => $row->policy_status,
+                'paymentStatus' => $row->payment_status,
+                'amountPaid'    => (float) $row->amount_paid,
+                'insuredName'   => $row->insured_names,
+                'passengers'    => (int) $row->passengers,
+                'createdAt'     => $row->created_at,
+            ];
+        }, $rows ?: []);
+
+        return new \WP_REST_Response(['policies' => $policies], 200);
     }
 
     public function render_verification_form() {
