@@ -1,14 +1,16 @@
  <?php
 /**
- * Register custom WPGraphQL fields for the Policy CPT.
+ * Register SUPPLEMENTAL WPGraphQL fields for the Policy CPT.
  *
- * Hooked on graphql_register_types so the headless React/Next.js
- * frontend can query policy meta fields directly.
+ * NOTE: Simple string fields and policyDayPremiums / policyInsurerName /
+ * policyInsurerLogo are already registered by Policy_CPT::register_graphql_fields().
+ * This file registers ONLY the fields that are unique to this module to avoid
+ * WPGraphQL FieldAlreadyExists errors that would abort the entire function.
  *
- * Fields registered:
- *   policyDescription, policyCoverDetails, policyBenefits,
- *   policyNotCovered, policyCurrency, policyPaymentDetails,
- *   policyDayPremiums, policyInsurerName, policyInsurerLogo
+ * Fields added here:
+ *   policyCountries  — list of covered countries, falls back to region defaults
+ *   maljaniFeatureTags — alias for _policy_feature_tags used by the React catalog
+ *   User.phone        — exposes the 'phone' user-meta via GraphQL
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -17,120 +19,106 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_action( 'graphql_register_types', 'maljani_register_policy_graphql_fields' );
 
-function maljani_register_policy_graphql_fields() {
-    if ( ! function_exists( 'register_graphql_field' ) ) {
-        return; // WPGraphQL not active — skip silently.
-    }
+/**
+ * Returns a default country list for a given region slug/name.
+ * Used as a fallback when no countries are manually saved on the policy.
+ */
+function maljani_countries_for_region( string $region ): array {
+    $region = strtolower( trim( $region ) );
 
-    // ── Simple string fields ────────────────────────────────────────────────
-    $simple_fields = [
-        'maljaniFeatureTags'   => '_policy_feature_tags',
-        'policyDescription'    => '_policy_description',
-        'policyCoverDetails'   => '_policy_cover_details',
-        'policyBenefits'       => '_policy_benefits',
-        'policyNotCovered'     => '_policy_not_covered',
-        'policyCurrency'       => '_policy_currency',
-        'policyPaymentDetails' => '_policy_payment_details',
+    $map = [
+        'schengen' => [
+            'Austria', 'Belgium', 'Croatia', 'Czech Republic', 'Denmark',
+            'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary',
+            'Iceland', 'Italy', 'Latvia', 'Liechtenstein', 'Lithuania',
+            'Luxembourg', 'Malta', 'Netherlands', 'Norway', 'Poland',
+            'Portugal', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland',
+        ],
+        'europe' => [
+            'Austria', 'Belgium', 'Croatia', 'Czech Republic', 'Denmark',
+            'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary',
+            'Iceland', 'Ireland', 'Italy', 'Latvia', 'Liechtenstein',
+            'Lithuania', 'Luxembourg', 'Malta', 'Netherlands', 'Norway',
+            'Poland', 'Portugal', 'Romania', 'Slovakia', 'Slovenia',
+            'Spain', 'Sweden', 'Switzerland', 'United Kingdom',
+        ],
+        'africa' => [
+            'Kenya', 'Uganda', 'Tanzania', 'Rwanda', 'Ethiopia', 'Ghana',
+            'Nigeria', 'South Africa', 'Egypt', 'Morocco', 'Senegal',
+            'Côte d\'Ivoire', 'Cameroon', 'Zimbabwe', 'Zambia', 'Mozambique',
+            'Angola', 'Namibia', 'Botswana', 'Malawi', 'Madagascar',
+        ],
+        'east africa' => [
+            'Kenya', 'Uganda', 'Tanzania', 'Rwanda', 'Burundi',
+            'South Sudan', 'Ethiopia', 'Somalia', 'Eritrea',
+        ],
+        'worldwide' => [ 'Worldwide' ],
+        'global'    => [ 'Worldwide' ],
+        'asia'      => [
+            'China', 'Japan', 'India', 'South Korea', 'Thailand',
+            'Vietnam', 'Indonesia', 'Malaysia', 'Philippines', 'Singapore',
+            'UAE', 'Saudi Arabia', 'Qatar', 'Turkey', 'Israel',
+        ],
+        'americas'  => [
+            'United States', 'Canada', 'Mexico', 'Brazil', 'Argentina',
+            'Colombia', 'Chile', 'Peru',
+        ],
     ];
 
-    foreach ( $simple_fields as $gql_key => $meta_key ) {
-        register_graphql_field( 'Policy', $gql_key, [
-            'type'        => 'String',
-            'description' => 'Policy meta: ' . $meta_key,
-            'resolve'     => function ( $post ) use ( $gql_key, $meta_key ) {
-                $val = get_post_meta( $post->databaseId, $meta_key, true );
-                if ( $gql_key === 'policyCurrency' && empty( $val ) ) {
-                    return 'KES';
-                }
-                return $val ?: '';
-            },
-        ] );
+    // Partial match — e.g. "east-africa" matches "east africa"
+    $region_normalised = str_replace( '-', ' ', $region );
+    foreach ( $map as $key => $countries ) {
+        if ( strpos( $region_normalised, $key ) !== false || strpos( $key, $region_normalised ) !== false ) {
+            return $countries;
+        }
+    }
+    return [];
+}
+
+function maljani_register_policy_graphql_fields() {
+    if ( ! function_exists( 'register_graphql_field' ) ) {
+        return;
     }
 
-    // ── Premium brackets — list of { from, to, premium } objects ───────────
-    register_graphql_object_type( 'PolicyPremiumBracket', [
-        'description' => 'A day-range premium bracket for a travel insurance policy.',
-        'fields'      => [
-            'from'    => [ 'type' => 'Int',   'description' => 'Start day (inclusive).' ],
-            'to'      => [ 'type' => 'Int',   'description' => 'End day (inclusive).' ],
-            'premium' => [ 'type' => 'Float', 'description' => 'Gross premium amount.' ],
-        ],
-    ] );
-
-    register_graphql_field( 'Policy', 'policyDayPremiums', [
-        'type'        => [ 'list_of' => 'PolicyPremiumBracket' ],
-        'description' => 'Premium schedule by trip duration in days.',
-        'resolve'     => function ( $post ) {
-            $brackets = get_post_meta( $post->databaseId, '_policy_day_premiums', true );
-            if ( ! is_array( $brackets ) ) {
-                return [];
-            }
-            return array_map( function ( $b ) {
-                return [
-                    'from'    => intval( $b['from']    ?? 0 ),
-                    'to'      => intval( $b['to']      ?? 0 ),
-                    'premium' => floatval( $b['premium'] ?? 0 ),
-                ];
-            }, array_values( $brackets ) );
-        },
-    ] );
-
-    // ── Countries covered — stored as serialised array ──────────────────────
+    // ── Countries covered — stored as serialised array; falls back to region ─
     register_graphql_field( 'Policy', 'policyCountries', [
         'type'        => [ 'list_of' => 'String' ],
-        'description' => 'List of countries covered by this policy.',
+        'description' => 'Countries covered by this policy. Falls back to region default when empty.',
         'resolve'     => function ( $post ) {
             $countries = get_post_meta( $post->databaseId, '_policy_countries', true );
-            return is_array( $countries ) ? $countries : [];
+            if ( is_array( $countries ) && ! empty( $countries ) ) {
+                return $countries;
+            }
+
+            // Fallback: derive country list from the policy_region taxonomy terms
+            $terms = wp_get_post_terms( $post->databaseId, 'policy_region', [ 'fields' => 'names' ] );
+            if ( is_wp_error( $terms ) || empty( $terms ) ) {
+                return [];
+            }
+
+            $result = [];
+            foreach ( $terms as $region_name ) {
+                $result = array_merge( $result, maljani_countries_for_region( $region_name ) );
+            }
+            return array_values( array_unique( $result ) );
         },
     ] );
 
-    // ── Insurer name — resolved from linked insurer_profile post ───────────
-    register_graphql_field( 'Policy', 'policyInsurerName', [
-        'type'        => 'String',
-        'description' => 'Display name of the underwriting insurer.',
-        'resolve'     => function ( $post ) {
-            $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
-            if ( ! $insurer_id ) {
-                return '';
-            }
-            $name = get_post_meta( $insurer_id, '_insurer_name', true );
-            return $name ?: get_the_title( $insurer_id );
-        },
-    ] );
-
-    // ── Insurer logo URL — resolved from linked insurer_profile post ────────
-    register_graphql_field( 'Policy', 'policyInsurerLogo', [
-        'type'        => 'String',
-        'description' => 'Logo URL of the underwriting insurer.',
-        'resolve'     => function ( $post ) {
-            $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
-            if ( ! $insurer_id ) {
-                return '';
-            }
-            $logo_id = get_post_meta( $insurer_id, '_insurer_logo_id', true );
-            if ( $logo_id ) {
-                return wp_get_attachment_url( $logo_id );
-            }
-            return get_post_meta( $insurer_id, '_insurer_logo', true ) ?: '';
-        },
-    ] );
-
-    // ── User phone field ──────────────────────────────────────────────────
-    register_graphql_field( 'User', 'phone', [
-        'type'        => 'String',
-        'description' => 'User phone number from meta.',
-        'resolve'     => function ( $user ) {
-            return get_user_meta( $user->databaseId, 'phone', true ) ?: '';
-        },
-    ] );
- 
-    // ── Feature tags field ────────────────────────────────────────────────
+    // ── maljaniFeatureTags — alias used by the React catalog thumbnail ──────
     register_graphql_field( 'Policy', 'maljaniFeatureTags', [
         'type'        => 'String',
-        'description' => 'Feature tags for the policy thumbnail.',
+        'description' => 'Feature tags for the policy thumbnail (e.g. "Popular, New").',
         'resolve'     => function ( $post ) {
             return get_post_meta( $post->databaseId, '_policy_feature_tags', true ) ?: '';
+        },
+    ] );
+
+    // ── User.phone — exposes the phone user-meta via GraphQL ────────────────
+    register_graphql_field( 'User', 'phone', [
+        'type'        => 'String',
+        'description' => 'User phone number stored in user meta.',
+        'resolve'     => function ( $user ) {
+            return get_user_meta( $user->databaseId, 'phone', true ) ?: '';
         },
     ] );
 }
