@@ -9,6 +9,10 @@ if (!defined('ABSPATH')) exit;
 class Maljani_GraphQL_Auth {
 
     public function __construct() {
+        // Flush WPGraphQL schema cache when plugin version changes.
+        // This ensures new outputFields are immediately visible after plugin updates.
+        add_action('plugins_loaded', [$this, 'maybe_flush_graphql_schema'], 1);
+
         // Global CORS for preflight
         add_action('init', [$this, 'handle_global_cors'], 1);
 
@@ -24,6 +28,19 @@ class Maljani_GraphQL_Auth {
         add_filter('graphql_response_headers_to_send', [$this, 'manage_cors'], 10);
         add_filter('allowed_http_origins', [$this, 'filter_allowed_origins'], 10);
         add_action('graphql_process_http_request', [$this, 'validate_app_request'], 10);
+    }
+
+    /**
+     * Flush WPGraphQL's cached schema whenever the plugin version changes.
+     * Prevents stale schemas after plugin updates that add new outputFields.
+     */
+    public function maybe_flush_graphql_schema(): void {
+        if (!function_exists('WPGraphQL')) return;
+        $stored = get_option('maljani_gql_schema_version', '');
+        if ($stored !== MALJANI_VERSION) {
+            \WPGraphQL::clear_schema();
+            update_option('maljani_gql_schema_version', MALJANI_VERSION);
+        }
     }
 
     /**
@@ -71,12 +88,12 @@ class Maljani_GraphQL_Auth {
                 ],
             ],
             'outputFields' => [
-                'authToken' => [
-                    'type' => 'String',
-                ],
-                'user' => [
-                    'type' => 'User',
-                ],
+                'authToken' => ['type' => 'String'],
+                'user'      => ['type' => 'User'],
+                // Scalar fields bypass WPGraphQL User type permission gates
+                'userName'  => ['type' => 'String'],
+                'userPhone' => ['type' => 'String'],
+                'userRole'  => ['type' => 'String'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
                 if (empty($input['username']) || empty($input['password'])) {
@@ -100,9 +117,16 @@ class Maljani_GraphQL_Auth {
                 $token = $this->generate_token($user->ID);
                 $this->reset_failed_login($ip);
 
+                $roles     = $user->roles;
+                $user_role = !empty($roles) ? $roles[0] : 'insured';
+                $phone     = get_user_meta($user->ID, 'phone', true);
+
                 return [
                     'authToken' => $token,
-                    'user' => $user,
+                    'user'      => $user,
+                    'userName'  => $user->display_name,
+                    'userPhone' => $phone ?: '',
+                    'userRole'  => $user_role,
                 ];
             }
         ]);
