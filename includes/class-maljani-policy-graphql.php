@@ -104,15 +104,6 @@ function maljani_register_policy_graphql_fields() {
         },
     ] );
 
-    // ── maljaniFeatureTags — alias used by the React catalog thumbnail ──────
-    register_graphql_field( 'Policy', 'maljaniFeatureTags', [
-        'type'        => 'String',
-        'description' => 'Feature tags for the policy thumbnail (e.g. "Popular, New").',
-        'resolve'     => function ( $post ) {
-            return get_post_meta( $post->databaseId, '_policy_feature_tags', true ) ?: '';
-        },
-    ] );
-
     // ── User.phone — exposes the phone user-meta via GraphQL ────────────────
     register_graphql_field( 'User', 'phone', [
         'type'        => 'String',

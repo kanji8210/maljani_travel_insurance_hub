@@ -56,8 +56,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.ph
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-invoice.php';
 // Include GraphQL Authentication Layer
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-graphql-auth.php';
-// Register custom Policy GraphQL fields - Handled in admin/class-maljani_policy-cpt.php
-// require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-policy-graphql.php';
+// Register supplemental Policy GraphQL fields (policyCountries, User.phone)
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-policy-graphql.php';
 
 // API & Payment Integration
 require_once plugin_dir_path(__FILE__) . 'includes/api/class-maljani-api-endpoints.php';
