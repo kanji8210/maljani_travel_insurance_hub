@@ -56,15 +56,15 @@ if (!defined('PDF_PAGE_ORIENTATION')) {
 }
 
 if (!defined('PDF_CREATOR')) {
-    define('PDF_CREATOR', 'Maljani Insurance Hub');
+    define('PDF_CREATOR', 'Travel Insurance Center-Kenya');
 }
 
 if (!defined('PDF_AUTHOR')) {
-    define('PDF_AUTHOR', 'Maljani Insurance');
+    define('PDF_AUTHOR', 'Travel Insurance Center-Kenya');
 }
 
 if (!defined('PDF_HEADER_TITLE')) {
-    define('PDF_HEADER_TITLE', 'Maljani Insurance');
+    define('PDF_HEADER_TITLE', 'Travel Insurance Center-Kenya');
 }
 
 if (!defined('PDF_HEADER_STRING')) {

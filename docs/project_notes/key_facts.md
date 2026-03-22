@@ -3,7 +3,7 @@
 Log project configuration, constants, environment details, and important URLs here.
 
 ## Project Details
-- **Plugin Name**: Maljani Travel Insurance Hub
+- **Plugin Name**: Travel Insurance Center-Kenya (plugin slug: maljani_travel_insurance_hub)
 - **Version**: 1.0.1
 - **Main Plugin File**: `maljani.php`
 

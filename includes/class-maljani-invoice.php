@@ -68,9 +68,14 @@ class Maljani_Invoice {
         // 2. Site icon
         $icon = get_site_icon_url(128);
         if ($icon) return '<img src="' . esc_url($icon) . '" alt="Logo" style="max-height:70px;max-width:180px;object-fit:contain;">';
-        // 3. Text fallback
+        // 3. Stored logo URL (configurable in Settings)
+        $stored = get_option('maljani_invoice_logo_url', 'https://mtj.ivk.mybluehost.me/website_e48ea083/wp-content/uploads/2026/03/logo-type.png');
+        if ($stored) {
+            return '<img src="' . esc_url($stored) . '" alt="Travel Insurance Center-Kenya" style="max-height:70px;max-width:180px;object-fit:contain;">';
+        }
+        // 4. Text fallback
         $cfg = self::get_settings();
-        return '<span style="font-size:22px;font-weight:900;color:#1e3a5f;">' . esc_html($cfg['company_name']) . '</span>';
+        return '<span style="font-size:22px;font-weight:900;color:#1e3a5f;">Travel Insurance Center-Kenya</span>';
     }
 
     // ── Document number generators ────────────────────────────────────────────
@@ -493,6 +498,7 @@ CSS;
 
     // ── AJAX: serve print document ────────────────────────────────────────────
     public function ajax_print_doc() {
+        check_ajax_referer('maljani_doc_nonce');
         if (!current_user_can('read')) wp_die('Unauthorized');
         $sale_id = intval($_GET['sale_id'] ?? 0);
         $type    = sanitize_key($_GET['doc_type'] ?? 'invoice');
@@ -531,6 +537,21 @@ CSS;
         $type    = sanitize_key($_POST['doc_type'] ?? 'invoice');
         if (!$sale_id) wp_send_json_error('Missing sale ID');
 
+        // Ownership check: non-admins may only email their own sales
+        $sale = self::get_sale($sale_id);
+        if (!$sale) wp_send_json_error('Sale not found');
+
+        if (!current_user_can('manage_options')) {
+            if (intval($sale->agent_id) !== get_current_user_id()) {
+                global $wpdb;
+                $uid = get_current_user_id();
+                $agency_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1", $uid
+                ));
+                if (!$agency_id) wp_send_json_error('Unauthorized');
+            }
+        }
+
         $ok = $type === 'receipt'
             ? self::send_receipt_email($sale_id)
             : self::send_invoice_email($sale_id);
@@ -546,8 +567,8 @@ CSS;
     public static function doc_buttons(int $sale_id, bool $is_paid = false, string $context = 'admin'): string {
         $nonce       = wp_create_nonce('maljani_doc_nonce');
         $ajax_url    = admin_url('admin-ajax.php');
-        $inv_url     = esc_url(add_query_arg(['action'=>'maljani_print_doc','sale_id'=>$sale_id,'doc_type'=>'invoice'], $ajax_url));
-        $rec_url     = esc_url(add_query_arg(['action'=>'maljani_print_doc','sale_id'=>$sale_id,'doc_type'=>'receipt'], $ajax_url));
+        $inv_url     = esc_url(add_query_arg(['action'=>'maljani_print_doc','sale_id'=>$sale_id,'doc_type'=>'invoice','_wpnonce'=>$nonce], $ajax_url));
+        $rec_url     = esc_url(add_query_arg(['action'=>'maljani_print_doc','sale_id'=>$sale_id,'doc_type'=>'receipt','_wpnonce'=>$nonce], $ajax_url));
 
         $btn_base    = 'display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border-radius:5px;padding:5px 10px;cursor:pointer;text-decoration:none;border:1px solid;transition:opacity .15s;';
         $btn_inv     = $btn_base . 'background:#fff7ed;color:#c2410c;border-color:#fed7aa';

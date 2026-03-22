@@ -163,8 +163,8 @@ try {
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         
         // Configuration de base
-        $pdf->SetCreator('Maljani Insurance');
-        $pdf->SetAuthor('Maljani Insurance');
+        $pdf->SetCreator('Travel Insurance Center-Kenya');
+        $pdf->SetAuthor('Travel Insurance Center-Kenya');
         $pdf->SetTitle('Policy Document - ' . $policy_number);
         $pdf->SetSubject('Travel Insurance Policy');
         

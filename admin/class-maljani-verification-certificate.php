@@ -51,7 +51,7 @@ class Maljani_Verification_Certificate {
 
         // Get Insurer Info
         $insurer_id = get_post_meta($sale->policy_id, '_policy_insurer', true);
-        $insurer_name = $insurer_id ? get_post_meta($insurer_id, '_insurer_name', true) : 'Maljani Travel Insurance';
+        $insurer_name = $insurer_id ? get_post_meta($insurer_id, '_insurer_name', true) : 'Travel Insurance Center-Kenya';
         $insurer_logo_id = $insurer_id ? get_post_meta($insurer_id, '_insurer_logo', true) : null;
         $insurer_logo_url = $insurer_logo_id ? wp_get_attachment_url($insurer_logo_id) : '';
 
@@ -108,10 +108,26 @@ class Maljani_Verification_Certificate {
             <div class="certificate-container">
                 <div class="header">
                     <div class="logo-box">
-                        <?php if ($insurer_logo_url): ?>
+                        <?php
+                        // Prefer WP site custom logo, then site icon, then insurer logo, then text
+                        $cert_logo_src = '';
+                        $site_logo_id  = get_theme_mod( 'custom_logo' );
+                        if ( $site_logo_id ) {
+                            $cert_logo_src = wp_get_attachment_image_url( $site_logo_id, [ 200, 80 ] );
+                        }
+                        if ( ! $cert_logo_src ) {
+                            $cert_logo_src = get_site_icon_url( 80 );
+                        }
+                        // Hard fallback: known logo from uploads
+                        if ( ! $cert_logo_src ) {
+                            $cert_logo_src = 'https://mtj.ivk.mybluehost.me/website_e48ea083/wp-content/uploads/2026/03/logo-type.png';
+                        }
+                        if ( $cert_logo_src ) : ?>
+                            <img src="<?php echo esc_url( $cert_logo_src ); ?>" alt="Travel Insurance Center-Kenya" style="max-height:80px;max-width:200px;object-fit:contain;">
+                        <?php elseif ( $insurer_logo_url ) : ?>
                             <img src="<?php echo esc_url($insurer_logo_url); ?>" alt="Insurer Logo">
-                        <?php else: ?>
-                            <div style="font-weight: 800; font-size: 24px; color: #4f46e5;">MALJANI HUB</div>
+                        <?php else : ?>
+                            <div style="font-weight: 800; font-size: 20px; color: #4f46e5;">Travel Insurance Center-Kenya</div>
                         <?php endif; ?>
                     </div>
                     <div class="certificate-title">
@@ -159,7 +175,7 @@ class Maljani_Verification_Certificate {
                         </div>
                         <div class="verification-text">
                             <h2>Scan to Verify Validity</h2>
-                            <p>This certificate is digitally signed and linked to Maljani Travel Insurance Hub's secure database. Scan the QR code to view the live status of this policy or visit:</p>
+                            <p>This certificate is digitally signed and linked to Travel Insurance Center-Kenya's secure database. Scan the QR code to view the live status of this policy or visit:</p>
                             <p style="margin-top: 10px; font-family: monospace; font-size: 11px; word-break: break-all;">
                                 <a href="<?php echo esc_url($verify_url); ?>" style="color: #4f46e5; text-decoration: none;"><?php echo esc_url($verify_url); ?></a>
                             </p>
@@ -169,12 +185,12 @@ class Maljani_Verification_Certificate {
 
                 <div class="footer">
                     <div class="footer-text">
-                        <p>Disclaimer: This certificate confirms the registration of the insurance application. Validity depends on the payment status shown in the official database. For any discrepancies, please contact Maljani Hub Support.</p>
+                        <p>Disclaimer: This certificate confirms the registration of the insurance application. Validity depends on the payment status shown in the official database. For any discrepancies, please contact Travel Insurance Center-Kenya Support.</p>
                         <p>Issued on: <?php echo date('F j, Y, g:i a'); ?></p>
                     </div>
                     <div class="stamp-box">
                         <div class="stamp">Official<br>Verification<br>Document</div>
-                        <div style="font-weight: 700; font-size: 10px;">AUTHORIZED BY MALJANI</div>
+                        <div style="font-weight: 700; font-size: 10px;">AUTHORIZED BY TIC-KENYA</div>
                     </div>
                 </div>
             </div>

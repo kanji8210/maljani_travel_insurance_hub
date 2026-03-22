@@ -34,8 +34,10 @@ class Maljani_GraphQL_Auth {
 
         $origin = $_SERVER['HTTP_ORIGIN'];
         $allowed = $this->get_allowed_origins();
-        $allowed[] = 'http://localhost:5173';
-        $allowed[] = 'http://localhost:5174';
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $allowed[] = 'http://localhost:5173';
+            $allowed[] = 'http://localhost:5174';
+        }
         $allowed = array_unique($allowed);
 
         if (in_array($origin, $allowed)) {
@@ -81,16 +83,18 @@ class Maljani_GraphQL_Auth {
                     throw new \GraphQL\Error\UserError(__('Username and password are required.', 'maljani'));
                 }
 
-                $user = wp_authenticate($input['username'], $input['password']);
                 $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+                // Block check BEFORE authentication to prevent wasted DB calls
+                if ($this->is_ip_blocked($ip)) {
+                    throw new \GraphQL\Error\UserError(__('Your IP has been temporarily blocked due to too many failed login attempts. Please try again in 1 hour.', 'maljani'));
+                }
+
+                $user = wp_authenticate($input['username'], $input['password']);
 
                 if (is_wp_error($user)) {
                     $this->track_failed_login($ip);
                     throw new \GraphQL\Error\UserError($user->get_error_message());
-                }
-
-                if ($this->is_ip_blocked($ip)) {
-                    throw new \GraphQL\Error\UserError(__('Your IP has been temporarily blocked.', 'maljani'));
                 }
 
                 $token = $this->generate_token($user->ID);
@@ -126,8 +130,17 @@ class Maljani_GraphQL_Auth {
             'mutateAndGetPayload' => function($input, $context, $info) {
                 $email = sanitize_email($input['email']);
                 if (email_exists($email)) {
-                    throw new \GraphQL\Error\UserError(__('Email already exists.', 'maljani'));
+                    throw new \GraphQL\Error\UserError(__('An account with this email already exists.', 'maljani'));
                 }
+
+                if (empty($input['password']) || strlen($input['password']) < 8) {
+                    throw new \GraphQL\Error\UserError(__('Password must be at least 8 characters.', 'maljani'));
+                }
+
+                // Allowlist account types — prevents privilege escalation
+                $account_type = in_array($input['accountType'] ?? '', ['agent', 'insured'], true)
+                    ? $input['accountType']
+                    : 'insured';
 
                 $user_id = wp_create_user($email, $input['password'], $email);
                 if (is_wp_error($user_id)) {
@@ -137,10 +150,14 @@ class Maljani_GraphQL_Auth {
                 wp_update_user([
                     'ID' => $user_id,
                     'first_name' => sanitize_text_field($input['fullName']),
-                    'role' => ($input['accountType'] === 'agent' ? 'agent' : 'insured')
+                    'display_name' => sanitize_text_field($input['fullName']),
+                    'role' => ($account_type === 'agent' ? 'agent' : 'insured'),
                 ]);
 
-                if ($input['accountType'] === 'agent') {
+                // Send WordPress "Set your password" welcome email to the new user
+                wp_new_user_notification($user_id, null, 'user');
+
+                if ($account_type === 'agent') {
                     global $wpdb;
                     $wpdb->insert($wpdb->prefix . 'maljani_agencies', [
                         'name' => sanitize_text_field($input['agencyName'] ?: $input['fullName'] . " Agency"),
@@ -172,18 +189,19 @@ class Maljani_GraphQL_Auth {
 
         register_graphql_mutation('submitPolicySale', [
             'inputFields' => [
-                'policyId' => ['type' => 'Int'],
-                'departure' => ['type' => 'String'],
-                'return' => ['type' => 'String'],
-                'insuredNames' => ['type' => 'String'],
-                'insuredDob' => ['type' => 'String'],
-                'passportNumber' => ['type' => 'String'],
-                'nationalId' => ['type' => 'String'],
-                'insuredPhone' => ['type' => 'String'],
-                'insuredEmail' => ['type' => 'String'],
-                'insuredAddress' => ['type' => 'String'],
+                'policyId'        => ['type' => 'Int'],
+                'departure'       => ['type' => 'String'],
+                'return'          => ['type' => 'String'],
+                'passengers'      => ['type' => 'Int'],
+                'insuredNames'    => ['type' => 'String'],
+                'insuredDob'      => ['type' => 'String'],
+                'passportNumber'  => ['type' => 'String'],
+                'nationalId'      => ['type' => 'String'],
+                'insuredPhone'    => ['type' => 'String'],
+                'insuredEmail'    => ['type' => 'String'],
+                'insuredAddress'  => ['type' => 'String'],
                 'countryOfOrigin' => ['type' => 'String'],
-                'paymentReference' => ['type' => 'String'],
+                'paymentReference'=> ['type' => 'String'],
             ],
             'outputFields' => [
                 'saleId' => ['type' => 'Int'],
@@ -191,6 +209,10 @@ class Maljani_GraphQL_Auth {
                 'amountPaid' => ['type' => 'Float'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
+                if (!is_user_logged_in()) {
+                    throw new \GraphQL\Error\UserError(__('You must be logged in to purchase a policy.', 'maljani'));
+                }
+
                 global $wpdb;
                 $table = $wpdb->prefix . 'policy_sale';
 
@@ -203,14 +225,18 @@ class Maljani_GraphQL_Auth {
                     $region_name = $regions[0]->name;
                 }
 
-                // Days calculation
+                // Passengers
+                $passengers = max(1, intval($input['passengers'] ?? 1));
+
+                // Days calculation (same-day trip = 1 day, matching the frontend)
                 $d1 = new DateTime($input['departure']);
                 $d2 = new DateTime($input['return']);
-                $days = $d1 < $d2 ? $d1->diff($d2)->days : 0;
 
-                if ($days <= 0) {
-                    throw new \GraphQL\Error\UserError(__('Invalid dates.', 'maljani'));
+                if ($d2 < $d1) {
+                    throw new \GraphQL\Error\UserError(__('Return date must be on or after departure date.', 'maljani'));
                 }
+
+                $days = max(1, $d1->diff($d2)->days);
 
                 // Premium calculation
                 $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
@@ -252,14 +278,22 @@ class Maljani_GraphQL_Auth {
                 $global_svc_val = floatval(get_option('maljani_fee_service_value', 0));
                 $service_fee_amount = ($global_svc_type === 'fixed') ? round($global_svc_val, 2) : round(($premium * $global_svc_val) / 100, 2);
                 
-                $amount_tot_client = $is_agent ? $premium : round($premium + $service_fee_amount, 2);
+                // Multiply by passenger count — premium and commission are per-person, service fee is per transaction
+                $amount_tot_client = $is_agent
+                    ? round($premium * $passengers, 2)
+                    : round(($premium * $passengers) + $service_fee_amount, 2);
 
                 $agent_comm_amount = 0;
                 if ($is_agent) {
                     $agent_comm_amount = $calc_fee('_policy_agency_comm_type', '_policy_agency_comm_value', '_policy_agency_comm_pct', $premium);
                 }
 
-                $policy_number = 'POL-GQL-' . date('Ymd') . '-' . mt_rand(1000, 9999);
+                $policy_number = 'POL-GQL-' . date('Ymd') . '-' . str_pad(random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+
+                // Verify the policy post is published before creating a sale record
+                if (get_post_status($policy_id) !== 'publish') {
+                    throw new \GraphQL\Error\UserError(__('The selected policy is not available.', 'maljani'));
+                }
 
                 $wpdb->insert($table, [
                     'policy_id' => $policy_id,
@@ -267,6 +301,7 @@ class Maljani_GraphQL_Auth {
                     'region' => $region_name,
                     'premium' => $premium,
                     'days' => $days,
+                    'passengers' => $passengers,
                     'departure' => sanitize_text_field($input['departure']),
                     'return' => sanitize_text_field($input['return']),
                     'insured_names' => sanitize_text_field($input['insuredNames']),
@@ -293,6 +328,19 @@ class Maljani_GraphQL_Auth {
                 ]);
 
                 $sale_id = $wpdb->insert_id;
+
+                if (!$sale_id) {
+                    throw new \GraphQL\Error\UserError(__('Failed to record the sale. Please try again.', 'maljani'));
+                }
+
+                // Fire action so notifications and other integrations can react
+                do_action('maljani_new_sale', $sale_id, [
+                    'policy_number' => $policy_number,
+                    'insured_names' => sanitize_text_field($input['insuredNames'] ?? ''),
+                    'insured_email' => sanitize_email($input['insuredEmail'] ?? ''),
+                    'amount_paid'   => $amount_tot_client,
+                    'passengers'    => $passengers,
+                ]);
 
                 return [
                     'saleId' => $sale_id,
@@ -365,8 +413,8 @@ class Maljani_GraphQL_Auth {
             $expected_signature = hash_hmac('sha256', "$header_b64.$payload_b64", $secret, true);
             $expected_signature_b64 = $this->base64url_encode($expected_signature);
 
-            // Time-safe comparison would be better but this is a custom minimal implementation
-            if ($signature_b64 !== $expected_signature_b64) {
+            // Constant-time comparison prevents timing attacks
+            if (!hash_equals($expected_signature_b64, $signature_b64)) {
                 return false;
             }
 
@@ -391,10 +439,10 @@ class Maljani_GraphQL_Auth {
     public function manage_cors($headers) {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
         $allowed = $this->get_allowed_origins();
-        
-        // Add default dev origins
-        $allowed[] = 'http://localhost:5173';
-        $allowed[] = 'http://localhost:5174';
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $allowed[] = 'http://localhost:5173';
+            $allowed[] = 'http://localhost:5174';
+        }
         $allowed = array_unique($allowed);
 
         if (in_array($origin, $allowed) || empty($origin)) {
@@ -437,7 +485,7 @@ class Maljani_GraphQL_Auth {
         if (empty($secret)) return; // Security layer disabled if no secret set
 
         $client_secret = $_SERVER['HTTP_X_MALJANI_APP_SECRET'] ?? '';
-        if ($client_secret !== $secret) {
+        if (!hash_equals($secret, $client_secret)) {
             wp_send_json_error([
                 'errors' => [['message' => __('Invalid or missing Application Secret Key.', 'maljani')]]
             ], 403);

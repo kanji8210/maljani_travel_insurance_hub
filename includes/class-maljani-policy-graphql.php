@@ -1,4 +1,4 @@
-<?php
+ <?php
 /**
  * Register custom WPGraphQL fields for the Policy CPT.
  *

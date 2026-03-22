@@ -1,18 +1,74 @@
 <?php
 class Maljani_Admin_Menu {
+    // Direct URLs for logo and favicon from the live TIC-Kenya site
+    private const FAVICON_URL = 'https://mtj.ivk.mybluehost.me/website_e48ea083/wp-content/uploads/2026/03/cropped-logo-type.png';
+    private const LOGO_URL    = 'https://mtj.ivk.mybluehost.me/website_e48ea083/wp-content/uploads/2026/03/logo-type.png';
+
     public function __construct() {
-        add_action('admin_menu', [$this, 'register_menu']);
+        add_action( 'admin_menu', [ $this, 'register_menu' ] );
+        add_action( 'admin_head', [ $this, 'inject_favicon_and_menu_icon_css' ] );
+        add_action( 'login_head', [ $this, 'inject_favicon_and_menu_icon_css' ] );
+        add_action( 'wp_head',    [ $this, 'inject_frontend_favicon' ], 1 );
+    }
+
+    /** Returns the absolute URL for the TIC-Kenya favicon */
+    private function favicon_url(): string {
+        return self::FAVICON_URL;
+    }
+
+    /** Returns the absolute URL for the TIC-Kenya site logo */
+    private function logo_url(): string {
+        return self::LOGO_URL;
+    }
+
+    /**
+     * Inject favicon <link> into admin & login <head>.
+     * Runs at priority 10, after wp_site_icon() (priority 99) would run — but
+     * we use a high-specificity <link> that overrides whatever WP outputs.
+     */
+    public function inject_favicon_and_menu_icon_css(): void {
+        $favicon = esc_url( $this->favicon_url() );
+        echo "<link rel='shortcut icon' type='image/png' href='{$favicon}'>\n";
+        echo "<link rel='icon' type='image/png' href='{$favicon}'>\n";
+        // Make the admin sidebar menu icon show as the favicon image
+        echo "<style>
+#adminmenu #toplevel_page_maljani_travel .wp-menu-image,
+#adminmenu #toplevel_page_maljani_travel .wp-menu-image::before {
+    background-image: url('{$favicon}') !important;
+    background-size: 20px 20px !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+}
+#adminmenu #toplevel_page_maljani_travel .wp-menu-image::before {
+    content: '' !important;
+    font-size: 0 !important;
+}
+</style>\n";
+    }
+
+    /**
+     * Inject favicon into frontend <head>.
+     * Only fires if WP hasn't already set a site icon.
+     */
+    public function inject_frontend_favicon(): void {
+        if ( get_site_icon_url( 32 ) ) {
+            return; // WordPress already handles it
+        }
+        $favicon = esc_url( $this->favicon_url() );
+        echo "<link rel='shortcut icon' type='image/png' href='{$favicon}'>\n";
+        echo "<link rel='icon' type='image/png' href='{$favicon}'>\n";
     }
 
     public function register_menu() {
-        // Menu principal
+        // Menu principal — always use favicon URL directly; CSS above handles the visual display
+        $menu_icon = esc_url( $this->favicon_url() );
         add_menu_page(
-            'Maljani Travel',
-            'Maljani Travel',
+            'Travel Insurance Center-Kenya',
+            'TIC-Kenya',
             'manage_options',
             'maljani_travel',
             [$this, 'render_dashboard'],
-            'dashicons-admin-site',
+            $menu_icon,
             2
         );
 
@@ -109,8 +165,8 @@ class Maljani_Admin_Menu {
         // --- PER-ROLE USER MANAGEMENT PAGES ---
         add_submenu_page(
             'maljani_travel',
-            'Maljani Team',
-            '🛡️ Maljani Team',
+            'TIC-Kenya Team',
+            '🛡️ TIC-Kenya Team',
             'manage_options',
             'maljani_users_maljani_team',
             [$this, 'render_users_maljani_team']
@@ -186,8 +242,22 @@ class Maljani_Admin_Menu {
             ['⚠️','Disputed Commissions', intval($disputed),            '#fee2e2', admin_url('admin.php?page=policy_sales')],
             ['💰', 'Total Premium',       '$'.number_format(floatval($tot_prem),0), '#f0fdf4', admin_url('admin.php?page=policy_sales')],
         ];
+        // Resolve site logo — always use the known logo from uploads as primary
+        $dash_logo_html = '';
+        $logo_url = esc_url( $this->logo_url() );
+        if ( $logo_url ) {
+            $dash_logo_html = '<img src="' . $logo_url . '" alt="Travel Insurance Center-Kenya" style="max-height:48px;max-width:160px;object-fit:contain;vertical-align:middle;margin-right:12px;">';
+        }
+        // Also try WP custom logo as a higher-quality override
+        $logo_id = get_theme_mod( 'custom_logo' );
+        if ( $logo_id ) {
+            $logo_src = wp_get_attachment_image_url( $logo_id, [ 160, 50 ] );
+            if ( $logo_src ) {
+                $dash_logo_html = '<img src="' . esc_url( $logo_src ) . '" alt="Travel Insurance Center-Kenya" style="max-height:48px;max-width:160px;object-fit:contain;vertical-align:middle;margin-right:12px;">';
+            }
+        }
         echo '<div class="wrap">';
-        echo '<h1 style="font-family:Inter,sans-serif;margin-bottom:20px">🌍 Maljani Travel — Admin Overview</h1>';
+        echo '<h1 style="font-family:Inter,sans-serif;margin-bottom:20px;display:flex;align-items:center">' . $dash_logo_html . '🌍 Travel Insurance Center-Kenya — Admin Overview</h1>';
         echo '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">';
         foreach ($stats as [$icon,$label,$val,$bg,$url]) {
             echo "<a href='".esc_url($url)."' style='text-decoration:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.15s;'";
@@ -214,7 +284,7 @@ class Maljani_Admin_Menu {
 
     public function render_settings() {
         //render the settings page
-        echo '<h1>Maljani Settings</h1>';
+        echo '<h1>TIC-Kenya Settings</h1>';
         Maljani_Settings::render_settings_page();
     }
 
@@ -311,4 +381,4 @@ class Maljani_Admin_Menu {
 }
 new Maljani_Admin_Menu();
 
-
+

@@ -16,18 +16,24 @@ class Maljani_Payments_Admin {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['maljani_payment_action']) && wp_verify_nonce($_POST['_wpnonce'], 'maljani_edit_payment')) {
             if ($_POST['maljani_payment_action'] === 'update_status') {
                 $payment_id = intval($_POST['payment_id']);
+                $allowed_statuses = ['pending', 'verified', 'forwarded'];
                 $new_status = sanitize_text_field($_POST['status']);
-                $wpdb->update($payments_table, ['status' => $new_status, 'updated_at' => current_time('mysql', 1)], ['id' => $payment_id]);
-                echo '<div class="notice notice-success is-dismissible"><p>Payment status updated.</p></div>';
+                if (!in_array($new_status, $allowed_statuses, true)) {
+                    echo '<div class="notice notice-error is-dismissible"><p>Invalid payment status.</p></div>';
+                } else {
+                    $wpdb->update($payments_table, ['status' => $new_status, 'updated_at' => current_time('mysql', 1)], ['id' => $payment_id]);
+                    echo '<div class="notice notice-success is-dismissible"><p>Payment status updated.</p></div>';
+                }
             }
         }
 
         $payments = $wpdb->get_results("
-            SELECT p.*, a.agency_name, s.policy_number 
+            SELECT p.*, COALESCE(a.name, a.agency_name) AS agency_display_name, s.policy_number 
             FROM $payments_table p 
             LEFT JOIN $agencies_table a ON p.agency_id = a.id 
             LEFT JOIN $policy_table s ON p.policy_id = s.id
             ORDER BY p.created_at DESC
+            LIMIT 500
         ");
 
         echo '<div class="wrap">';
@@ -44,9 +50,9 @@ class Maljani_Payments_Admin {
             foreach ($payments as $p) {
                 echo '<tr>';
                 echo '<td>' . esc_html($p->created_at) . '</td>';
-                echo '<td>' . esc_html($p->agency_name ?: 'System') . '</td>';
+                echo '<td>' . esc_html($p->agency_display_name ?: 'System') . '</td>';
                 echo '<td>' . esc_html($p->policy_number ?: 'Draft #' . $p->policy_id) . '</td>';
-                echo '<td>$' . esc_html($p->amount) . '</td>';
+                echo '<td>KES ' . esc_html(number_format(floatval($p->amount), 2)) . '</td>';
                 echo '<td>' . esc_html($p->reference) . '</td>';
                 
                 $status_color = $p->status === 'verified' ? 'green' : ($p->status === 'forwarded' ? 'blue' : 'orange');

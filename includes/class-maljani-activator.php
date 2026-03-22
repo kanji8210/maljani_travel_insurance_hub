@@ -120,6 +120,11 @@ class Maljani_Activator {
         if (!in_array('agency_comm_disputed_note', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_comm_disputed_note` TEXT DEFAULT NULL AFTER `agent_commission_status`");
         }
+
+        // Add passengers count column if missing
+        if (!in_array('passengers', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `passengers` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `days`");
+        }
         // Ensure the status column supports all four values
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `agent_commission_status` ENUM('unpaid','paid','received','disputed') DEFAULT 'unpaid'");
 
@@ -170,7 +175,10 @@ add_action('admin_notices', function() {
     if (isset($_GET['maljani_table_created'])) {
         echo '<div class="notice notice-success is-dismissible"><p>Maljani: Table <strong>policy_sale</strong> created successfully.</p></div>';
     } elseif ($wpdb->get_var("SHOW TABLES LIKE '$table'") != $table) {
-        $url = add_query_arg('maljani_create_table', '1');
+        $url = wp_nonce_url(
+            add_query_arg('maljani_create_table', '1'),
+            'maljani_create_table_action'
+        );
         echo '<div class="notice notice-error"><p>
             Maljani: Table <strong>policy_sale</strong> is missing. 
             <a href="' . esc_url($url) . '">Click here to create the table</a>.
@@ -181,19 +189,25 @@ add_action('admin_notices', function() {
 // Action pour créer la table manuellement si besoin
 add_action('admin_init', function() {
     if (isset($_GET['maljani_create_table']) && current_user_can('manage_options')) {
+        check_admin_referer('maljani_create_table_action');
         require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
         Maljani_Activator::activate();
         wp_redirect(remove_query_arg('maljani_create_table') . '&maljani_table_created=1');
         exit;
     }
 
-    // Always run migrations to ensure new columns exist on existing installs
+    // Run migrations only when the stored DB version is older than the current plugin version.
+    // This avoids firing expensive ALTER TABLE chains on every admin page load.
     if (current_user_can('manage_options')) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'policy_sale';
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
-            require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
-            Maljani_Activator::run_migrations($wpdb, $table_name);
+        $stored_ver = get_option('maljani_db_version', '0');
+        if (version_compare($stored_ver, MALJANI_VERSION, '<')) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'policy_sale';
+            if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
+                require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
+                Maljani_Activator::run_migrations($wpdb, $table_name);
+                update_option('maljani_db_version', MALJANI_VERSION);
+            }
         }
     }
 });

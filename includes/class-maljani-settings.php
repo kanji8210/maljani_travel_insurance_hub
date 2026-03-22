@@ -49,7 +49,7 @@ class Maljani_Settings {
         // Pesapal Gateway Settings
         register_setting('maljani_settings_group', 'maljani_pesapal_consumer_key', ['sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_pesapal_consumer_secret', ['sanitize_callback' => 'sanitize_text_field']);
-        register_setting('maljani_settings_group', 'maljani_pesapal_mode', ['default' => 'sandbox', 'sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_pesapal_mode', ['default' => 'sandbox', 'sanitize_callback' => function($v) { return in_array($v, ['sandbox', 'live'], true) ? $v : 'sandbox'; }]);
         register_setting('maljani_settings_group', 'maljani_pesapal_ipn_id', ['sanitize_callback' => 'sanitize_text_field']);
         // GraphQL Security
         register_setting('maljani_settings_group', 'maljani_graphql_allowed_origins', ['sanitize_callback' => 'sanitize_textarea_field']);
