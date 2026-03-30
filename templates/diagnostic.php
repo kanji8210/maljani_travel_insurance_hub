@@ -161,4 +161,3 @@ add_action('admin_menu', function() {
         'maljani_sales_diagnostic'
     );
 });
-?>

@@ -28,6 +28,9 @@ class Maljani_GraphQL_Auth {
 
         // CORS and App Security
         add_filter('graphql_response_headers_to_send', [$this, 'manage_cors'], 10);
+
+        // Temporary debug endpoint — remove after issue resolved
+        add_action('rest_api_init', [$this, 'register_debug_endpoint']);
         add_filter('allowed_http_origins', [$this, 'filter_allowed_origins'], 10);
         add_action('graphql_process_http_request', [$this, 'validate_app_request'], 10);
     }
@@ -104,11 +107,14 @@ class Maljani_GraphQL_Auth {
                 'user'      => ['type' => 'User'],
                 // Scalar fields bypass WPGraphQL User type permission gates
                 'userName'  => ['type' => 'String'],
+                'userEmail' => ['type' => 'String'],
                 'userPhone' => ['type' => 'String'],
                 'userRole'  => ['type' => 'String'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
+                ob_start();
                 if (empty($input['username']) || empty($input['password'])) {
+                    ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('Username and password are required.', 'maljani'));
                 }
 
@@ -133,13 +139,20 @@ class Maljani_GraphQL_Auth {
                 $user_role = !empty($roles) ? $roles[0] : 'insured';
                 $phone     = get_user_meta($user->ID, 'phone', true);
 
-                return [
+                $res = [
                     'authToken' => $token,
                     'user'      => $user,
                     'userName'  => $user->display_name,
+                    'userEmail' => $user->user_email,
                     'userPhone' => $phone ?: '',
                     'userRole'  => $user_role,
                 ];
+
+                $stray = ob_get_clean();
+                if (!empty($stray)) {
+                    error_log('[Maljani GQL] Stray output during login: ' . $stray);
+                }
+                return $res;
             }
         ]);
     }
@@ -167,8 +180,10 @@ class Maljani_GraphQL_Auth {
                 'userRole'  => ['type' => 'String'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
+                ob_start();
                 $email = sanitize_email($input['email']);
                 if (email_exists($email)) {
+                    ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('An account with this email already exists.', 'maljani'));
                 }
 
@@ -217,13 +232,63 @@ class Maljani_GraphQL_Auth {
                 }
 
                 $token = $this->generate_token($user_id);
-                return [
+                $res = [
                     'authToken' => $token,
                     'user'      => get_user_by('id', $user_id),
                     'userName'  => sanitize_text_field($input['fullName']),
+                    'userEmail' => sanitize_email($input['email']),
                     'userRole'  => $account_type,
                 ];
+
+                $stray = ob_get_clean();
+                if (!empty($stray)) {
+                    error_log('[Maljani GQL] Stray output during registration: ' . $stray);
+                }
+                return $res;
             }
+        ]);
+    }
+
+    /**
+     * Temporary debug endpoint — shows DB table state so we can diagnose insert failures.
+     * URL: /wp-json/maljani/v1/debug-db
+     * Protected by admin nonce: ?nonce=<wp_create_nonce('maljani_debug')>
+     * Remove this method once the purchase error is resolved.
+     */
+    public function register_debug_endpoint() {
+        register_rest_route('maljani/v1', '/debug-db', [
+            'methods'  => 'GET',
+            'callback' => function(\WP_REST_Request $request) {
+                // Only admins can call this
+                if (!current_user_can('manage_options')) {
+                    // Also allow if a valid nonce is supplied via ?nonce=
+                    $nonce = $request->get_param('nonce');
+                    if (!wp_verify_nonce($nonce, 'maljani_debug')) {
+                        return new \WP_Error('forbidden', 'Admins only. Pass ?nonce=<your_nonce>.', ['status' => 403]);
+                    }
+                }
+
+                global $wpdb;
+                $table = $wpdb->prefix . 'policy_sale';
+
+                $table_exists  = $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
+                $columns       = $table_exists ? $wpdb->get_results("DESCRIBE `$table`") : [];
+                $db_version    = get_option('maljani_db_version', 'not set');
+                $plugin_version = defined('MALJANI_VERSION') ? MALJANI_VERSION : 'undefined';
+                $row_count     = $table_exists ? (int) $wpdb->get_var("SELECT COUNT(*) FROM `$table`") : 0;
+
+                return rest_ensure_response([
+                    'plugin_version'  => $plugin_version,
+                    'db_version'      => $db_version,
+                    'table'           => $table,
+                    'table_exists'    => $table_exists,
+                    'row_count'       => $row_count,
+                    'columns'         => array_column($columns, 'Field'),
+                    'column_detail'   => $columns,
+                    'missing_critical'=> array_diff(['passengers', 'days', 'policy_id', 'departure', 'return'], array_column($columns, 'Field')),
+                ]);
+            },
+            'permission_callback' => '__return_true', // auth handled inside callback
         ]);
     }
 
@@ -255,7 +320,11 @@ class Maljani_GraphQL_Auth {
                 'amountPaid' => ['type' => 'Float'],
             ],
             'mutateAndGetPayload' => function($input, $context, $info) {
+                // START OUTPUT BUFFERING to catch any stray warnings/notices
+                ob_start();
+
                 if (!is_user_logged_in()) {
+                    ob_end_clean(); // Clean before throwing
                     throw new \GraphQL\Error\UserError(__('You must be logged in to purchase a policy.', 'maljani'));
                 }
 
@@ -274,15 +343,21 @@ class Maljani_GraphQL_Auth {
                 // Passengers
                 $passengers = max(1, intval($input['passengers'] ?? 1));
 
-                // Days calculation (same-day trip = 1 day, matching the frontend)
-                $d1 = new DateTime($input['departure']);
-                $d2 = new DateTime($input['return']);
+                try {
+                    $d1 = new DateTime($input['departure']);
+                    $d2 = new DateTime($input['return']);
+                } catch (\Exception $e) {
+                    ob_end_clean();
+                    throw new \GraphQL\Error\UserError(__('Invalid dates provided.', 'maljani'));
+                }
 
                 if ($d2 < $d1) {
+                    ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('Return date must be on or after departure date.', 'maljani'));
                 }
 
-                $days = max(1, $d1->diff($d2)->days);
+                // +1 to match frontend inclusive count (departure day + all intermediate days + return day)
+                $days = max(1, $d1->diff($d2)->days + 1);
 
                 // Premium calculation
                 $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
@@ -297,6 +372,7 @@ class Maljani_GraphQL_Auth {
                 }
 
                 if ($premium <= 0) {
+                    ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('No premium found for these dates.', 'maljani'));
                 }
 
@@ -338,28 +414,33 @@ class Maljani_GraphQL_Auth {
 
                 // Verify the policy post is published before creating a sale record
                 if (get_post_status($policy_id) !== 'publish') {
+                    ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('The selected policy is not available.', 'maljani'));
                 }
 
-                $wpdb->insert($table, [
+                $dob      = !empty($input['insuredDob']) ? sanitize_text_field($input['insuredDob']) : null;
+                $departure = !empty($input['departure'])  ? sanitize_text_field($input['departure'])  : null;
+                $return    = !empty($input['return'])     ? sanitize_text_field($input['return'])     : null;
+
+                $data = [
                     'policy_id' => $policy_id,
                     'policy_number' => $policy_number,
                     'region' => $region_name,
                     'premium' => $premium,
                     'days' => $days,
                     'passengers' => $passengers,
-                    'departure' => sanitize_text_field($input['departure']),
-                    'return' => sanitize_text_field($input['return']),
-                    'insured_names' => sanitize_text_field($input['insuredNames']),
-                    'insured_dob' => sanitize_text_field($input['insuredDob']),
-                    'passport_number' => sanitize_text_field($input['passportNumber']),
-                    'national_id' => sanitize_text_field($input['nationalId']),
-                    'insured_phone' => sanitize_text_field($input['insuredPhone']),
-                    'insured_email' => sanitize_email($input['insuredEmail']),
-                    'insured_address' => sanitize_text_field($input['insuredAddress']),
-                    'country_of_origin' => sanitize_text_field($input['countryOfOrigin']),
-                    'agent_id' => get_current_user_id(),
-                    'agent_name' => $current_user->display_name,
+                    'departure' => $departure,
+                    'return' => $return,
+                    'insured_names' => sanitize_text_field($input['insuredNames'] ?? ''),
+                    'insured_dob' => $dob,
+                    'passport_number' => sanitize_text_field($input['passportNumber'] ?? ''),
+                    'national_id' => sanitize_text_field($input['nationalId'] ?? ($input['passportNumber'] ?? '')),
+                    'insured_phone' => sanitize_text_field($input['insuredPhone'] ?? ''),
+                    'insured_email' => sanitize_email($input['insuredEmail'] ?? ''),
+                    'insured_address' => sanitize_text_field($input['insuredAddress'] ?? ''),
+                    'country_of_origin' => sanitize_text_field($input['countryOfOrigin'] ?? ''),
+                    'agent_id' => get_current_user_id() ?: 0,
+                    'agent_name' => $current_user->display_name ?: 'System',
                     'amount_paid' => $amount_tot_client,
                     'service_fee_amount' => $service_fee_amount,
                     'maljani_commission_amount' => $maljani_comm_amount,
@@ -371,12 +452,36 @@ class Maljani_GraphQL_Auth {
                     'policy_status' => 'unconfirmed',
                     'workflow_status' => 'draft',
                     'terms' => 1
-                ]);
+                ];
 
+                $inserted = $wpdb->insert($table, $data);
                 $sale_id = $wpdb->insert_id;
 
-                if (!$sale_id) {
-                    throw new \GraphQL\Error\UserError(__('Failed to record the sale. Please try again.', 'maljani'));
+                // CATCH ANY STRAY OUTPUT
+                $stray_output = ob_get_clean();
+                if (!empty($stray_output)) {
+                    error_log('[Maljani GQL] Caught stray output during sales mutation: ' . $stray_output);
+                }
+
+                if (!$inserted || !$sale_id) {
+                    $db_err   = $wpdb->last_error;
+                    error_log('[Maljani DEBUG] INSERT failed. WPDB error: ' . $db_err);
+                    
+                    error_log('[Maljani DEBUG] Last SQL: ' . $wpdb->last_query);
+                    $wpdb->print_error();
+
+                    // Surface a helpful error message — if table is missing, try to trigger activator
+                    if (strpos($db_err, "doesn't exist") !== false) {
+                        if (class_exists('Maljani_Activator')) {
+                            Maljani_Activator::activate();
+                            throw new \GraphQL\Error\UserError('Database tables were missing but have been re-created. Please try clicking submit again.');
+                        }
+                    }
+
+                    $last_query = $wpdb->last_query;
+                    throw new \GraphQL\Error\UserError(
+                        "DATABASE INSERTION FAILED! DB Error: " . ($db_err ?: 'No error recorded') . " | SQL: " . substr($last_query, 0, 100)
+                    );
                 }
 
                 // Fire action so notifications and other integrations can react
@@ -389,9 +494,9 @@ class Maljani_GraphQL_Auth {
                 ]);
 
                 return [
-                    'saleId' => $sale_id,
+                    'saleId' => (int) $sale_id,
                     'policyNumber' => $policy_number,
-                    'amountPaid' => $amount_tot_client,
+                    'amountPaid' => (float) $amount_tot_client,
                 ];
             }
         ]);
@@ -483,6 +588,9 @@ class Maljani_GraphQL_Auth {
      * Manage CORS headers for GraphQL
      */
     public function manage_cors($headers) {
+        // Always force JSON content-type so urql/fetch clients don't see text/plain.
+        $headers['Content-Type'] = 'application/json; charset=UTF-8';
+
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
         $allowed = $this->get_allowed_origins();
         if (defined('WP_DEBUG') && WP_DEBUG) {

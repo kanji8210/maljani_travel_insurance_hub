@@ -37,6 +37,60 @@ class Maljani_API_Endpoints {
             ],
             'callback'            => [$this, 'verify_policy'],
         ]);
+        register_rest_route('maljani/v1', '/my-policies', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'get_my_policies'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+        ]);
+
+        // Flush once if the route was just added
+        if (get_option('maljani_rest_flushed_v2') !== '1') {
+            flush_rewrite_rules();
+            update_option('maljani_rest_flushed_v2', '1');
+        }
+    }
+
+    /**
+     * Get policies for the current logged-in user.
+     */
+    public function get_my_policies(WP_REST_Request $request) {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            return new WP_REST_Response(['error' => 'Unauthorized'], 401);
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        
+        // We use agent_id for both agents and regular insured users as the owner id
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE agent_id = %d ORDER BY created_at DESC",
+            $user_id
+        ));
+
+        $policies = [];
+        foreach ($results as $p) {
+            $policies[] = [
+                'id'            => (int)$p->id,
+                'policyId'      => (int)$p->policy_id,
+                'policyTitle'   => get_the_title($p->policy_id),
+                'policyNumber'  => $p->policy_number,
+                'region'        => $p->region,
+                'premium'       => (float)$p->premium,
+                'days'          => (int)$p->days,
+                'departure'     => $p->departure,
+                'return'        => $p->return,
+                'passengers'    => (int)($p->passengers ?? 1),
+                'amountPaid'    => (float)$p->amount_paid,
+                'paymentStatus' => $p->payment_status,
+                'policyStatus'  => $p->policy_status,
+                'createdAt'     => $p->created_at,
+            ];
+        }
+
+        return new WP_REST_Response(['policies' => $policies], 200);
     }
 
     /**

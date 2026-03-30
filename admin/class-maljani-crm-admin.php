@@ -90,6 +90,7 @@ class Maljani_CRM_Admin {
                 } else {
                     echo "<button class='button' disabled>Waiting...</button>";
                 }
+                echo " <a href='" . esc_url(admin_url('admin.php?page=maljani-live-chat&policy_id=' . $p->id)) . "' class='button' title='Message Client'>Message</a>";
                 echo "</td>";
                 echo "</tr>";
             }

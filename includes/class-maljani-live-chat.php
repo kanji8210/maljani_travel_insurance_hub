@@ -91,6 +91,7 @@ class Maljani_Live_Chat {
     public function rest_start_chat(WP_REST_Request $request) {
         global $wpdb;
         $email = sanitize_email($request->get_param('email'));
+        $policy_id = intval($request->get_param('policy_id'));
         $user_id = is_user_logged_in() ? get_current_user_id() : null;
 
         if (empty($email) && !$user_id) {
@@ -100,21 +101,27 @@ class Maljani_Live_Chat {
         $table = $wpdb->prefix . 'maljani_chat_conversations';
 
         $conv = null;
-        if ($user_id) {
-            $conv = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE user_id = %d AND status = 'active' LIMIT 1", $user_id));
+        if ($policy_id > 0) {
+            $conv = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE policy_id = %d AND status = 'active' LIMIT 1", $policy_id));
         }
+
+        if (!$conv && $user_id) {
+            $conv = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE user_id = %d AND policy_id IS NULL AND status = 'active' LIMIT 1", $user_id));
+        }
+
         if (!$conv && $email) {
-            $conv = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE email = %s AND status = 'active' LIMIT 1", $email));
+            $conv = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE email = %s AND policy_id IS NULL AND status = 'active' LIMIT 1", $email));
         }
 
         if (!$conv) {
             $wpdb->insert($table, [
                 'user_id' => $user_id,
                 'email' => $email,
+                'policy_id' => $policy_id > 0 ? $policy_id : null,
                 'status' => 'active',
                 'created_at' => current_time('mysql', 1),
                 'updated_at' => current_time('mysql', 1)
-            ], ['%d', '%s', '%s', '%s', '%s']);
+            ], ['%d', '%s', '%d', '%s', '%s', '%s']);
             $conv_id = $wpdb->insert_id;
         } else {
             $conv_id = $conv->id;
@@ -151,13 +158,17 @@ class Maljani_Live_Chat {
         $user_id = is_user_logged_in() ? get_current_user_id() : null;
 
         $msg_table = $wpdb->prefix . 'maljani_chat_messages';
-        $wpdb->insert($msg_table, [
+        $inserted = $wpdb->insert($msg_table, [
             'conversation_id' => $conv_id,
             'sender_type' => $sender_type,
             'user_id' => $user_id,
             'message' => $message,
             'created_at' => current_time('mysql', 1)
         ], ['%d', '%s', '%d', '%s', '%s']);
+
+        if (!$inserted) {
+            return new WP_REST_Response(['success' => false, 'message' => 'Database error'], 500);
+        }
         
         $wpdb->update(
             $wpdb->prefix . 'maljani_chat_conversations',

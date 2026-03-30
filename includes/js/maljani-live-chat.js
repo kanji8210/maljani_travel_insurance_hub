@@ -78,24 +78,33 @@ jQuery(document).ready(function($) {
     $('#maljani-chat-start-btn').click(function() {
         var email = $('#maljani-chat-email').val();
         if(!email) return alert('Please enter your email.');
-        // Disable start btn
-        $(this).prop('disabled', true);
+        
+        console.log('Maljani Chat: Starting for email', email);
+        $(this).prop('disabled', true).text('Starting...');
         
         $.post(maljaniChatParams.rest_url + '/start', { email: email }, function(res) {
+            console.log('Maljani Chat Start Response:', res);
             if (res.success) {
                 convId = res.conversation_id;
                 token = res.token;
                 localStorage.setItem('maljani_chat_conv_id', convId);
                 localStorage.setItem('maljani_chat_token', token);
                 
+                // Force UI transition
                 $('#maljani-chat-start-form').hide();
-                $('#maljani-chat-input-area').show();
+                $('#maljani-chat-input-area').fadeIn();
+                console.log('Maljani Chat: UI transitioned to input area');
+                
                 fetchMessages();
                 if (!pollInterval) pollInterval = setInterval(fetchMessages, 4000);
             } else {
-                alert(res.message);
-                $('#maljani-chat-start-btn').prop('disabled', false);
+                alert(res.message || 'Error starting chat');
+                $('#maljani-chat-start-btn').prop('disabled', false).text('Start Chat');
             }
+        }).fail(function(xhr) {
+            console.error('Maljani Chat Start Failed:', xhr.responseText);
+            alert('Could not connect to support. Please try again later.');
+            $('#maljani-chat-start-btn').prop('disabled', false).text('Start Chat');
         });
     });
 

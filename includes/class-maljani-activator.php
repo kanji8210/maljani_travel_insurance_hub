@@ -41,6 +41,7 @@ class Maljani_Activator {
             region VARCHAR(191),
             premium DECIMAL(10,2),
             days INT,
+            passengers INT UNSIGNED NOT NULL DEFAULT 1,
             departure DATE,
             `return` DATE,
             insured_names VARCHAR(191),
@@ -52,6 +53,7 @@ class Maljani_Activator {
             insured_address VARCHAR(191),
             country_of_origin VARCHAR(191),
             agent_id BIGINT UNSIGNED,
+            agency_id BIGINT UNSIGNED DEFAULT NULL,
             agent_name VARCHAR(191),
             amount_paid DECIMAL(10,2),
             service_fee_amount DECIMAL(10,2) DEFAULT 0.00,
@@ -61,8 +63,8 @@ class Maljani_Activator {
             agency_comm_disputed_note TEXT,
             net_to_insurer DECIMAL(10,2) DEFAULT 0.00,
             payment_reference VARCHAR(191),
-            payment_status ENUM('confirmed','failed','pending') DEFAULT 'pending',
-            policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
+            payment_status ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending',
+            policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed',
             workflow_status ENUM('draft','pending_review','submitted_to_insurer','approved','active') DEFAULT 'draft',
             terms LONGTEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -136,6 +138,10 @@ class Maljani_Activator {
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `payment_status` ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending'");
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `policy_status` ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed'");
 
+        if (!in_array('insured_dob', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insured_dob` DATE DEFAULT NULL AFTER `insured_names`");
+        }
+
         // Migrate agencies table columns
         $agencies_table = $wpdb->prefix . 'maljani_agencies';
         if ($wpdb->get_var("SHOW TABLES LIKE '$agencies_table'") === $agencies_table) {
@@ -163,6 +169,15 @@ class Maljani_Activator {
                 }
             }
         }
+
+        // Migrate Chat Conversations table for policy_id
+        $chat_conv_table = $wpdb->prefix . 'maljani_chat_conversations';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$chat_conv_table'") === $chat_conv_table) {
+            $chat_cols = $wpdb->get_col("DESCRIBE `$chat_conv_table`", 0);
+            if (!in_array('policy_id', $chat_cols)) {
+                $wpdb->query("ALTER TABLE `$chat_conv_table` ADD COLUMN `policy_id` BIGINT UNSIGNED DEFAULT NULL AFTER `user_id`, ADD INDEX (`policy_id`)");
+            }
+        }
     }
 
 }
@@ -187,6 +202,22 @@ add_action('admin_notices', function() {
 });
 
 // Action pour créer la table manuellement si besoin
+// Run migrations on plugins_loaded so they execute regardless of who makes the request
+// (admin page visit, REST API call from insured user, etc.).
+// The version comparison prevents expensive ALTER TABLE calls on every load.
+add_action('plugins_loaded', function() {
+    $stored_ver = get_option('maljani_db_version', '0');
+    if (version_compare($stored_ver, MALJANI_VERSION, '<')) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'policy_sale';
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
+            require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
+            Maljani_Activator::run_migrations($wpdb, $table_name);
+            update_option('maljani_db_version', MALJANI_VERSION);
+        }
+    }
+}, 20);
+
 add_action('admin_init', function() {
     if (isset($_GET['maljani_create_table']) && current_user_can('manage_options')) {
         check_admin_referer('maljani_create_table_action');
@@ -194,20 +225,5 @@ add_action('admin_init', function() {
         Maljani_Activator::activate();
         wp_redirect(remove_query_arg('maljani_create_table') . '&maljani_table_created=1');
         exit;
-    }
-
-    // Run migrations only when the stored DB version is older than the current plugin version.
-    // This avoids firing expensive ALTER TABLE chains on every admin page load.
-    if (current_user_can('manage_options')) {
-        $stored_ver = get_option('maljani_db_version', '0');
-        if (version_compare($stored_ver, MALJANI_VERSION, '<')) {
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'policy_sale';
-            if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name) {
-                require_once plugin_dir_path(__FILE__) . 'class-maljani-activator.php';
-                Maljani_Activator::run_migrations($wpdb, $table_name);
-                update_option('maljani_db_version', MALJANI_VERSION);
-            }
-        }
     }
 });

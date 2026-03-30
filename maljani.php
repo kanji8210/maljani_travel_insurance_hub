@@ -18,11 +18,25 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Définition de la version du plugin
-define( 'MALJANI_VERSION', '1.0.5' );
+define( 'MALJANI_VERSION', '1.0.7' );
 
 // ==========================
 // INCLUSIONS PRINCIPALES
 // ==========================
+
+// Run DB migrations on every request so schema stays current regardless of
+// whether the request comes from an admin page or a REST/GraphQL call by an insured user.
+add_action( 'plugins_loaded', function() {
+    $stored_ver = get_option( 'maljani_db_version', '0' );
+    if ( version_compare( $stored_ver, MALJANI_VERSION, '<' ) ) {
+        require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-activator.php';
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'policy_sale';
+        // Create table if missing, then migrate any absent columns.
+        Maljani_Activator::activate();
+        update_option( 'maljani_db_version', MALJANI_VERSION );
+    }
+}, 5 );
 
 // Logger and Cache (load first)
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-logger.php';
