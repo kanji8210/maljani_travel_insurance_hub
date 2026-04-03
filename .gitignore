@@ -1,6 +1,9 @@
 # ── React / Vite frontend (not part of the deployed WP plugin) ──────────────
-tick/
 frontend/
+
+# ── tick/ React app dependencies (install locally via npm install) ───────────
+tick/node_modules/
+tick/node_modules - Copie/
 
 # ── OS / Editor ─────────────────────────────────────────────────────────────
 .DS_Store
