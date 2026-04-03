@@ -9,9 +9,7 @@ const LOGIN_MUTATION = `
       authToken
       userName
       userPhone
-      userPhone
       userRole
-      userEmail
       user {
         email
       }
@@ -31,8 +29,10 @@ const REGISTER_MUTATION = `
     }) {
       authToken
       userName
-      userEmail
       userRole
+      user {
+        email
+      }
     }
   }
 `;
@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }) => {
       
       const authData = {
         name:  result.data.maljaniLogin.userName,
-        email: result.data.maljaniLogin.userEmail || result.data.maljaniLogin.user?.email || '',
+email: result.data.maljaniLogin.user?.email || result.data.maljaniLogin.userEmail || '',
         phone: result.data.maljaniLogin.userPhone || '',
         role:  result.data.maljaniLogin.userRole?.toLowerCase() || 'insured',
         token: result.data.maljaniLogin.authToken
@@ -92,9 +92,15 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return { success: true, role: authData.role };
     } catch (err) {
-      setError(err.message);
+      const raw = String(err.message || '').trim();
+      const authProblem = /invalid username|incorrect password|incorrect|authentication failed|user not found|unknown email address|email address.*unknown|user does not exist/i.test(raw);
+      const normalized = authProblem
+        ? 'Wrong username or password. Please try again or reset your password.'
+        : raw || 'An error occurred during login. Please try again.';
+
+      setError(normalized);
       setLoading(false);
-      return { success: false, error: err.message };
+      return { success: false, error: normalized };
     }
   };
 
@@ -112,7 +118,7 @@ export const AuthProvider = ({ children }) => {
       if (authToken && userName) {
         const authData = {
           name:  userName,
-          email: result.data?.maljaniRegister?.userEmail || userData.email,
+          email: result.data?.maljaniRegister?.user?.email || result.data?.maljaniRegister?.userEmail || userData.email,
           phone: userData.phone || '',
           role:  userRole?.toLowerCase() || 'insured',
           token: authToken,

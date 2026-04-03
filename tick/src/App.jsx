@@ -16,30 +16,64 @@ import AboutPage from './components/AboutPage'
 import AgenciesPage from './components/AgenciesPage'
 
 function AppContent() {
-  const [history, setHistory] = React.useState([{ view: 'landing', policyId: null, searchData: null, forceStep: null }]);
-  const [historyIdx, setHistoryIdx] = React.useState(0);
+  const STORAGE_KEY = 'maljani_app_navigation';
+
+  const loadStoredNavigation = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { history: [{ view: 'landing', policyId: null, searchData: null, forceStep: null }], idx: 0 };
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.history) || typeof parsed.idx !== 'number') {
+        return { history: [{ view: 'landing', policyId: null, searchData: null, forceStep: null }], idx: 0 };
+      }
+      const idx = Math.min(Math.max(parsed.idx, 0), parsed.history.length - 1);
+      return { history: parsed.history, idx };
+    } catch {
+      return { history: [{ view: 'landing', policyId: null, searchData: null, forceStep: null }], idx: 0 };
+    }
+  };
+
+  const stored = loadStoredNavigation();
+  const [history, setHistory] = React.useState(stored.history);
+  const [historyIdx, setHistoryIdx] = React.useState(stored.idx);
 
   const activeView    = history[historyIdx].view;
   const selectedPolicyId = history[historyIdx].policyId;
   const canGoBack     = historyIdx > 0;
   const canGoForward  = historyIdx < history.length - 1;
 
+  const persistNavigation = (historyArray, idx) => {
+    try {
+      localStorage.setItem('maljani_app_navigation', JSON.stringify({ history: historyArray, idx }));
+    } catch {
+      // ignore localStorage failures
+    }
+  };
+
   const handleNavigate = (view, policyId = null, searchData = null, forceStep = null) => {
     const entry = { view, policyId, searchData, forceStep };
-    setHistory(prev => [...prev.slice(0, historyIdx + 1), entry]);
-    setHistoryIdx(prev => prev + 1);
+    const nextHistory = [...history.slice(0, historyIdx + 1), entry];
+    const nextIdx = historyIdx + 1;
+
+    setHistory(nextHistory);
+    setHistoryIdx(nextIdx);
+    persistNavigation(nextHistory, nextIdx);
     window.scrollTo(0, 0);
   };
 
   const handleBack = () => {
     if (!canGoBack) return;
-    setHistoryIdx(prev => prev - 1);
+    const nextIdx = historyIdx - 1;
+    setHistoryIdx(nextIdx);
+    persistNavigation(history, nextIdx);
     window.scrollTo(0, 0);
   };
 
   const handleForward = () => {
     if (!canGoForward) return;
-    setHistoryIdx(prev => prev + 1);
+    const nextIdx = historyIdx + 1;
+    setHistoryIdx(nextIdx);
+    persistNavigation(history, nextIdx);
     window.scrollTo(0, 0);
   };
 

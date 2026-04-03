@@ -17,6 +17,26 @@ const Login = ({ onNavigate }) => {
 
     const result = await login(email, password);
     if (result.success) {
+      let preferredView = null;
+      try {
+        const saved = localStorage.getItem('maljani_app_navigation');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const idx = typeof parsed.idx === 'number' ? parsed.idx : -1;
+          const hist = Array.isArray(parsed.history) ? parsed.history : [];
+          if (hist[idx] && hist[idx].view && !['login', 'register'].includes(hist[idx].view)) {
+            preferredView = hist[idx].view;
+          }
+        }
+      } catch {
+        preferredView = null;
+      }
+
+      if (preferredView) {
+        onNavigate(preferredView);
+        return;
+      }
+
       if (result.role === 'insured' || result.role === 'client') {
         onNavigate('dashboard');
       } else {
@@ -62,6 +82,8 @@ const Login = ({ onNavigate }) => {
             </label>
             <input 
               type="email" 
+              name="email"
+              autoComplete="email"
               className="input-field" 
               placeholder="name@example.com"
               value={email}
@@ -75,6 +97,8 @@ const Login = ({ onNavigate }) => {
             </label>
             <input 
               type="password" 
+              name="current-password"
+              autoComplete="current-password"
               className="input-field" 
               placeholder="••••••••"
               value={password}
@@ -90,6 +114,29 @@ const Login = ({ onNavigate }) => {
           >
             {loading ? 'AUTHENTICATING...' : 'SECURE LOGIN'}
           </button>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+            <span style={{ color: 'var(--text-muted)' }}>Need help?</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (window && window.location) {
+                  window.location.href = '/wp-login.php?action=lostpassword';
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--gold)',
+                cursor: 'pointer',
+                fontWeight: 700,
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Forgot Password?
+            </button>
+          </div>
 
           <div style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Don't have an account?{' '}
