@@ -10,9 +10,7 @@ const LOGIN_MUTATION = `
       userName
       userPhone
       userRole
-      user {
-        email
-      }
+      userEmail
     }
   }
 `;
@@ -30,9 +28,7 @@ const REGISTER_MUTATION = `
       authToken
       userName
       userRole
-      user {
-        email
-      }
+      userEmail
     }
   }
 `;

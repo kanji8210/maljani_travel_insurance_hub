@@ -23,6 +23,9 @@ class Maljani_GraphQL_Auth {
         add_action('graphql_register_types', [$this, 'register_registration_mutation']);
         add_action('graphql_register_types', [$this, 'register_sales_mutation']);
 
+        // Register Queries
+        add_action('graphql_register_types', [$this, 'register_my_policy_sales_query']);
+
         // Authenticate requests
         add_filter('determine_current_user', [$this, 'authenticate_request'], 20);
 
@@ -499,6 +502,85 @@ class Maljani_GraphQL_Auth {
                     'amountPaid' => (float) $amount_tot_client,
                 ];
             }
+        ]);
+    }
+
+    /**
+     * Register GraphQL query: myPolicySales
+     * Returns all policy sales belonging to the current authenticated user.
+     */
+    public function register_my_policy_sales_query() {
+        if (!function_exists('register_graphql_object_type') || !function_exists('register_graphql_field')) return;
+
+        // Define the PolicySale type
+        register_graphql_object_type('MaljaniPolicySale', [
+            'description' => 'A policy sale record',
+            'fields' => [
+                'id'            => ['type' => 'Int',    'description' => 'Sale row ID'],
+                'policyId'      => ['type' => 'Int',    'description' => 'WordPress post ID of the policy'],
+                'policyTitle'   => ['type' => 'String', 'description' => 'Title of the policy plan'],
+                'policyNumber'  => ['type' => 'String', 'description' => 'Generated policy number'],
+                'region'        => ['type' => 'String', 'description' => 'Travel destination region'],
+                'premium'       => ['type' => 'Float',  'description' => 'Daily premium rate'],
+                'days'          => ['type' => 'Int',    'description' => 'Trip duration in days'],
+                'departure'     => ['type' => 'String', 'description' => 'Travel start date'],
+                'returnDate'    => ['type' => 'String', 'description' => 'Travel end date'],
+                'passengers'    => ['type' => 'Int',    'description' => 'Number of insured persons'],
+                'insuredNames'  => ['type' => 'String', 'description' => 'Full name of insured'],
+                'insuredEmail'  => ['type' => 'String', 'description' => 'Contact email'],
+                'insuredPhone'  => ['type' => 'String', 'description' => 'Contact phone number'],
+                'passportNumber'=> ['type' => 'String', 'description' => 'Passport number'],
+                'amountPaid'    => ['type' => 'Float',  'description' => 'Total amount paid'],
+                'paymentStatus' => ['type' => 'String', 'description' => 'Payment status'],
+                'policyStatus'  => ['type' => 'String', 'description' => 'Policy status'],
+                'createdAt'     => ['type' => 'String', 'description' => 'Sale creation timestamp'],
+            ],
+        ]);
+
+        // Register the root query field
+        register_graphql_field('RootQuery', 'myPolicySales', [
+            'type'        => ['list_of' => 'MaljaniPolicySale'],
+            'description' => 'Get all policy sales for the currently authenticated user',
+            'resolve'     => function () {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError('You must be logged in to view your policies.');
+                }
+
+                global $wpdb;
+                $table = $wpdb->prefix . 'policy_sale';
+                $results = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE agent_id = %d ORDER BY created_at DESC",
+                    $user_id
+                ));
+
+                if (!$results) return [];
+
+                $sales = [];
+                foreach ($results as $row) {
+                    $sales[] = [
+                        'id'            => (int) $row->id,
+                        'policyId'      => (int) $row->policy_id,
+                        'policyTitle'   => get_the_title($row->policy_id),
+                        'policyNumber'  => $row->policy_number,
+                        'region'        => $row->region,
+                        'premium'       => (float) $row->premium,
+                        'days'          => (int) $row->days,
+                        'departure'     => $row->departure,
+                        'returnDate'    => $row->return,
+                        'passengers'    => (int) ($row->passengers ?? 1),
+                        'insuredNames'  => $row->insured_names,
+                        'insuredEmail'  => $row->insured_email,
+                        'insuredPhone'  => $row->insured_phone,
+                        'passportNumber'=> $row->passport_number,
+                        'amountPaid'    => (float) $row->amount_paid,
+                        'paymentStatus' => $row->payment_status,
+                        'policyStatus'  => $row->policy_status,
+                        'createdAt'     => $row->created_at,
+                    ];
+                }
+                return $sales;
+            },
         ]);
     }
 

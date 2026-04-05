@@ -1,9 +1,31 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, gql } from 'urql';
 import { useAuth } from '../lib/AuthContext';
 
-const WP_REST_BASE = import.meta.env.VITE_GRAPHQL_URL
-  ? import.meta.env.VITE_GRAPHQL_URL.replace(/\/graphql$/, '') + '/wp-json'
-  : '/wp-json';
+const MY_POLICY_SALES = gql`
+  query MyPolicySales {
+    myPolicySales {
+      id
+      policyId
+      policyTitle
+      policyNumber
+      region
+      premium
+      days
+      departure
+      returnDate
+      passengers
+      insuredNames
+      insuredEmail
+      insuredPhone
+      passportNumber
+      amountPaid
+      paymentStatus
+      policyStatus
+      createdAt
+    }
+  }
+`;
 
 const POLICY_STATUS = {
   active:      { label: 'Active',     color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
@@ -28,12 +50,14 @@ import Messaging from './Messaging';
 
 const InsuredDashboard = ({ user, onNavigate }) => {
   const { user: authUser } = useAuth();
-  const [policies, setPolicies]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [fetchErr, setFetchErr]   = useState(null);
-  const [activeTab, setActiveTab] = useState('policies'); // 'policies' or 'support'
+  const [activeTab, setActiveTab] = useState('policies');
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
   const [lastSearch, setLastSearch] = useState(null);
+
+  const [result] = useQuery({ query: MY_POLICY_SALES, pause: !authUser?.token });
+  const loading  = result.fetching;
+  const fetchErr = result.error ? 'Could not load your policies. Please refresh the page.' : null;
+  const policies = result.data?.myPolicySales || [];
 
   useEffect(() => {
     try {
@@ -44,17 +68,6 @@ const InsuredDashboard = ({ user, onNavigate }) => {
       }
     } catch(e) {}
   }, []);
-
-  useEffect(() => {
-    if (!authUser?.token) { setLoading(false); return; }
-    fetch(`${WP_REST_BASE}/maljani/v1/my-policies`, {
-      headers: { Authorization: `Bearer ${authUser.token}`, Accept: 'application/json' },
-    })
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(d  => setPolicies(d.policies || []))
-      .catch(() => setFetchErr('Could not load your policies. Please refresh the page.'))
-      .finally(() => setLoading(false));
-  }, [authUser?.token]);
 
   const activePolicies  = policies.filter(p => ['active', 'confirmed', 'approved'].includes(p.policyStatus));
   const pendingPolicies = policies.filter(p => p.paymentStatus === 'pending');
@@ -205,7 +218,7 @@ const InsuredDashboard = ({ user, onNavigate }) => {
                         
                         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: 'var(--slate)' }}>
                           <span>📍 {p.region || 'Worldwide'}</span>
-                          <span>📅 {fmtDate(p.departure)} – {fmtDate(p.return)}</span>
+                          <span>📅 {fmtDate(p.departure)} – {fmtDate(p.returnDate)}</span>
                           <span>👤 {p.passengers} traveller{p.passengers !== 1 ? 's' : ''}</span>
                         </div>
 

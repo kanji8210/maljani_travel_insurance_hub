@@ -232,6 +232,15 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
     });
   };
 
+  const isLoggedIn = !!user;
+  const isClientAccount = role === 'client' && isLoggedIn;
+  const effectiveName = user?.name || form.name;
+  const effectiveEmail = user?.email || form.email;
+  const accountEmail = user?.email || form.email;
+  const accountName = user?.name || form.name;
+  const shouldAskName = isLoggedIn && !effectiveName;
+  const shouldAskEmail = isLoggedIn && !effectiveEmail;
+
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const days = tripDays(form.departure, form.returnDate);
@@ -257,6 +266,16 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
   const totalPremium = form.selectedPolicy
     ? (bracketPremium(form.selectedPolicy.policyDayPremiums, days) ?? null) * form.passengers
     : null;
+
+  const saleData = saleResult.data?.submitPolicySale;
+  const saleId = saleData?.saleId;
+  const selectedPolicyId = form.selectedPolicy?.databaseId;
+  useEffect(() => {
+    if (step !== 4) return;
+    if (!saleId) {
+      setStep(selectedPolicyId ? 3 : 1);
+    }
+  }, [step, saleId, selectedPolicyId]);
 
   const handlePurchase = async () => {
     // 1. If guest, register or login first
@@ -306,8 +325,8 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
         input: {
           policyId:       parseInt(form.selectedPolicy.databaseId),
           passengers:     form.passengers,
-          insuredNames:   form.name,
-          insuredEmail:   form.email,
+          insuredNames:   effectiveName,
+          insuredEmail:   effectiveEmail,
           insuredPhone:   form.phone,
           passportNumber: form.passport,
           insuredDob:     form.dob,
@@ -680,33 +699,58 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
         </div>
 
         {/* Pre-fill notice for logged-in users */}
-        {(role === 'insured' || role === 'client') && user && form.name && (
+        {isLoggedIn && (
           <div style={{
             marginBottom: 20,
-            padding: '12px 16px',
-            background: 'rgba(34,197,94,0.08)',
-            border: '1px solid rgba(34,197,94,0.3)',
-            borderRadius: 8,
+            padding: '16px 18px',
+            background: 'rgba(59,130,246,0.08)',
+            border: '1px solid rgba(59,130,246,0.3)',
+            borderRadius: 10,
             fontSize: 12,
-            color: 'rgba(255,255,255,0.75)',
+            color: 'rgba(255,255,255,0.88)',
             lineHeight: 1.6,
           }}>
-            &#10003; Your details have been pre-filled from your account &mdash; please review and confirm below.
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Account details are locked.</div>
+            <div>
+              Notifications will be sent to <strong>{accountEmail || 'your account email'}</strong>.
+            </div>
+            {accountName ? (
+              <div style={{ marginTop: 8 }}>
+                Policy applicant name on file: <strong>{accountName}</strong>.
+              </div>
+            ) : (
+              <div style={{ marginTop: 8, color: 'rgba(255,255,255,0.75)' }}>
+                Your account is missing a name. Please provide the full legal name below.
+              </div>
+            )}
+            {!accountEmail && (
+              <div style={{ marginTop: 8, color: 'rgba(255,255,255,0.75)' }}>
+                Your account is missing an email address. Please provide one for notifications.
+              </div>
+            )}
+            <div style={{ marginTop: 12, fontSize: 11, color: 'rgba(255,255,255,0.72)' }}>
+              If you need to change the email or name on file, update your profile before purchasing.
+            </div>
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[
-            { key: 'name',     label: 'Full Legal Name',    type: 'text',  placeholder: 'As on passport' },
-            { key: 'email',    label: 'Email Address',      type: 'email', placeholder: 'you@example.com' },
+            ...(shouldAskName ? [{ key: 'name', label: 'Full Legal Name', type: 'text', placeholder: 'As on passport' }] : []),
+            ...(shouldAskEmail ? [{ key: 'email', label: 'Email Address', type: 'email', placeholder: 'you@example.com' }] : []),
             { key: 'phone',    label: 'Phone Number',       type: 'tel',   placeholder: '+254 700 000 000' },
             { key: 'dob',      label: 'Date of Birth',      type: 'date',  placeholder: '' },
             { key: 'passport', label: 'Passport / ID No.',  type: 'text',  placeholder: 'Optional' },
           ].map(({ key, label, type, placeholder }) => (
             <div key={key} style={fieldStyle}>
               <label style={labelStyle}>{label}</label>
-              <input type={type} style={inputStyle} placeholder={placeholder}
-                value={form[key]} onChange={e => set(key, e.target.value)} />
+              <input
+                type={type}
+                style={inputStyle}
+                placeholder={placeholder}
+                value={form[key]}
+                onChange={e => set(key, e.target.value)}
+              />
             </div>
           ))}
 
@@ -760,8 +804,8 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
           <button style={{ padding: '11px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
             onClick={() => setStep(2)}>← Back</button>
           <button
-            style={{ padding: '11px', borderRadius: 8, border: 'none', background: 'var(--gold)', color: '#0a0e27', cursor: (!form.name || !form.email || saleResult.fetching) ? 'not-allowed' : 'pointer', opacity: (!form.name || !form.email) ? 0.6 : 1, fontSize: 13, fontWeight: 800 }}
-            disabled={!form.name || !form.email || saleResult.fetching || regFetching}
+            style={{ padding: '11px', borderRadius: 8, border: 'none', background: 'var(--gold)', color: '#0a0e27', cursor: (!effectiveName || !effectiveEmail || saleResult.fetching) ? 'not-allowed' : 'pointer', opacity: (!effectiveName || !effectiveEmail) ? 0.6 : 1, fontSize: 13, fontWeight: 800 }}
+            disabled={!effectiveName || !effectiveEmail || saleResult.fetching || regFetching}
             onClick={handlePurchase}>
             {saleResult.fetching || regFetching ? (isLoginMode ? 'Signing in...' : 'Processing…') : 
               user ? `Submit Application ${total !== null ? '— ' + fmt(total) : ''}` : 
@@ -803,14 +847,6 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
   }
 
   /* ── Step 4 — Confirmed ── */
-  const saleData = saleResult.data?.submitPolicySale;
-  // Guard: if we somehow reach step 4 without a completed sale, redirect in an effect
-  useEffect(() => {
-    if (step === 4 && !saleData?.saleId) {
-      setStep(form.selectedPolicy ? 3 : 1);
-    }
-  }, [step, saleData?.saleId]); // eslint-disable-line react-hooks/exhaustive-deps
-
   if (step === 4) {
     return (
       <div className="glass-card fade-in">
