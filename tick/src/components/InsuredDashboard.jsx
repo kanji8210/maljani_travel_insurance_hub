@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, gql } from 'urql';
 import { useAuth } from '../lib/AuthContext';
 
@@ -52,22 +52,69 @@ const InsuredDashboard = ({ user, onNavigate }) => {
   const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('policies');
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
-  const [lastSearch, setLastSearch] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null); // tracks which sale ID has a loading action
 
-  const [result] = useQuery({ query: MY_POLICY_SALES, pause: !authUser?.token });
+  const [result, reexecuteQuery] = useQuery({ query: MY_POLICY_SALES, pause: !authUser?.token });
   const loading  = result.fetching;
   const fetchErr = result.error ? 'Could not load your policies. Please refresh the page.' : null;
   const policies = result.data?.myPolicySales || [];
 
-  useEffect(() => {
+  const WP_REST_BASE = import.meta.env.VITE_GRAPHQL_URL
+    ? import.meta.env.VITE_GRAPHQL_URL.replace(/\/graphql$/, '') + '/wp-json'
+    : '/wp-json';
+
+  /** Open invoice in a new tab */
+  const handleViewInvoice = async (saleId) => {
+    setActionLoading(saleId);
     try {
-      const saved = localStorage.getItem('maljani_last_search');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.departure && parsed.destinationRegion) setLastSearch(parsed);
+      const res = await fetch(`${WP_REST_BASE}/maljani/v1/invoice/${saleId}?doc_type=invoice`, {
+        headers: { Authorization: `Bearer ${authUser.token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load invoice');
+      const data = await res.json();
+      const win = window.open('', '_blank');
+      if (win) { win.document.write(data.html); win.document.close(); }
+    } catch (e) {
+      alert('Could not load the invoice. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  /** Redirect to Pesapal payment page */
+  const handleProceedToPayment = async (saleId) => {
+    setActionLoading(saleId);
+    try {
+      const res = await fetch(`${WP_REST_BASE}/maljani/v1/initiate-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authUser.token}`,
+        },
+        body: JSON.stringify({ saleId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Payment initiation failed');
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       }
-    } catch(e) {}
-  }, []);
+    } catch (e) {
+      alert(e.message || 'Could not start payment. Please try again.');
+      setActionLoading(null);
+    }
+  };
+
+  /** Navigate to edit page (re-enter wizard with pre-filled data) */
+  const handleEditPolicy = (p) => {
+    onNavigate('wizard', null, {
+      editSaleId: p.id,
+      policyId: p.policyId,
+      region: p.region,
+      departure: p.departure,
+      returnDate: p.returnDate,
+      passengers: p.passengers,
+    });
+  };
 
   const activePolicies  = policies.filter(p => ['active', 'confirmed', 'approved'].includes(p.policyStatus));
   const pendingPolicies = policies.filter(p => p.paymentStatus === 'pending');
@@ -130,43 +177,6 @@ const InsuredDashboard = ({ user, onNavigate }) => {
                 >+ GET NEW POLICY</button>
               </div>
 
-              {/* Resume Search Banner */}
-              {lastSearch && (
-                <div style={{ 
-                  marginBottom: 24, padding: '20px 24px', 
-                  background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))', 
-                  border: '1px solid rgba(212,175,55,0.3)', 
-                  borderRadius: 'var(--radius-lg)', 
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 18 }}>✈️</span>
-                      <strong style={{ fontSize: 14, color: 'var(--gold)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Resume your search</strong>
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
-                      {lastSearch.destinationRegionName || lastSearch.destinationRegion} &middot; {lastSearch.passengers} Traveller{lastSearch.passengers !== 1 ? 's' : ''}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--slate)' }}>
-                      {fmtDate(lastSearch.departure)} – {fmtDate(lastSearch.returnDate)}
-                    </div>
-                  </div>
-                  <button 
-                    className="btn btn--gold btn--sm" 
-                    style={{ fontWeight: 800, padding: '8px 20px' }}
-                    onClick={() => onNavigate('wizard', null, { 
-                      region: lastSearch.destinationRegion, 
-                      departure: lastSearch.departure, 
-                      returnDate: lastSearch.returnDate, 
-                      passengers: lastSearch.passengers 
-                    })}
-                  >
-                    CONTINUE &rarr;
-                  </button>
-                </div>
-              )}
-
               {/* Loading */}
               {loading && (
                 <div style={{ padding: '52px 0', textAlign: 'center', color: 'var(--slate)' }}>
@@ -223,11 +233,30 @@ const InsuredDashboard = ({ user, onNavigate }) => {
                         </div>
 
                         {isPending && (
-                          <div style={{ marginTop: 18, display: 'flex', gap: 12, alignItems: 'center' }}>
-                            <button className="btn btn--primary btn--sm" style={{ padding: '8px 16px', fontSize: 12 }}>
-                              Proceed to Payment →
+                          <div style={{ marginTop: 18, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn--primary btn--sm"
+                              style={{ padding: '8px 16px', fontSize: 12 }}
+                              disabled={actionLoading === p.id}
+                              onClick={() => handleProceedToPayment(p.id)}
+                            >
+                              {actionLoading === p.id ? 'Processing…' : 'Proceed to Payment →'}
                             </button>
-                            <span style={{ fontSize: 12, color: 'var(--slate)' }}>or <a href="#" style={{ color: 'var(--gold)', textDecoration: 'underline' }}>View Invoice</a></span>
+                            <button
+                              onClick={() => handleViewInvoice(p.id)}
+                              disabled={actionLoading === p.id}
+                              style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font-body)', padding: 0 }}
+                            >
+                              View Invoice
+                            </button>
+                            <button
+                              onClick={() => handleEditPolicy(p)}
+                              style={{ background: 'none', border: '1px solid var(--glass-border)', borderRadius: 6, color: 'var(--slate)', fontSize: 11, cursor: 'pointer', padding: '4px 10px', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}
+                              onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--gold)'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.color = 'var(--slate)'; e.currentTarget.style.borderColor = 'var(--glass-border)'; }}
+                            >
+                              ✏️ Edit
+                            </button>
                           </div>
                         )}
                       </div>

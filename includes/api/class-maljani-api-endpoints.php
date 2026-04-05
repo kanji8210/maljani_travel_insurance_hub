@@ -45,6 +45,42 @@ class Maljani_API_Endpoints {
             },
         ]);
 
+        // ── Invoice / Receipt viewer ──────────────────────────────────────────
+        register_rest_route('maljani/v1', '/invoice/(?P<sale_id>\d+)', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'serve_invoice'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+            'args' => [
+                'sale_id' => [
+                    'required'          => true,
+                    'validate_callback' => function($v) { return is_numeric($v) && $v > 0; },
+                    'sanitize_callback' => 'absint',
+                ],
+                'doc_type' => [
+                    'default'           => 'invoice',
+                    'sanitize_callback' => 'sanitize_key',
+                ],
+            ],
+        ]);
+
+        // ── Initiate Pesapal payment ──────────────────────────────────────────
+        register_rest_route('maljani/v1', '/initiate-payment', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'initiate_payment'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+            'args' => [
+                'saleId' => [
+                    'required'          => true,
+                    'validate_callback' => function($v) { return is_numeric($v) && $v > 0; },
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
         // Flush once if the route was just added
         if (get_option('maljani_rest_flushed_v2') !== '1') {
             flush_rewrite_rules();
@@ -156,6 +192,88 @@ class Maljani_API_Endpoints {
         }
 
         return new WP_REST_Response(['status' => 'success', 'pesapal_status' => $status_data->payment_status_description], 200);
+    }
+
+    /**
+     * Serve invoice or receipt HTML for a sale.
+     * GET /wp-json/maljani/v1/invoice/{sale_id}?doc_type=invoice|receipt
+     */
+    public function serve_invoice(WP_REST_Request $request) {
+        $sale_id  = (int) $request->get_param('sale_id');
+        $doc_type = $request->get_param('doc_type') ?: 'invoice';
+        $user_id  = get_current_user_id();
+
+        if (!class_exists('Maljani_Invoice')) {
+            require_once plugin_dir_path(dirname(__FILE__)) . 'class-maljani-invoice.php';
+        }
+
+        $sale = Maljani_Invoice::get_sale($sale_id);
+        if (!$sale) {
+            return new WP_REST_Response(['error' => 'Sale not found'], 404);
+        }
+
+        // Ownership check: user must own the sale or be admin
+        if ((int) $sale->agent_id !== $user_id && !current_user_can('manage_options')) {
+            return new WP_REST_Response(['error' => 'Unauthorized'], 403);
+        }
+
+        $html = ($doc_type === 'receipt')
+            ? Maljani_Invoice::build_receipt_html($sale)
+            : Maljani_Invoice::build_invoice_html($sale);
+
+        return new WP_REST_Response(['html' => $html], 200);
+    }
+
+    /**
+     * Initiate Pesapal payment for a pending sale.
+     * POST /wp-json/maljani/v1/initiate-payment  { saleId: 123 }
+     */
+    public function initiate_payment(WP_REST_Request $request) {
+        $sale_id = (int) $request->get_param('saleId');
+        $user_id = get_current_user_id();
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        $sale  = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$table} WHERE id = %d LIMIT 1", $sale_id
+        ));
+
+        if (!$sale) {
+            return new WP_REST_Response(['error' => 'Sale not found'], 404);
+        }
+
+        // Ownership check
+        if ((int) $sale->agent_id !== $user_id && !current_user_can('manage_options')) {
+            return new WP_REST_Response(['error' => 'Unauthorized'], 403);
+        }
+
+        // Only pending sales can initiate payment
+        if ($sale->payment_status === 'confirmed') {
+            return new WP_REST_Response(['error' => 'Payment already confirmed'], 400);
+        }
+
+        require_once plugin_dir_path(__FILE__) . 'class-maljani-pesapal-gateway.php';
+        $pesapal = new Maljani_Pesapal_Gateway();
+
+        $name_parts = explode(' ', $sale->insured_names, 2);
+        $payment_url = $pesapal->create_order(
+            $sale_id,
+            (float) $sale->amount_paid,
+            'Travel Insurance - ' . $sale->policy_number,
+            [
+                'email_address' => $sale->insured_email,
+                'phone_number'  => $sale->insured_phone ?: '',
+                'first_name'    => $name_parts[0] ?? '',
+                'last_name'     => $name_parts[1] ?? '',
+                'country_code'  => 'KE',
+            ]
+        );
+
+        if (is_wp_error($payment_url)) {
+            return new WP_REST_Response(['error' => $payment_url->get_error_message()], 500);
+        }
+
+        return new WP_REST_Response(['paymentUrl' => $payment_url], 200);
     }
 
     private function activate_policy($sale_id, $tracking_id) {

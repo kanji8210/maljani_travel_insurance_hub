@@ -22,6 +22,7 @@ class Maljani_GraphQL_Auth {
         add_action('graphql_register_types', [$this, 'register_login_mutation']);
         add_action('graphql_register_types', [$this, 'register_registration_mutation']);
         add_action('graphql_register_types', [$this, 'register_sales_mutation']);
+        add_action('graphql_register_types', [$this, 'register_update_sale_mutation']);
 
         // Register Queries
         add_action('graphql_register_types', [$this, 'register_my_policy_sales_query']);
@@ -581,6 +582,151 @@ class Maljani_GraphQL_Auth {
                 }
                 return $sales;
             },
+        ]);
+    }
+
+    /**
+     * Register GraphQL mutation: updatePolicySale
+     * Allows editing an unpaid policy sale (departure, return, passengers, personal info).
+     */
+    public function register_update_sale_mutation() {
+        if (!function_exists('register_graphql_mutation')) return;
+
+        register_graphql_mutation('updatePolicySale', [
+            'inputFields' => [
+                'saleId'          => ['type' => 'Int',    'description' => 'ID of the sale to update'],
+                'departure'       => ['type' => 'String', 'description' => 'New departure date'],
+                'return'          => ['type' => 'String', 'description' => 'New return date'],
+                'passengers'      => ['type' => 'Int',    'description' => 'Number of passengers'],
+                'insuredNames'    => ['type' => 'String'],
+                'insuredDob'      => ['type' => 'String'],
+                'passportNumber'  => ['type' => 'String'],
+                'nationalId'      => ['type' => 'String'],
+                'insuredPhone'    => ['type' => 'String'],
+                'insuredEmail'    => ['type' => 'String'],
+                'insuredAddress'  => ['type' => 'String'],
+                'countryOfOrigin' => ['type' => 'String'],
+            ],
+            'outputFields' => [
+                'saleId'      => ['type' => 'Int'],
+                'amountPaid'  => ['type' => 'Float'],
+                'success'     => ['type' => 'Boolean'],
+            ],
+            'mutateAndGetPayload' => function ($input) {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError('You must be logged in.');
+                }
+
+                $sale_id = intval($input['saleId'] ?? 0);
+                if (!$sale_id) {
+                    throw new \GraphQL\Error\UserError('Missing sale ID.');
+                }
+
+                global $wpdb;
+                $table = $wpdb->prefix . 'policy_sale';
+                $sale  = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$table} WHERE id = %d LIMIT 1", $sale_id
+                ));
+
+                if (!$sale) {
+                    throw new \GraphQL\Error\UserError('Sale not found.');
+                }
+                if ((int) $sale->agent_id !== $user_id) {
+                    throw new \GraphQL\Error\UserError('You can only edit your own policies.');
+                }
+                if ($sale->payment_status === 'confirmed') {
+                    throw new \GraphQL\Error\UserError('Cannot edit a paid policy.');
+                }
+
+                // Build update data from provided fields
+                $update = [];
+                $field_map = [
+                    'insuredNames'    => 'insured_names',
+                    'insuredDob'      => 'insured_dob',
+                    'passportNumber'  => 'passport_number',
+                    'nationalId'      => 'national_id',
+                    'insuredPhone'    => 'insured_phone',
+                    'insuredEmail'    => 'insured_email',
+                    'insuredAddress'  => 'insured_address',
+                    'countryOfOrigin' => 'country_of_origin',
+                ];
+
+                foreach ($field_map as $gql_key => $db_col) {
+                    if (isset($input[$gql_key]) && $input[$gql_key] !== '') {
+                        $update[$db_col] = sanitize_text_field($input[$gql_key]);
+                    }
+                }
+                if (isset($input['insuredEmail']) && $input['insuredEmail'] !== '') {
+                    $update['insured_email'] = sanitize_email($input['insuredEmail']);
+                }
+
+                // Handle date and passenger changes — recalculate premium
+                $departure  = isset($input['departure']) ? sanitize_text_field($input['departure']) : $sale->departure;
+                $return_d   = isset($input['return'])     ? sanitize_text_field($input['return'])    : $sale->return;
+                $passengers = isset($input['passengers']) ? intval($input['passengers'])              : (int) $sale->passengers;
+
+                $dep_ts = strtotime($departure);
+                $ret_ts = strtotime($return_d);
+                if (!$dep_ts || !$ret_ts || $ret_ts < $dep_ts) {
+                    throw new \GraphQL\Error\UserError('Invalid date range.');
+                }
+
+                $days = (int)(($ret_ts - $dep_ts) / 86400) + 1;
+                $passengers = max(1, $passengers);
+
+                // Recalculate premium from policy brackets
+                $policy_id = (int) $sale->policy_id;
+                $brackets  = get_post_meta($policy_id, '_policy_day_premiums', true);
+                $premium   = 0;
+                if (is_array($brackets)) {
+                    foreach ($brackets as $b) {
+                        if ($days >= intval($b['min_days']) && $days <= intval($b['max_days'])) {
+                            $premium = floatval($b['premium_per_day']);
+                            break;
+                        }
+                    }
+                }
+                if ($premium <= 0) {
+                    throw new \GraphQL\Error\UserError('No premium bracket found for ' . $days . ' days.');
+                }
+
+                $total_premium = $premium * $passengers;
+
+                // Service fee
+                $fee_type  = get_option('maljani_fee_service_type', 'fixed');
+                $fee_value = floatval(get_option('maljani_fee_service_value', 0));
+                $service_fee = ($fee_type === 'percentage')
+                    ? round($total_premium * $fee_value / 100, 2)
+                    : $fee_value;
+
+                $amount_paid = $total_premium + $service_fee;
+
+                // Commissions
+                $comm_type  = get_post_meta($policy_id, '_policy_aggregator_comm_type', true) ?: 'percentage';
+                $comm_value = floatval(get_post_meta($policy_id, '_policy_aggregator_comm_value', true));
+                $maljani_comm = ($comm_type === 'percentage')
+                    ? round($total_premium * $comm_value / 100, 2)
+                    : $comm_value;
+
+                $update['departure']                 = $departure;
+                $update['return']                    = $return_d;
+                $update['days']                      = $days;
+                $update['passengers']                = $passengers;
+                $update['premium']                   = $premium;
+                $update['amount_paid']               = $amount_paid;
+                $update['service_fee_amount']         = $service_fee;
+                $update['maljani_commission_amount']  = $maljani_comm;
+                $update['net_to_insurer']            = $total_premium - $maljani_comm;
+
+                $wpdb->update($table, $update, ['id' => $sale_id]);
+
+                return [
+                    'saleId'     => $sale_id,
+                    'amountPaid' => (float) $amount_paid,
+                    'success'    => true,
+                ];
+            }
         ]);
     }
 
