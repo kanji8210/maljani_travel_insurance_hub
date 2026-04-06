@@ -1,0 +1,13 @@
+# Dev & editor files
+.env
+.env.local
+.env.example
+.vscode/
+.idea/
+
+# Test & config
+*.test.js
+*.test.jsx
+*.spec.js
+*.spec.jsx
+eslint.config*
