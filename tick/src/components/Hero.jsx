@@ -1,6 +1,7 @@
 ﻿import React, { useState } from "react";
 import { useQuery } from "urql";
 import { useAuth } from "../lib/AuthContext";
+import { useResponsive } from "../lib/useResponsive";
 
 const GET_REGIONS = `
   query GetRegions {
@@ -12,6 +13,7 @@ const GET_REGIONS = `
 
 const Hero = ({ onStart, onNavigate }) => {
   const { user, role } = useAuth();
+  const { mobile, tablet } = useResponsive();
   const isAgent = role === "agent" || role === "administrator";
   const [step, setStep] = useState(1);
   const [activeTab, setActiveTab] = useState(0);
@@ -64,16 +66,16 @@ const Hero = ({ onStart, onNavigate }) => {
   );
 
   return (
-    <section id="hero-top" style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", alignItems: "center", padding: "128px 0 80px" }}>
+    <section id="hero-top" style={{ position: "relative", zIndex: 1, minHeight: mobile ? "auto" : "100vh", display: "flex", alignItems: "center", padding: mobile ? "100px 0 60px" : "128px 0 80px" }}>
       <div style={{
         position: "absolute", right: "-8%", top: "50%", transform: "translateY(-50%)",
-        width: 560, height: 560, border: "1px dashed rgba(49,99,49,0.18)", borderRadius: "50%",
+        width: mobile ? 300 : 560, height: mobile ? 300 : 560, border: "1px dashed rgba(49,99,49,0.18)", borderRadius: "50%",
         pointerEvents: "none", animation: "spin-slow 80s linear infinite",
       }} aria-hidden="true" />
       <style>{`@keyframes spin-slow { to { transform: translateY(-50%) rotate(360deg); } } @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
 
       <div className="container">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 460px", gap: 72, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : tablet ? "1fr 380px" : "1fr 460px", gap: mobile ? 40 : tablet ? 48 : 72, alignItems: "center" }}>
 
           {/* ── Left column ── */}
           {isAgent ? (

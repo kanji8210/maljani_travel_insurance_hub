@@ -74,6 +74,10 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-graphql-auth.
 // API & Payment Integration
 require_once plugin_dir_path(__FILE__) . 'includes/api/class-maljani-api-endpoints.php';
 
+// In-app user notifications (status changes, reminders, cover-expiry)
+require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-user-notifications.php';
+Maljani_User_Notifications::init();
+
 // Initialize
 // Maljani_Registration::init(); // Handled in the class file itself
 

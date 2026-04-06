@@ -22,23 +22,38 @@ class Maljani_Policy_Sales_Admin {
         if (isset($_GET['action'], $_GET['sale_id']) && $_GET['action'] === 'archive_policy' && current_user_can('manage_options')) {
             check_admin_referer('maljani_archive_' . intval($_GET['sale_id']));
             global $wpdb;
-            $wpdb->update($wpdb->prefix . 'policy_sale', ['policy_status' => 'archived'], ['id' => intval($_GET['sale_id'])]);
+            $sale_id = intval($_GET['sale_id']);
+            $old_row = $wpdb->get_row($wpdb->prepare("SELECT policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d", $sale_id));
+            $wpdb->update($wpdb->prefix . 'policy_sale', ['policy_status' => 'archived'], ['id' => $sale_id]);
+            if ($old_row) {
+                do_action('maljani_admin_status_change', $sale_id, $old_row->policy_status, 'archived');
+            }
             wp_redirect(remove_query_arg(['action', 'sale_id', '_wpnonce'])); exit;
         }
         // Quick status update
         if (isset($_POST['maljani_quick_status'], $_POST['sale_id']) && current_user_can('manage_options')) {
             check_admin_referer('maljani_quick_status_' . intval($_POST['sale_id']));
             global $wpdb;
+            $sale_id = intval($_POST['sale_id']);
+            $old_row = $wpdb->get_row($wpdb->prepare("SELECT policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d", $sale_id));
             $up = [];
             if (isset($_POST['policy_status']))           $up['policy_status']          = sanitize_text_field($_POST['policy_status']);
             if (isset($_POST['payment_status']))          $up['payment_status']         = sanitize_text_field($_POST['payment_status']);
             if (isset($_POST['agent_commission_status'])) $up['agent_commission_status']= sanitize_text_field($_POST['agent_commission_status']);
-            if ($up) $wpdb->update($wpdb->prefix . 'policy_sale', $up, ['id' => intval($_POST['sale_id'])]);
+            if ($up) {
+                $wpdb->update($wpdb->prefix . 'policy_sale', $up, ['id' => $sale_id]);
+                if (isset($up['policy_status']) && $old_row) {
+                    do_action('maljani_admin_status_change', $sale_id, $old_row->policy_status, $up['policy_status']);
+                }
+            }
             wp_redirect(remove_query_arg(['_wpnonce'])); exit;
         }
         // Full edit
         if (isset($_POST['update_policy_sale'], $_POST['sale_id']) && check_admin_referer('update_policy_sale_' . intval($_POST['sale_id']))) {
             global $wpdb;
+            $sale_id = intval($_POST['sale_id']);
+            $old_row = $wpdb->get_row($wpdb->prepare("SELECT policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d", $sale_id));
+            $new_status = sanitize_text_field($_POST['policy_status'] ?? 'unconfirmed');
             $wpdb->update($wpdb->prefix . 'policy_sale', [
                 'policy_id'       => intval($_POST['policy_id']),
                 'policy_number'   => sanitize_text_field($_POST['policy_number']),
@@ -50,9 +65,12 @@ class Maljani_Policy_Sales_Admin {
                 'return'          => sanitize_text_field($_POST['return']),
                 'premium'         => floatval($_POST['premium']),
                 'agent_id'        => intval($_POST['agent_id']),
-                'policy_status'   => sanitize_text_field($_POST['policy_status'] ?? 'unconfirmed'),
+                'policy_status'   => $new_status,
                 'payment_status'  => sanitize_text_field($_POST['payment_status'] ?? 'pending'),
-            ], ['id' => intval($_POST['sale_id'])]);
+            ], ['id' => $sale_id]);
+            if ($old_row && $old_row->policy_status !== $new_status) {
+                do_action('maljani_admin_status_change', $sale_id, $old_row->policy_status, $new_status);
+            }
             echo '<div class="notice notice-success is-dismissible"><p>Sale updated.</p></div>';
         }
         // CSV export

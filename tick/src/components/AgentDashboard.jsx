@@ -1,6 +1,8 @@
 import React from 'react';
+import { useResponsive } from '../lib/useResponsive';
 
 const AgentDashboard = ({ user, onNavigate }) => {
+  const { mobile, tablet } = useResponsive();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* KPI Stats Row */}
@@ -28,15 +30,16 @@ const AgentDashboard = ({ user, onNavigate }) => {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '2fr 1fr', gap: '2rem' }}>
         {/* Left: Recent Sales / Policy Hub */}
-        <section className="glass-card" style={{ padding: '2rem' }}>
+        <section className="glass-card" style={{ padding: mobile ? '1.25rem' : '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h3 className="serif" style={{ fontSize: '1.5rem' }}>Recent Policy Hub</h3>
             <button className="btn-luxury" style={{ padding: '0.6rem 1.2rem', fontSize: '0.7rem' }}>NEW SALE</button>
           </div>
           
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 500 }}>
             <thead>
               <tr style={{ color: 'var(--gold)', fontSize: '0.8rem', borderBottom: '1px solid var(--glass-border)' }}>
                 <th style={{ padding: '1rem 0' }}>CLIENT</th>
@@ -70,6 +73,7 @@ const AgentDashboard = ({ user, onNavigate }) => {
               </tr>
             </tbody>
           </table>
+          </div>
         </section>
 
         {/* Right: Agency Alerts / Notices */}

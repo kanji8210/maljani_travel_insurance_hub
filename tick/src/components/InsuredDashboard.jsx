@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, gql } from 'urql';
 import { useAuth } from '../lib/AuthContext';
+import { useResponsive } from '../lib/useResponsive';
+import ProfileEditModal from './ProfileEditModal';
+import NotificationPanel from './NotificationPanel';
 
 const MY_POLICY_SALES = gql`
   query MyPolicySales {
@@ -50,9 +53,11 @@ import Messaging from './Messaging';
 
 const InsuredDashboard = ({ user, onNavigate }) => {
   const { user: authUser } = useAuth();
+  const { mobile, tablet } = useResponsive();
   const [activeTab, setActiveTab] = useState('policies');
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
   const [actionLoading, setActionLoading] = useState(null); // tracks which sale ID has a loading action
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   const [result, reexecuteQuery] = useQuery({ query: MY_POLICY_SALES, pause: !authUser?.token });
   const loading  = result.fetching;
@@ -127,18 +132,20 @@ const InsuredDashboard = ({ user, onNavigate }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      {showProfileEdit && <ProfileEditModal onClose={() => setShowProfileEdit(false)} />}
       <style>{`
         .pd-card { background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:var(--radius-lg); transition:border-color 0.2s, transform 0.2s; }
         .pd-card:hover { border-color:rgba(246,166,35,0.3); transform:translateY(-2px); }
         .qa-btn { display:block; width:100%; text-align:left; background:rgba(255,255,255,0.04); border:1px solid var(--glass-border); border-radius:8px; padding:10px 14px; color:rgba(255,255,255,0.8); font-size:13px; font-family:var(--font-body); cursor:pointer; margin-bottom:8px; transition:background 0.15s; }
         .qa-btn:hover { background:rgba(255,255,255,0.09); }
-        .tab-btn { background:none; border:none; color:var(--slate); font-family:var(--font-display); font-size:14px; font-weight:700; padding:8px 0; margin-right:32px; cursor:pointer; position:relative; transition:color 0.2s; }
+        .tab-btn { background:none; border:none; color:var(--slate); font-family:var(--font-display); font-size:14px; font-weight:700; padding:8px 0; margin-right:${mobile ? '16px' : '32px'}; cursor:pointer; position:relative; transition:color 0.2s; }
         .tab-btn.active { color:#fff; }
         .tab-btn.active::after { content:''; position:absolute; bottom:0; left:0; width:100%; height:2px; background:var(--gold); }
       `}</style>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3,1fr)', gap: 14, flex: 1 }}>
         {STATS.map(({ icon, val, lbl }) => (
           <div key={lbl} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '22px 26px', display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ fontSize: 26 }}>{icon}</span>
@@ -150,6 +157,9 @@ const InsuredDashboard = ({ user, onNavigate }) => {
             </div>
           </div>
         ))}
+        </div>
+        {/* Notification bell */}
+        <NotificationPanel onNavigate={onNavigate} />
       </div>
 
       {/* Tab Swticher */}
@@ -162,7 +172,7 @@ const InsuredDashboard = ({ user, onNavigate }) => {
       </div>
 
       {/* Main layout: policies/support + sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 300px', gap: 24, alignItems: 'start' }}>
 
         {/* LEFT: Tab Content */}
         <div>
@@ -303,6 +313,22 @@ const InsuredDashboard = ({ user, onNavigate }) => {
             <div style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 700, marginBottom: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Traveler Account</div>
             <div style={{ fontSize: 12, color: 'var(--slate)' }}>{user?.email}</div>
             {user?.phone && <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 4 }}>📞 {user.phone}</div>}
+            <button
+              type="button"
+              onClick={() => setShowProfileEdit(true)}
+              style={{
+                marginTop: 14, width: '100%', padding: '9px 0', borderRadius: 8,
+                border: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.04)',
+                color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: 700,
+                fontFamily: 'var(--font-body)', cursor: 'pointer', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit Profile
+            </button>
           </div>
 
           {/* Quick actions */}

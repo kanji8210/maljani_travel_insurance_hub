@@ -239,3 +239,48 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
   height: 20px;
   border-width: 2px;
 }
+
+/* ── Header Responsive Layout ── */
+.tic-header__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.tic-header__row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tic-header__nav--row2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .tic-header__nav--row2 {
+    gap: 12px 18px;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+}
+
+/* Dropdown animation */
+@keyframes ticDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

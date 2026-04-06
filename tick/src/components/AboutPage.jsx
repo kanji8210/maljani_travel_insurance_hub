@@ -1,4 +1,5 @@
 import React from 'react';
+import { useResponsive } from '../lib/useResponsive';
 
 const VALUES = [
   { icon: '�️', title: 'Cryptographic Authentication', desc: 'Every certificate we issue contains a unique hash code. Embassies, hotels, and employers can verify it in 3 seconds at verify.maljani.co.ke.' },
@@ -24,6 +25,7 @@ const TEAM = [
 ];
 
 const AboutPage = ({ onNavigate }) => {
+  const { mobile, tablet } = useResponsive();
   return (
     <div style={{ paddingTop: 90 }}>
       <style>{`
@@ -37,12 +39,12 @@ const AboutPage = ({ onNavigate }) => {
       <section style={{ position: 'relative', zIndex: 1, padding: '96px 0 96px', textAlign: 'center', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-          width: 640, height: 640, border: '1px dashed rgba(246,166,35,0.12)', borderRadius: '50%',
+          width: mobile ? 300 : tablet ? 480 : 640, height: mobile ? 300 : tablet ? 480 : 640, border: '1px dashed rgba(246,166,35,0.12)', borderRadius: '50%',
           pointerEvents: 'none', animation: 'about-ring 100s linear infinite',
         }} aria-hidden="true" />
         <div style={{
           position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-          width: 380, height: 380, border: '1px dashed rgba(49,99,49,0.15)', borderRadius: '50%',
+          width: mobile ? 180 : tablet ? 280 : 380, height: mobile ? 180 : tablet ? 280 : 380, border: '1px dashed rgba(49,99,49,0.15)', borderRadius: '50%',
           pointerEvents: 'none', animation: 'about-ring 60s linear infinite reverse',
         }} aria-hidden="true" />
 
@@ -66,7 +68,7 @@ const AboutPage = ({ onNavigate }) => {
       {/* ── Stats ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 96px' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--glass-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 1, background: 'var(--glass-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
             {[['50,000+','Travelers Insured'],['200+','Agency Partners'],['15+','Insurer Partners'],['4 min','Avg. Certificate Time']].map(([n,l]) => (
               <div key={l} style={{ background: 'var(--navy)', padding: '36px 28px', textAlign: 'center' }}>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 800, color: 'var(--gold)', lineHeight: 1 }}>{n}</div>
@@ -80,7 +82,7 @@ const AboutPage = ({ onNavigate }) => {
       {/* ── Mission ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 96px' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 40 : 80, alignItems: 'center' }}>
             <div>
               <p className="section-label">Our Mission</p>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px,3vw,44px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 22 }}>
@@ -127,8 +129,8 @@ const AboutPage = ({ onNavigate }) => {
             <h2 className="section-title">How Certificate Verification Works</h2>
             <p style={{ color: 'var(--slate)', maxWidth: 540, margin: '0 auto' }}>Four steps that make fake insurance impossible to pass off as authentic.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginTop: 52, position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 36, left: 'calc(12.5% + 10px)', right: 'calc(12.5% + 10px)', height: 1, background: 'repeating-linear-gradient(90deg,var(--gold) 0,var(--gold) 6px,transparent 6px,transparent 14px)', opacity: 0.3, pointerEvents: 'none' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 20, marginTop: 52, position: 'relative' }}>
+            {!mobile && <div style={{ position: 'absolute', top: 36, left: 'calc(12.5% + 10px)', right: 'calc(12.5% + 10px)', height: 1, background: 'repeating-linear-gradient(90deg,var(--gold) 0,var(--gold) 6px,transparent 6px,transparent 14px)', opacity: 0.3, pointerEvents: 'none' }} />}
             {[
               { n: '01', icon: '💳', title: 'Buy Policy',        desc: 'Purchase from any of our 15+ licensed insurers in under 4 minutes.' },
               { n: '02', icon: '📄', title: 'Receive Certificate', desc: 'Your PDF certificate arrives instantly with a unique verification code embedded.' },
@@ -152,7 +154,7 @@ const AboutPage = ({ onNavigate }) => {
       {/* ── For Tourists ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 96px' }}>
         <div className="container">
-          <div style={{ background: 'linear-gradient(135deg,rgba(246,166,35,0.08),rgba(49,99,49,0.1))', border: '1px solid rgba(246,166,35,0.2)', borderRadius: 'var(--radius-xl)', padding: '60px 64px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 48, alignItems: 'center' }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(246,166,35,0.08),rgba(49,99,49,0.1))', border: '1px solid rgba(246,166,35,0.2)', borderRadius: 'var(--radius-xl)', padding: mobile ? '36px 24px' : '60px 64px', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr auto', gap: mobile ? 28 : 48, alignItems: 'center' }}>
             <div>
               <p className="section-label" style={{ textAlign: 'left' }}>Visiting East Africa?</p>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px,3vw,40px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 18 }}>
@@ -185,7 +187,7 @@ const AboutPage = ({ onNavigate }) => {
             <p className="section-label">What We Stand For</p>
             <h2 className="section-title">Our Values</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginTop: 48 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 20, marginTop: 48 }}>
             {VALUES.map(v => (
               <div key={v.title} className="value-card" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '28px 22px', textAlign: 'center' }}>
                 <div style={{ fontSize: 36, marginBottom: 16 }}>{v.icon}</div>
@@ -229,7 +231,7 @@ const AboutPage = ({ onNavigate }) => {
             <h2 className="section-title">People Behind Maljani</h2>
             <p style={{ color: 'var(--slate)', maxWidth: 520, margin: '0 auto' }}>Insurance professionals, engineers, and operators who've lived the problem we're solving.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginTop: 48 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 20, marginTop: 48 }}>
             {TEAM.map(t => (
               <div key={t.name} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '28px 22px', textAlign: 'center' }}>
                 <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--glass-bg-md)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, margin: '0 auto 16px' }}>{t.emoji}</div>
@@ -245,7 +247,7 @@ const AboutPage = ({ onNavigate }) => {
       {/* ── CTA ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 120px' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: 20 }}>
             <div style={{ background: 'linear-gradient(135deg,var(--indigo),var(--indigo-glow))', borderRadius: 'var(--radius-xl)', padding: '52px 44px', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: -30, right: -30, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 12 }}>Travelers</p>

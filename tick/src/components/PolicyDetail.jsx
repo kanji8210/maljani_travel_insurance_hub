@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo } from 'react';
 import { useQuery } from 'urql';
+import { useResponsive } from '../lib/useResponsive';
 
 // Custom meta fields registered in includes/class-maljani-policy-graphql.php
 const GET_POLICY_DETAIL = `
@@ -72,6 +73,7 @@ const bracketPremium = (brackets, days) => {
 };
 
 const PolicyDetail = ({ policyId, searchData, onBack, onStartWizard }) => {
+  const { mobile, tablet } = useResponsive();
   const today    = new Date().toISOString().split('T')[0];
   const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
@@ -123,7 +125,7 @@ const PolicyDetail = ({ policyId, searchData, onBack, onStartWizard }) => {
 
       {/* â”€â”€ Hero â”€â”€ */}
       <section style={{
-        position: 'relative', height: 360,
+        position: 'relative', height: mobile ? 280 : 360,
         background: policy.featuredImage?.node?.sourceUrl
           ? `url(${policy.featuredImage.node.sourceUrl}) center/cover`
           : 'linear-gradient(135deg,var(--indigo),#1e1b4b)',
@@ -162,7 +164,7 @@ const PolicyDetail = ({ policyId, searchData, onBack, onStartWizard }) => {
       </section>
 
       <div className="container">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 40, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? '1fr 300px' : '1fr 340px', gap: mobile ? 24 : 40, alignItems: 'start' }}>
 
           {/* â”€â”€ Main column â”€â”€ */}
           <div className="glass-card" style={{ padding: '2.5rem' }}>

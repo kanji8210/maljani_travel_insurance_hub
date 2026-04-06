@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { useResponsive } from '../lib/useResponsive';
 
 const STATS = [
   { value: '50,000+', label: 'Policies Issued'   },
@@ -9,7 +10,9 @@ const STATS = [
 
 const CHIPS = ['🏛️ Embassy-accepted', '⚡ 4-min issuance', '🔒 Fraud-proof'];
 
-const TrustSection = ({ onNavigate }) => (
+const TrustSection = ({ onNavigate }) => {
+  const { mobile } = useResponsive();
+  return (
   <section style={{ position: 'relative', zIndex: 1 }}>
 
     {/* Stats bar */}
@@ -20,15 +23,16 @@ const TrustSection = ({ onNavigate }) => (
       backdropFilter: 'blur(12px)',
     }}>
       <div className="container">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)' }}>
           {STATS.map((s, i) => (
             <div
               key={s.label}
               className="reveal"
               style={{
-                padding: '26px 24px',
+                padding: mobile ? '18px 12px' : '26px 24px',
                 textAlign: 'center',
-                borderRight: i < STATS.length - 1 ? '1px solid var(--glass-border)' : 'none',
+                borderRight: mobile ? (i % 2 === 0 ? '1px solid var(--glass-border)' : 'none') : (i < STATS.length - 1 ? '1px solid var(--glass-border)' : 'none'),
+                borderBottom: mobile && i < 2 ? '1px solid var(--glass-border)' : 'none',
               }}
             >
               <div style={{
@@ -108,6 +112,7 @@ const TrustSection = ({ onNavigate }) => (
     </div>
 
   </section>
-);
+  );
+};
 
 export default TrustSection;

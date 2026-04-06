@@ -23,9 +23,12 @@ class Maljani_GraphQL_Auth {
         add_action('graphql_register_types', [$this, 'register_registration_mutation']);
         add_action('graphql_register_types', [$this, 'register_sales_mutation']);
         add_action('graphql_register_types', [$this, 'register_update_sale_mutation']);
+        add_action('graphql_register_types', [$this, 'register_update_profile_mutation']);
+        add_action('graphql_register_types', [$this, 'register_mark_notifications_read_mutation']);
 
         // Register Queries
         add_action('graphql_register_types', [$this, 'register_my_policy_sales_query']);
+        add_action('graphql_register_types', [$this, 'register_my_notifications_query']);
 
         // Authenticate requests
         add_filter('determine_current_user', [$this, 'authenticate_request'], 20);
@@ -897,6 +900,161 @@ class Maljani_GraphQL_Auth {
     private function reset_failed_login($ip) {
         delete_transient("mj_gql_fail_$ip");
         delete_transient("mj_gql_blocked_$ip");
+    }
+
+    /**
+     * Register the updateProfile mutation
+     */
+    public function register_update_profile_mutation() {
+        if (!function_exists('register_graphql_mutation')) return;
+
+        register_graphql_mutation('maljaniUpdateProfile', [
+            'inputFields' => [
+                'name'  => ['type' => 'String', 'description' => 'Display name'],
+                'email' => ['type' => 'String', 'description' => 'Email address'],
+                'phone' => ['type' => 'String', 'description' => 'Phone number'],
+            ],
+            'outputFields' => [
+                'success'   => ['type' => 'Boolean'],
+                'userName'  => ['type' => 'String'],
+                'userEmail' => ['type' => 'String'],
+                'userPhone' => ['type' => 'String'],
+            ],
+            'mutateAndGetPayload' => function($input) {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError(__('You must be logged in.', 'maljani'));
+                }
+
+                $update = ['ID' => $user_id];
+                if (!empty($input['name'])) {
+                    $name = sanitize_text_field($input['name']);
+                    $update['display_name'] = $name;
+                    $update['first_name']   = $name;
+                }
+                if (!empty($input['email'])) {
+                    $email = sanitize_email($input['email']);
+                    if (!is_email($email)) {
+                        throw new \GraphQL\Error\UserError(__('Invalid email address.', 'maljani'));
+                    }
+                    $existing = email_exists($email);
+                    if ($existing && $existing !== $user_id) {
+                        throw new \GraphQL\Error\UserError(__('This email is already in use.', 'maljani'));
+                    }
+                    $update['user_email'] = $email;
+                }
+                $result = wp_update_user($update);
+                if (is_wp_error($result)) {
+                    throw new \GraphQL\Error\UserError($result->get_error_message());
+                }
+                if (isset($input['phone'])) {
+                    update_user_meta($user_id, 'phone', sanitize_text_field($input['phone']));
+                }
+
+                $user  = get_user_by('id', $user_id);
+                $phone = get_user_meta($user_id, 'phone', true);
+                return [
+                    'success'   => true,
+                    'userName'  => $user->display_name,
+                    'userEmail' => $user->user_email,
+                    'userPhone' => $phone ?: '',
+                ];
+            },
+        ]);
+    }
+
+    /**
+     * Register the myNotifications query.
+     * Reads from wp_maljani_notifications table.
+     */
+    public function register_my_notifications_query() {
+        if (!function_exists('register_graphql_object_type') || !function_exists('register_graphql_field')) return;
+
+        register_graphql_object_type('MaljaniNotification', [
+            'fields' => [
+                'id'        => ['type' => 'Int'],
+                'type'      => ['type' => 'String'],
+                'title'     => ['type' => 'String'],
+                'message'   => ['type' => 'String'],
+                'isRead'    => ['type' => 'Boolean'],
+                'policyId'  => ['type' => 'Int'],
+                'createdAt' => ['type' => 'String'],
+            ],
+        ]);
+
+        register_graphql_field('RootQuery', 'myNotifications', [
+            'type'        => ['list_of' => 'MaljaniNotification'],
+            'description' => 'Notifications for the current user',
+            'resolve'     => function() {
+                $user_id = get_current_user_id();
+                if (!$user_id) return [];
+
+                global $wpdb;
+                $table = $wpdb->prefix . 'maljani_notifications';
+                if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) return [];
+
+                $rows = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM `$table` WHERE user_id = %d ORDER BY created_at DESC LIMIT 50",
+                    $user_id
+                ));
+
+                return array_map(function($r) {
+                    return [
+                        'id'        => (int) $r->id,
+                        'type'      => $r->type,
+                        'title'     => $r->title,
+                        'message'   => $r->message,
+                        'isRead'    => (bool) $r->is_read,
+                        'policyId'  => $r->policy_id ? (int) $r->policy_id : null,
+                        'createdAt' => $r->created_at,
+                    ];
+                }, $rows ?: []);
+            },
+        ]);
+    }
+
+    /**
+     * Register the markNotificationsRead mutation
+     */
+    public function register_mark_notifications_read_mutation() {
+        if (!function_exists('register_graphql_mutation')) return;
+
+        register_graphql_mutation('maljaniMarkNotificationsRead', [
+            'inputFields' => [
+                'ids' => ['type' => ['list_of' => 'Int'], 'description' => 'Notification IDs to mark read. Empty = mark all.'],
+            ],
+            'outputFields' => [
+                'success' => ['type' => 'Boolean'],
+                'count'   => ['type' => 'Int'],
+            ],
+            'mutateAndGetPayload' => function($input) {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError(__('You must be logged in.', 'maljani'));
+                }
+                global $wpdb;
+                $table = $wpdb->prefix . 'maljani_notifications';
+                if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+                    return ['success' => true, 'count' => 0];
+                }
+
+                $ids = $input['ids'] ?? [];
+                if (!empty($ids)) {
+                    $ids = array_map('intval', $ids);
+                    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                    $count = $wpdb->query($wpdb->prepare(
+                        "UPDATE `$table` SET is_read = 1 WHERE user_id = %d AND id IN ($placeholders)",
+                        array_merge([$user_id], $ids)
+                    ));
+                } else {
+                    $count = $wpdb->query($wpdb->prepare(
+                        "UPDATE `$table` SET is_read = 1 WHERE user_id = %d AND is_read = 0",
+                        $user_id
+                    ));
+                }
+                return ['success' => true, 'count' => (int) $count];
+            },
+        ]);
     }
 
     /**

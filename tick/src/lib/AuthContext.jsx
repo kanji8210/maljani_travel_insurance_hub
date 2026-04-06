@@ -33,6 +33,17 @@ const REGISTER_MUTATION = `
   }
 `;
 
+const UPDATE_PROFILE_MUTATION = `
+  mutation UpdateProfile($name: String, $email: String, $phone: String) {
+    maljaniUpdateProfile(input: { name: $name, email: $email, phone: $phone }) {
+      success
+      userName
+      userEmail
+      userPhone
+    }
+  }
+`;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -174,12 +185,35 @@ email: result.data.maljaniLogin.user?.email || result.data.maljaniLogin.userEmai
     }
   };
 
+  const updateProfile = async ({ name, email, phone }) => {
+    setError(null);
+    try {
+      const result = await client.mutation(UPDATE_PROFILE_MUTATION, { name, email, phone }).toPromise();
+      if (result.error) throw new Error(result.error.message);
+      const d = result.data.maljaniUpdateProfile;
+      if (!d.success) throw new Error('Profile update failed');
+      const updated = {
+        ...user,
+        name:  d.userName  || user.name,
+        email: d.userEmail || user.email,
+        phone: d.userPhone ?? user.phone,
+      };
+      setUser(updated);
+      localStorage.setItem('maljani_auth', JSON.stringify(updated));
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
   const value = {
     user,
     role: user?.role || 'guest',
     login,
     register,
     logout,
+    updateProfile,
     autoRegisterAndLogin,
     loading,
     error

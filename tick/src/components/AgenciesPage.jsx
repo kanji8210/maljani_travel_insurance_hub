@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
+import { useResponsive } from '../lib/useResponsive';
 
 const FEATURES = [
   {
@@ -42,6 +43,7 @@ const STEPS = [
 
 const AgenciesPage = ({ onNavigate }) => {
   const { user, role } = useAuth();
+  const { mobile, tablet } = useResponsive();
   const isLoggedIn = !!user;
   const isAgent = role === 'agent' || role === 'administrator';
   const today = new Date().toISOString().split('T')[0];
@@ -60,17 +62,17 @@ const AgenciesPage = ({ onNavigate }) => {
       <section style={{ position: 'relative', zIndex: 1, padding: '80px 0 96px', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', right: '-6%', top: '50%', transform: 'translateY(-50%)',
-          width: 600, height: 600, border: '1px dashed rgba(49,99,49,0.15)', borderRadius: '50%',
+          width: mobile ? 300 : 600, height: mobile ? 300 : 600, border: '1px dashed rgba(49,99,49,0.15)', borderRadius: '50%',
           pointerEvents: 'none', animation: 'dash-spin 90s linear infinite',
         }} aria-hidden="true" />
         <div style={{
           position: 'absolute', right: '6%', top: '50%', transform: 'translateY(-50%)',
-          width: 360, height: 360, border: '1px dashed rgba(246,166,35,0.1)', borderRadius: '50%',
+          width: mobile ? 180 : 360, height: mobile ? 180 : 360, border: '1px dashed rgba(246,166,35,0.1)', borderRadius: '50%',
           pointerEvents: 'none', animation: 'dash-spin 60s linear infinite reverse',
         }} aria-hidden="true" />
 
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 72, alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? '1fr 340px' : '1fr 420px', gap: mobile ? 40 : 72, alignItems: 'center' }}>
             {/* Left */}
             <div>
               <p className="section-label">For Insurance Agencies</p>
@@ -142,7 +144,7 @@ const AgenciesPage = ({ onNavigate }) => {
       {/* ── Stats bar ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 80px' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--glass-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 1, background: 'var(--glass-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
             {[['200+','Partner Agencies'],['KES 2B+','Premiums Processed'],['15+','Insurer Partners'],['4 min','Avg. Certificate Time']].map(([n,l]) => (
               <div key={l} style={{ background: 'var(--navy)', padding: '32px 28px', textAlign: 'center' }}>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 800, color: 'var(--gold)', lineHeight: 1 }}>{n}</div>
@@ -161,7 +163,7 @@ const AgenciesPage = ({ onNavigate }) => {
             <h2 className="section-title">Everything Your Agency Needs</h2>
             <p style={{ color: 'var(--slate)', maxWidth: 560, margin: '0 auto' }}>One platform to replace the spreadsheets, manual PDFs, and chasing insurers for commissions.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 20, marginTop: 48 }}>
             {FEATURES.map(f => (
               <div key={f.title} className="agency-feature-card" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '28px 24px', cursor: 'default' }}>
                 <div style={{ fontSize: 28, marginBottom: 14 }}>{f.icon}</div>
@@ -180,9 +182,9 @@ const AgenciesPage = ({ onNavigate }) => {
             <p className="section-label">Getting Started</p>
             <h2 className="section-title">Up and Running in 48 Hours</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 32, marginTop: 48, position: 'relative' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3,1fr)', gap: 32, marginTop: 48, position: 'relative' }}>
             {/* connecting line */}
-            <div style={{ position: 'absolute', top: 36, left: '15%', right: '15%', height: 1, background: 'linear-gradient(90deg,transparent,rgba(49,99,49,0.5),transparent)', pointerEvents: 'none' }} />
+            {!mobile && <div style={{ position: 'absolute', top: 36, left: '15%', right: '15%', height: 1, background: 'linear-gradient(90deg,transparent,rgba(49,99,49,0.5),transparent)', pointerEvents: 'none' }} />}
             {STEPS.map((s, i) => (
               <div key={s.n} style={{ textAlign: 'center', padding: '0 16px' }}>
                 <div style={{ width: 72, height: 72, borderRadius: '50%', background: `linear-gradient(135deg,var(--indigo),var(--indigo-glow))`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 20, fontFamily: 'var(--font-display)', fontWeight: 800, color: '#fff', boxShadow: '0 0 30px rgba(49,99,49,0.4)', border: '2px solid rgba(49,99,49,0.5)' }}>{s.n}</div>
@@ -197,7 +199,7 @@ const AgenciesPage = ({ onNavigate }) => {
       {/* ── Pricing note ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 96px' }}>
         <div className="container">
-          <div style={{ background: 'linear-gradient(135deg,var(--navy-light),rgba(49,99,49,0.08))', border: '1px solid var(--glass-border-bright)', borderRadius: 'var(--radius-xl)', padding: '56px 60px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
+          <div style={{ background: 'linear-gradient(135deg,var(--navy-light),rgba(49,99,49,0.08))', border: '1px solid var(--glass-border-bright)', borderRadius: 'var(--radius-xl)', padding: mobile ? '36px 24px' : '56px 60px', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 32 : 60, alignItems: 'center' }}>
             <div>
               <p className="section-label">Pricing</p>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px,3vw,42px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 18 }}>
@@ -223,7 +225,7 @@ const AgenciesPage = ({ onNavigate }) => {
       {/* ── Testimonial ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 96px' }}>
         <div className="container">
-          <blockquote style={{ maxWidth: 720, margin: '0 auto', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-xl)', padding: '48px 52px', textAlign: 'center' }}>
+          <blockquote style={{ maxWidth: 720, margin: '0 auto', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-xl)', padding: mobile ? '32px 24px' : '48px 52px', textAlign: 'center' }}>
             <div style={{ fontSize: 52, color: 'var(--indigo-glow)', lineHeight: 1, marginBottom: 20, opacity: 0.6 }}>&ldquo;</div>
             <p style={{ color: 'rgba(255,255,255,0.88)', fontSize: 17, lineHeight: 1.85, marginBottom: 28, fontStyle: 'italic' }}>
               As a travel agency, we issue 50–80 policies a month. The Maljani agency dashboard has cut our paperwork time by 90%. Commission is tracked in real time, and the white-labelled certificates give us a professional edge our clients love.
@@ -242,7 +244,7 @@ const AgenciesPage = ({ onNavigate }) => {
       {/* ── CTA ── */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 120px' }}>
         <div className="container">
-          <div style={{ background: 'linear-gradient(135deg,var(--indigo),var(--indigo-glow) 100%)', borderRadius: 'var(--radius-xl)', padding: '80px 60px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg,var(--indigo),var(--indigo-glow) 100%)', borderRadius: 'var(--radius-xl)', padding: mobile ? '48px 24px' : '80px 60px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -40, right: -40, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} aria-hidden="true" />
             <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 14 }}>Ready to grow your agency?</p>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px,3.5vw,48px)', fontWeight: 800, marginBottom: 18, lineHeight: 1.1 }}>Join 200+ Agencies on Maljani.</h2>

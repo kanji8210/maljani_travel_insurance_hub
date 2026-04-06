@@ -95,6 +95,23 @@ class Maljani_Activator {
         ) $charset_collate;";
         dbDelta($agency_sql);
 
+        // Create notifications table
+        $notif_table = $wpdb->prefix . 'maljani_notifications';
+        $notif_sql = "CREATE TABLE IF NOT EXISTS $notif_table (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT UNSIGNED NOT NULL,
+            type VARCHAR(50) NOT NULL DEFAULT 'info',
+            title VARCHAR(191) NOT NULL,
+            message TEXT,
+            policy_id BIGINT UNSIGNED DEFAULT NULL,
+            is_read TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_user_read (user_id, is_read),
+            KEY idx_created (created_at)
+        ) $charset_collate;";
+        dbDelta($notif_sql);
+
         // Register custom roles
         add_role('agent', __('Agent', 'maljani'), [
             'read' => true,

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from 'urql';
 import { useAuth } from '../lib/AuthContext';
+import { useResponsive } from '../lib/useResponsive';
 
 /* ─── GraphQL ──────────────────────────────────────────────────────────────── */
 const GET_REGIONS = `
@@ -120,6 +121,7 @@ const StepBar = ({ step }) => (
 /* ─── Component ───────────────────────────────────────────────────────────── */
 const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initialStep = 1, onNavigate }) => {
   const { user, loading: authLoading, role, login, register, error: authError } = useAuth();
+  const { mobile } = useResponsive();
   const today = new Date().toISOString().split('T')[0];
   const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
@@ -354,7 +356,7 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
         Your Trip <span style={{ color: 'var(--gold)' }}>Details</span>
       </h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div style={fieldStyle}>
           <label style={labelStyle}>Origin Country</label>
           <input style={inputStyle} placeholder="e.g. Kenya"
@@ -455,7 +457,7 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
       {showDateEdit && (
         <div style={{ marginBottom: 20, padding: '16px 18px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(212,175,55,0.25)' }}>
           <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)' }}>Adjust Trip Dates</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
             <div style={fieldStyle}>
               <label style={labelStyle}>Departure</label>
               <input type="date" style={inputStyle} min={today}
@@ -663,7 +665,7 @@ const QuoteWizard = ({ initialPolicyId = null, initialSearchData = null, initial
             <strong style={{ fontSize: 14 }}>{form.selectedPolicy?.title}</strong>
             {total !== null && <span style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 15 }}>{fmt(total)}</span>}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(255,255,255,0.5)' }}>Departure</label>
               <input

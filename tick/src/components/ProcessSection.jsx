@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { useResponsive } from '../lib/useResponsive';
 
 const STEPS = [
   { n: 1, emoji: '🔍', title: 'Compare Policies',       desc: 'Enter your trip details and compare from 15+ insurers — sorted by price, coverage quality, and verified reviews.' },
@@ -6,8 +7,10 @@ const STEPS = [
   { n: 3, emoji: '🔄', title: 'Download Certificate',  desc: 'Receive your PDF travel certificate and QR-verified embassy letter instantly upon payment confirmation.' },
 ];
 
-const ProcessSection = () => (
-  <section style={{ position: 'relative', zIndex: 1, padding: '110px 0' }}>
+const ProcessSection = () => {
+  const { mobile } = useResponsive();
+  return (
+  <section style={{ position: 'relative', zIndex: 1, padding: mobile ? '60px 0' : '110px 0' }}>
     <div className="container">
       <div className="section-header">
         <p className="section-label">3 Simple Steps</p>
@@ -15,9 +18,9 @@ const ProcessSection = () => (
         <p className="reveal reveal-delay-1">From comparison to issued certificate — no broker visits, no waiting rooms.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28, position: 'relative' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3,1fr)', gap: 28, position: 'relative' }}>
         {/* Dashed connector */}
-        <div style={{ position: 'absolute', top: 44, left: 'calc(16.67% + 20px)', right: 'calc(16.67% + 20px)', height: 1, background: 'repeating-linear-gradient(90deg,var(--indigo) 0,var(--indigo) 6px,transparent 6px,transparent 14px)', opacity: 0.35, pointerEvents: 'none' }} aria-hidden="true" />
+        {!mobile && <div style={{ position: 'absolute', top: 44, left: 'calc(16.67% + 20px)', right: 'calc(16.67% + 20px)', height: 1, background: 'repeating-linear-gradient(90deg,var(--indigo) 0,var(--indigo) 6px,transparent 6px,transparent 14px)', opacity: 0.35, pointerEvents: 'none' }} aria-hidden="true" />}
 
         {STEPS.map((s, i) => (
           <div key={s.n} className={`reveal reveal-delay-${i}`} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '40px 32px', textAlign: 'center', backdropFilter: 'blur(10px)', transition: 'border-color 0.3s, transform 0.3s, box-shadow 0.3s' }}
@@ -33,6 +36,7 @@ const ProcessSection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default ProcessSection;

@@ -1,6 +1,8 @@
 import React from 'react';
+import { useResponsive } from '../lib/useResponsive';
 
 const Footer = ({ onNavigate }) => {
+  const { mobile, tablet } = useResponsive();
   const cols = [
     {
       title: 'Products',
@@ -35,7 +37,7 @@ const Footer = ({ onNavigate }) => {
     <footer style={{ position: 'relative', zIndex: 1, borderTop: '1px solid var(--glass-border)', padding: '64px 0 36px' }}>
       <div className="container">
 
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 56, marginBottom: 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : tablet ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: mobile ? 32 : tablet ? 36 : 56, marginBottom: 48 }}>
 
           {/* Brand */}
           <div>

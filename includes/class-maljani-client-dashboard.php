@@ -54,7 +54,7 @@ class Maljani_Client_Dashboard
             </header>
 
             <nav class="client-tabs stagger-up" style="animation-delay: 0.1s;">
-                <button class="client-tab active" data-target="my-policies">My Policies</button>
+                <button class="client-tab active" data-target="my-policies">Dashboard</button>
                 <button class="client-tab" data-target="my-profile">Profile Settings</button>
                 <button class="client-tab" data-target="get-support">Support</button>
             </nav>

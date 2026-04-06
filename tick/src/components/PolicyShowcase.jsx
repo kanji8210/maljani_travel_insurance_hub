@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from 'urql';
+import { useResponsive } from '../lib/useResponsive';
 
 const NOT_PROVIDED = 'Not provided';
 
@@ -189,6 +190,7 @@ const BenefitModal = ({ policy, onClose, onNavigate }) => {
 };
 
 const PolicyShowcase = ({ onNavigate, searchParams = null, compareSelected = [], onAddCompare, onRemoveCompare }) => {
+  const { mobile } = useResponsive();
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedPolicy, setSelectedPolicy] = useState(null);
   const [selectedInsurerPolicy, setSelectedInsurerPolicy] = useState(null);
@@ -294,7 +296,7 @@ const PolicyShowcase = ({ onNavigate, searchParams = null, compareSelected = [],
         {error   && <p style={{ textAlign: 'center', color: '#f87171', padding: '60px 0' }}>Error: {error.message}</p>}
 
         {!fetching && !error && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(auto-fill,minmax(340px,1fr))', gap: 24 }}>
             {displayPolicies.map((policy) => {
               const price    = minPremium(policy.policyDayPremiums);
               const tags     = parseTags(policy.policyFeatureTags);
