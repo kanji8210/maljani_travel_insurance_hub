@@ -4,6 +4,8 @@ import { useAuth } from '../lib/AuthContext';
 import { useResponsive } from '../lib/useResponsive';
 import ProfileEditModal from './ProfileEditModal';
 import NotificationPanel from './NotificationPanel';
+import PolicyEditModal from './PolicyEditModal';
+import AssignClientModal from './AssignClientModal';
 
 /* ═══════════════════════════════════════════════════════════════════
  *  GRAPHQL
@@ -31,7 +33,8 @@ const MY_POLICIES = gql`
     myPolicySales {
       id policyId policyTitle policyNumber region premium days
       departure returnDate passengers insuredNames insuredEmail insuredPhone
-      passportNumber amountPaid paymentStatus policyStatus createdAt
+      passportNumber insuredDob nationalId insuredAddress countryOfOrigin
+      amountPaid paymentStatus policyStatus createdAt
       workflowStatus agentCommissionAmount agentCommissionStatus
       serviceFeeAmount maljaniCommissionAmount netToInsurer
     }
@@ -192,6 +195,8 @@ const AgentDashboard = ({ user, onNavigate }) => {
   const [policyFilter, setPolicyFilter] = useState('all');
   const [commFilter, setCommFilter] = useState('all');
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [editPolicy, setEditPolicy] = useState(null);
+  const [assignPolicy, setAssignPolicy] = useState(null);
   const [clientActions, setClientActions] = useState({}); // { email: 'signalled' | 'archived' }
 
   const [dashResult] = useQuery({ query: AGENCY_DASHBOARD, pause: !authUser?.token });
@@ -552,17 +557,27 @@ const AgentDashboard = ({ user, onNavigate }) => {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
               <thead>
-                <tr>{['POLICY #','CLIENT','PRODUCT','DEPARTURE','RETURN','PREMIUM','PAYMENT','STATUS','COMMISSION'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                <tr>{['POLICY #','CLIENT','PRODUCT','DEPARTURE','RETURN','PREMIUM','PAYMENT','STATUS','ACTIONS'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {filteredPolicies.map(p => {
                   const ps = getPS(p.policyStatus);
                   const pay = getPay(p.paymentStatus);
-                  const cm = getComm(p.agentCommissionStatus);
+                  const isSelf = authUser?.email && p.insuredEmail?.toLowerCase() === authUser.email.toLowerCase();
+                  const isUnpaid = p.paymentStatus !== 'confirmed';
                   return (
-                    <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => onNavigate?.('policy-detail', p.id)}>
+                    <tr key={p.id} style={{ cursor: 'pointer', background: isSelf ? 'rgba(245,158,11,0.04)' : 'transparent' }} onClick={() => onNavigate?.('policy-detail', p.id)}>
                       <td style={tdStyle}><span style={{ color: 'var(--gold)', fontWeight: 600, fontSize: '0.78rem' }}>{p.policyNumber}</span></td>
-                      <td style={tdStyle}>{p.insuredNames || '—'}</td>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {p.insuredNames || '—'}
+                          {isSelf && <span style={{
+                            display: 'inline-block', padding: '0.12rem 0.45rem', borderRadius: '5px',
+                            fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.04em',
+                            color: '#f59e0b', background: 'rgba(245,158,11,0.15)', whiteSpace: 'nowrap',
+                          }}>⚑ SELF</span>}
+                        </div>
+                      </td>
                       <td style={{ ...tdStyle, fontSize: '0.78rem' }}>{p.policyTitle || '—'}</td>
                       <td style={tdStyle}>{fmtDate(p.departure)}</td>
                       <td style={tdStyle}>{fmtDate(p.returnDate)}</td>
@@ -570,9 +585,24 @@ const AgentDashboard = ({ user, onNavigate }) => {
                       <td style={tdStyle}><span style={{ color: pay.color, fontWeight: 700, fontSize: '0.75rem' }}>{pay.label}</span></td>
                       <td style={tdStyle}><Badge {...ps} /></td>
                       <td style={tdStyle}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{fmtKES(p.agentCommissionAmount)}</div>
-                          <div style={{ fontSize: '0.65rem', color: cm.color, fontWeight: 600 }}>{cm.label}</div>
+                        <div style={{ display: 'flex', gap: '0.3rem' }} onClick={e => e.stopPropagation()}>
+                          {isUnpaid && (
+                            <button title="Edit policy details" onClick={() => setEditPolicy(p)} style={{
+                              background: 'rgba(59,130,246,0.12)', border: 'none', borderRadius: '6px',
+                              padding: '0.3rem 0.55rem', cursor: 'pointer', color: '#60a5fa',
+                              fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap',
+                            }}>✎ Edit</button>
+                          )}
+                          {isSelf && isUnpaid && (
+                            <button title="Assign to a client" onClick={() => setAssignPolicy(p)} style={{
+                              background: 'rgba(34,197,94,0.12)', border: 'none', borderRadius: '6px',
+                              padding: '0.3rem 0.55rem', cursor: 'pointer', color: '#22c55e',
+                              fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap',
+                            }}>→ Assign</button>
+                          )}
+                          {!isUnpaid && !isSelf && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>—</span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -743,8 +773,23 @@ const AgentDashboard = ({ user, onNavigate }) => {
         </div>
       )}
 
-      {/* ── PROFILE EDIT MODAL ────────────────────────── */}
+      {/* ── MODALS ──────────────────────────────────── */}
       {showProfileEdit && <ProfileEditModal onClose={() => setShowProfileEdit(false)} />}
+      {editPolicy && (
+        <PolicyEditModal
+          policy={editPolicy}
+          onClose={() => setEditPolicy(null)}
+          onSaved={() => { setEditPolicy(null); polResult.reexecute?.({ requestPolicy: 'network-only' }); }}
+        />
+      )}
+      {assignPolicy && (
+        <AssignClientModal
+          policy={assignPolicy}
+          clients={clients}
+          onClose={() => setAssignPolicy(null)}
+          onAssigned={() => { setAssignPolicy(null); polResult.reexecute?.({ requestPolicy: 'network-only' }); dashResult.reexecute?.({ requestPolicy: 'network-only' }); }}
+        />
+      )}
     </div>
   );
 };
