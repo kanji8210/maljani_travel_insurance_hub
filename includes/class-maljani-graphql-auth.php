@@ -29,6 +29,7 @@ class Maljani_GraphQL_Auth {
         // Register Queries
         add_action('graphql_register_types', [$this, 'register_my_policy_sales_query']);
         add_action('graphql_register_types', [$this, 'register_my_notifications_query']);
+        add_action('graphql_register_types', [$this, 'register_agency_dashboard_query']);
 
         // Authenticate requests
         add_filter('determine_current_user', [$this, 'authenticate_request'], 20);
@@ -448,6 +449,7 @@ class Maljani_GraphQL_Auth {
                     'country_of_origin' => sanitize_text_field($input['countryOfOrigin'] ?? ''),
                     'agent_id' => get_current_user_id() ?: 0,
                     'agent_name' => $current_user->display_name ?: 'System',
+                    'agency_id' => $is_agent ? $this->resolve_agency_id(get_current_user_id()) : null,
                     'amount_paid' => $amount_tot_client,
                     'service_fee_amount' => $service_fee_amount,
                     'maljani_commission_amount' => $maljani_comm_amount,
@@ -538,6 +540,12 @@ class Maljani_GraphQL_Auth {
                 'paymentStatus' => ['type' => 'String', 'description' => 'Payment status'],
                 'policyStatus'  => ['type' => 'String', 'description' => 'Policy status'],
                 'createdAt'     => ['type' => 'String', 'description' => 'Sale creation timestamp'],
+                'workflowStatus'          => ['type' => 'String', 'description' => 'Workflow status'],
+                'agentCommissionAmount'   => ['type' => 'Float',  'description' => 'Agent commission earned'],
+                'agentCommissionStatus'   => ['type' => 'String', 'description' => 'Commission payout status'],
+                'serviceFeeAmount'        => ['type' => 'Float',  'description' => 'Service fee charged'],
+                'maljaniCommissionAmount' => ['type' => 'Float',  'description' => 'Platform commission'],
+                'netToInsurer'            => ['type' => 'Float',  'description' => 'Net amount to insurer'],
             ],
         ]);
 
@@ -581,6 +589,12 @@ class Maljani_GraphQL_Auth {
                         'paymentStatus' => $row->payment_status,
                         'policyStatus'  => $row->policy_status,
                         'createdAt'     => $row->created_at,
+                        'workflowStatus'          => $row->workflow_status ?? '',
+                        'agentCommissionAmount'   => (float) ($row->agent_commission_amount ?? 0),
+                        'agentCommissionStatus'   => $row->agent_commission_status ?? 'unpaid',
+                        'serviceFeeAmount'        => (float) ($row->service_fee_amount ?? 0),
+                        'maljaniCommissionAmount' => (float) ($row->maljani_commission_amount ?? 0),
+                        'netToInsurer'            => (float) ($row->net_to_insurer ?? 0),
                     ];
                 }
                 return $sales;
@@ -1069,6 +1083,293 @@ class Maljani_GraphQL_Auth {
      */
     private function base64url_decode($data) {
         return base64_decode(str_pad(strtr($data, '-_', '+/'), strlen($data) % 4, '=', STR_PAD_RIGHT));
+    }
+
+    /* ──────────────────────────────────────────────────────────────────
+     *  Agency helpers
+     * ──────────────────────────────────────────────────────────────── */
+
+    /**
+     * Resolve agency ID from a WP user ID.
+     * Checks wp_maljani_agencies.user_id first, then user_meta('agency_id').
+     */
+    private function resolve_agency_id(int $user_id): ?int {
+        global $wpdb;
+        $table = $wpdb->prefix . 'maljani_agencies';
+        $agency_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$table} WHERE user_id = %d LIMIT 1", $user_id
+        ));
+        if ($agency_id) return (int) $agency_id;
+
+        $meta = get_user_meta($user_id, 'agency_id', true);
+        return $meta ? (int) $meta : null;
+    }
+
+    /**
+     * Register the agencyDashboard query — returns stats, clients, commissions, analytics.
+     * Only accessible by users with 'agent' role.
+     */
+    public function register_agency_dashboard_query() {
+        if (!function_exists('register_graphql_object_type') || !function_exists('register_graphql_field')) return;
+
+        // Agency profile type
+        register_graphql_object_type('MaljaniAgencyProfile', [
+            'fields' => [
+                'id'             => ['type' => 'Int'],
+                'name'           => ['type' => 'String'],
+                'contactName'    => ['type' => 'String'],
+                'contactEmail'   => ['type' => 'String'],
+                'contactPhone'   => ['type' => 'String'],
+                'commissionRate' => ['type' => 'Float'],
+                'status'         => ['type' => 'String'],
+                'createdAt'      => ['type' => 'String'],
+            ],
+        ]);
+
+        // KPI stats type
+        register_graphql_object_type('MaljaniAgencyStats', [
+            'fields' => [
+                'totalPolicies'        => ['type' => 'Int'],
+                'activePolicies'       => ['type' => 'Int'],
+                'pendingPolicies'      => ['type' => 'Int'],
+                'totalPremiumVolume'   => ['type' => 'Float'],
+                'totalCommissionEarned'=> ['type' => 'Float'],
+                'pendingCommission'    => ['type' => 'Float'],
+                'disputedCommission'   => ['type' => 'Float'],
+                'totalClients'         => ['type' => 'Int'],
+                'conversionRate'       => ['type' => 'Float'],
+            ],
+        ]);
+
+        // Client type (aggregated from sales)
+        register_graphql_object_type('MaljaniAgencyClient', [
+            'fields' => [
+                'email'        => ['type' => 'String'],
+                'name'         => ['type' => 'String'],
+                'phone'        => ['type' => 'String'],
+                'policiesCount'=> ['type' => 'Int'],
+                'totalPremium' => ['type' => 'Float'],
+                'lastActivity' => ['type' => 'String'],
+                'hasActive'    => ['type' => 'Boolean'],
+            ],
+        ]);
+
+        // Monthly analytics point
+        register_graphql_object_type('MaljaniMonthlyPoint', [
+            'fields' => [
+                'month'      => ['type' => 'String'],
+                'premium'    => ['type' => 'Float'],
+                'commission' => ['type' => 'Float'],
+                'policies'   => ['type' => 'Int'],
+                'clients'    => ['type' => 'Int'],
+            ],
+        ]);
+
+        // Status distribution point
+        register_graphql_object_type('MaljaniStatusPoint', [
+            'fields' => [
+                'status' => ['type' => 'String'],
+                'count'  => ['type' => 'Int'],
+            ],
+        ]);
+
+        // Top product
+        register_graphql_object_type('MaljaniTopProduct', [
+            'fields' => [
+                'policyId'    => ['type' => 'Int'],
+                'policyTitle' => ['type' => 'String'],
+                'soldCount'   => ['type' => 'Int'],
+                'totalPremium'=> ['type' => 'Float'],
+            ],
+        ]);
+
+        // Dashboard root type
+        register_graphql_object_type('MaljaniAgencyDashboard', [
+            'fields' => [
+                'agency'            => ['type' => 'MaljaniAgencyProfile'],
+                'stats'             => ['type' => 'MaljaniAgencyStats'],
+                'clients'           => ['type' => ['list_of' => 'MaljaniAgencyClient']],
+                'monthlyAnalytics'  => ['type' => ['list_of' => 'MaljaniMonthlyPoint']],
+                'statusDistribution'=> ['type' => ['list_of' => 'MaljaniStatusPoint']],
+                'topProducts'       => ['type' => ['list_of' => 'MaljaniTopProduct']],
+            ],
+        ]);
+
+        register_graphql_field('RootQuery', 'agencyDashboard', [
+            'type'        => 'MaljaniAgencyDashboard',
+            'description' => 'Full agency dashboard data for the current agent user',
+            'resolve'     => function () {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError('You must be logged in.');
+                }
+                $user = wp_get_current_user();
+                if (!in_array('agent', (array) $user->roles) && !in_array('administrator', (array) $user->roles)) {
+                    throw new \GraphQL\Error\UserError('Agency access required.');
+                }
+
+                global $wpdb;
+                $sale_table   = $wpdb->prefix . 'policy_sale';
+                $agency_table = $wpdb->prefix . 'maljani_agencies';
+
+                // Resolve agency
+                $agency = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$agency_table} WHERE user_id = %d LIMIT 1", $user_id
+                ));
+                if (!$agency) {
+                    // Sub-agent — check user_meta
+                    $agency_id = get_user_meta($user_id, 'agency_id', true);
+                    if ($agency_id) {
+                        $agency = $wpdb->get_row($wpdb->prepare(
+                            "SELECT * FROM {$agency_table} WHERE id = %d LIMIT 1", $agency_id
+                        ));
+                    }
+                }
+
+                $agency_profile = $agency ? [
+                    'id'             => (int) $agency->id,
+                    'name'           => $agency->name ?: $agency->agency_name ?: '',
+                    'contactName'    => $agency->contact_name ?: '',
+                    'contactEmail'   => $agency->contact_email ?: '',
+                    'contactPhone'   => $agency->contact_phone ?: '',
+                    'commissionRate' => (float) ($agency->commission_rate ?: $agency->commission_percent ?: 0),
+                    'status'         => $agency->status ?: 'pending',
+                    'createdAt'      => $agency->created_at ?: '',
+                ] : null;
+
+                // All sales for this agent
+                $sales = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$sale_table} WHERE agent_id = %d ORDER BY created_at DESC",
+                    $user_id
+                ));
+
+                // === KPI Stats ===
+                $total = count($sales);
+                $active = 0; $pending = 0;
+                $premium_vol = 0; $earned = 0; $pending_comm = 0; $disputed = 0;
+                $unique_clients = [];
+
+                foreach ($sales as $s) {
+                    $premium_vol += (float) $s->amount_paid;
+                    $email = strtolower(trim($s->insured_email));
+                    if ($email) $unique_clients[$email] = true;
+
+                    if (in_array($s->policy_status, ['active', 'verification_ready'])) $active++;
+                    if (in_array($s->policy_status, ['unconfirmed', 'pending_review'])) $pending++;
+
+                    $comm = (float) ($s->agent_commission_amount ?? 0);
+                    $comm_status = $s->agent_commission_status ?? 'unpaid';
+                    if ($comm_status === 'paid' || $comm_status === 'received') $earned += $comm;
+                    elseif ($comm_status === 'disputed') $disputed += $comm;
+                    else $pending_comm += $comm;
+                }
+
+                $stats = [
+                    'totalPolicies'         => $total,
+                    'activePolicies'        => $active,
+                    'pendingPolicies'       => $pending,
+                    'totalPremiumVolume'    => round($premium_vol, 2),
+                    'totalCommissionEarned' => round($earned, 2),
+                    'pendingCommission'     => round($pending_comm, 2),
+                    'disputedCommission'    => round($disputed, 2),
+                    'totalClients'          => count($unique_clients),
+                    'conversionRate'        => $total > 0 ? round(($active / $total) * 100, 1) : 0,
+                ];
+
+                // === Clients (aggregated) ===
+                $client_map = [];
+                foreach ($sales as $s) {
+                    $email = strtolower(trim($s->insured_email));
+                    if (!$email) continue;
+                    if (!isset($client_map[$email])) {
+                        $client_map[$email] = [
+                            'email'        => $s->insured_email,
+                            'name'         => $s->insured_names,
+                            'phone'        => $s->insured_phone ?: '',
+                            'policiesCount'=> 0,
+                            'totalPremium' => 0,
+                            'lastActivity' => $s->created_at,
+                            'hasActive'    => false,
+                        ];
+                    }
+                    $client_map[$email]['policiesCount']++;
+                    $client_map[$email]['totalPremium'] += (float) $s->amount_paid;
+                    if ($s->created_at > $client_map[$email]['lastActivity']) {
+                        $client_map[$email]['lastActivity'] = $s->created_at;
+                    }
+                    if (in_array($s->policy_status, ['active', 'verification_ready'])) {
+                        $client_map[$email]['hasActive'] = true;
+                    }
+                    // Keep the latest name/phone
+                    if (!empty($s->insured_names)) $client_map[$email]['name'] = $s->insured_names;
+                    if (!empty($s->insured_phone)) $client_map[$email]['phone'] = $s->insured_phone;
+                }
+                // Sort clients by lastActivity desc
+                usort($client_map, function ($a, $b) {
+                    return strcmp($b['lastActivity'], $a['lastActivity']);
+                });
+                $clients = array_values($client_map);
+
+                // === Monthly Analytics (last 12 months) ===
+                $monthly = [];
+                foreach ($sales as $s) {
+                    $month = substr($s->created_at, 0, 7); // YYYY-MM
+                    if (!isset($monthly[$month])) {
+                        $monthly[$month] = ['premium' => 0, 'commission' => 0, 'policies' => 0, 'clients' => []];
+                    }
+                    $monthly[$month]['premium'] += (float) $s->amount_paid;
+                    $monthly[$month]['commission'] += (float) ($s->agent_commission_amount ?? 0);
+                    $monthly[$month]['policies']++;
+                    $email = strtolower(trim($s->insured_email));
+                    if ($email) $monthly[$month]['clients'][$email] = true;
+                }
+                ksort($monthly);
+                $monthly_points = [];
+                $months_to_show = array_slice(array_keys($monthly), -12);
+                foreach ($months_to_show as $m) {
+                    $monthly_points[] = [
+                        'month'      => $m,
+                        'premium'    => round($monthly[$m]['premium'], 2),
+                        'commission' => round($monthly[$m]['commission'], 2),
+                        'policies'   => $monthly[$m]['policies'],
+                        'clients'    => count($monthly[$m]['clients']),
+                    ];
+                }
+
+                // === Status Distribution ===
+                $status_counts = [];
+                foreach ($sales as $s) {
+                    $st = $s->policy_status ?: 'unknown';
+                    $status_counts[$st] = ($status_counts[$st] ?? 0) + 1;
+                }
+                $status_dist = [];
+                foreach ($status_counts as $st => $cnt) {
+                    $status_dist[] = ['status' => $st, 'count' => $cnt];
+                }
+
+                // === Top Products ===
+                $product_map = [];
+                foreach ($sales as $s) {
+                    $pid = (int) $s->policy_id;
+                    if (!isset($product_map[$pid])) {
+                        $product_map[$pid] = ['policyId' => $pid, 'policyTitle' => get_the_title($pid), 'soldCount' => 0, 'totalPremium' => 0];
+                    }
+                    $product_map[$pid]['soldCount']++;
+                    $product_map[$pid]['totalPremium'] += (float) $s->amount_paid;
+                }
+                usort($product_map, function ($a, $b) { return $b['soldCount'] - $a['soldCount']; });
+                $top_products = array_slice(array_values($product_map), 0, 5);
+
+                return [
+                    'agency'             => $agency_profile,
+                    'stats'              => $stats,
+                    'clients'            => $clients,
+                    'monthlyAnalytics'   => $monthly_points,
+                    'statusDistribution' => $status_dist,
+                    'topProducts'        => $top_products,
+                ];
+            },
+        ]);
     }
 }
 
