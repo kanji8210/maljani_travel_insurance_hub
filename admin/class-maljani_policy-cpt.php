@@ -62,6 +62,15 @@ class Policy_CPT {
             return; // WPGraphQL not active — skip silently.
         }
 
+        try {
+            $this->_do_register_graphql_fields();
+        } catch ( \Throwable $e ) {
+            error_log( '[Maljani CPT] FATAL in register_graphql_fields: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+        }
+    }
+
+    private function _do_register_graphql_fields() {
+
         // Simple string fields
         $simple_fields = [
             'policyDescription'   => '_policy_description',
@@ -88,14 +97,19 @@ class Policy_CPT {
         }
 
         // Premium brackets — list of {from, to, premium} objects
-        register_graphql_object_type( 'PolicyPremiumBracket', [
-            'description' => 'A day-range premium bracket for a travel insurance policy.',
-            'fields'      => [
-                'from'    => [ 'type' => 'Int',   'description' => 'Start day (inclusive).' ],
-                'to'      => [ 'type' => 'Int',   'description' => 'End day (inclusive).' ],
-                'premium' => [ 'type' => 'Float', 'description' => 'Gross premium amount.' ],
-            ],
-        ] );
+        // Guard against double-registration (can happen if init fires more than once)
+        static $bracket_type_registered = false;
+        if ( ! $bracket_type_registered ) {
+            register_graphql_object_type( 'PolicyPremiumBracket', [
+                'description' => 'A day-range premium bracket for a travel insurance policy.',
+                'fields'      => [
+                    'from'    => [ 'type' => 'Int',   'description' => 'Start day (inclusive).' ],
+                    'to'      => [ 'type' => 'Int',   'description' => 'End day (inclusive).' ],
+                    'premium' => [ 'type' => 'Float', 'description' => 'Gross premium amount.' ],
+                ],
+            ] );
+            $bracket_type_registered = true;
+        }
 
         register_graphql_field( 'Policy', 'policyDayPremiums', [
             'type'        => [ 'list_of' => 'PolicyPremiumBracket' ],
@@ -167,14 +181,19 @@ class Policy_CPT {
         ] );
 
         // User.phone — exposes the phone user-meta via GraphQL
-        register_graphql_field( 'User', 'phone', [
+        // Guard: only register if not already registered in this request
+        static $phone_field_registered = false;
+        if ( ! $phone_field_registered ) {
+            register_graphql_field( 'User', 'phone', [
             'type'        => 'String',
             'description' => 'User phone number stored in user meta.',
             'resolve'     => function ( $user ) {
                 return get_user_meta( $user->databaseId, 'phone', true ) ?: '';
             },
         ] );
-    }
+            $phone_field_registered = true;
+        } // end if ( ! $phone_field_registered )
+    } // end _do_register_graphql_fields
 
     /**
      * Returns a default country list for a given region slug/name.

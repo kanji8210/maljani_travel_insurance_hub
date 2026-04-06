@@ -18,18 +18,31 @@ class Maljani_GraphQL_Auth {
         // Global CORS for preflight
         add_action('init', [$this, 'handle_global_cors'], 1);
 
-        // Register Mutations
-        add_action('graphql_register_types', [$this, 'register_login_mutation']);
-        add_action('graphql_register_types', [$this, 'register_registration_mutation']);
-        add_action('graphql_register_types', [$this, 'register_sales_mutation']);
-        add_action('graphql_register_types', [$this, 'register_update_sale_mutation']);
-        add_action('graphql_register_types', [$this, 'register_update_profile_mutation']);
-        add_action('graphql_register_types', [$this, 'register_mark_notifications_read_mutation']);
+        // Register all types/mutations/queries with error isolation.
+        // A failure in one registration must not crash the entire schema.
+        $registrations = [
+            'register_login_mutation',
+            'register_registration_mutation',
+            'register_sales_mutation',
+            'register_update_sale_mutation',
+            'register_update_profile_mutation',
+            'register_mark_notifications_read_mutation',
+            'register_my_policy_sales_query',
+            'register_my_notifications_query',
+            'register_agency_dashboard_query',
+        ];
+        foreach ($registrations as $method) {
+            add_action('graphql_register_types', function () use ($method) {
+                try {
+                    $this->$method();
+                } catch (\Throwable $e) {
+                    error_log('[Maljani GQL] FATAL in ' . $method . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+                }
+            });
+        }
 
-        // Register Queries
-        add_action('graphql_register_types', [$this, 'register_my_policy_sales_query']);
-        add_action('graphql_register_types', [$this, 'register_my_notifications_query']);
-        add_action('graphql_register_types', [$this, 'register_agency_dashboard_query']);
+        // Diagnostic REST endpoint for debugging 502s
+        add_action('rest_api_init', [$this, 'register_health_check']);
 
         // Authenticate requests
         add_filter('determine_current_user', [$this, 'authenticate_request'], 20);
@@ -297,6 +310,61 @@ class Maljani_GraphQL_Auth {
                 ]);
             },
             'permission_callback' => '__return_true', // auth handled inside callback
+        ]);
+    }
+
+    /**
+     * Health-check endpoint to diagnose 502 Bad Gateway issues.
+     * URL: /wp-json/maljani/v1/health
+     * Returns plugin load status, WPGraphQL availability, table existence, and PHP info.
+     */
+    public function register_health_check() {
+        register_rest_route('maljani/v1', '/health', [
+            'methods'  => 'GET',
+            'callback' => function () {
+                global $wpdb;
+                $checks = [];
+
+                // PHP info
+                $checks['php_version']    = PHP_VERSION;
+                $checks['memory_limit']   = ini_get('memory_limit');
+                $checks['memory_used_mb'] = round(memory_get_peak_usage(true) / 1048576, 1);
+                $checks['plugin_version'] = defined('MALJANI_VERSION') ? MALJANI_VERSION : 'undefined';
+
+                // WPGraphQL
+                $checks['wpgraphql_active'] = class_exists('WPGraphQL');
+                $checks['wpgraphql_version'] = defined('WPGRAPHQL_VERSION') ? WPGRAPHQL_VERSION : 'unknown';
+
+                // Tables
+                $tables = ['policy_sale', 'maljani_agencies', 'maljani_notifications'];
+                foreach ($tables as $t) {
+                    $full = $wpdb->prefix . $t;
+                    $checks['tables'][$t] = $wpdb->get_var("SHOW TABLES LIKE '$full'") === $full;
+                }
+
+                // Check if graphql_register_types callbacks ran without error
+                $checks['schema_version'] = get_option('maljani_gql_schema_version', 'not set');
+                $checks['db_version']     = get_option('maljani_db_version', 'not set');
+
+                // Check PHP error log for recent Maljani errors
+                $log_file = ini_get('error_log');
+                $checks['error_log_path'] = $log_file ?: 'default';
+                $recent_errors = [];
+                if ($log_file && file_exists($log_file) && is_readable($log_file)) {
+                    $lines = array_slice(file($log_file), -100);
+                    foreach ($lines as $line) {
+                        if (stripos($line, 'maljani') !== false || stripos($line, 'graphql') !== false) {
+                            $recent_errors[] = trim($line);
+                        }
+                    }
+                }
+                $checks['recent_errors'] = array_slice($recent_errors, -10);
+
+                return rest_ensure_response($checks);
+            },
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
         ]);
     }
 

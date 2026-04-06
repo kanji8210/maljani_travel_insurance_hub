@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Définition de la version du plugin
-define( 'MALJANI_VERSION', '1.0.7' );
+define( 'MALJANI_VERSION', '1.0.8' );
 
 // ==========================
 // INCLUSIONS PRINCIPALES
