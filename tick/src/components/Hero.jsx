@@ -65,20 +65,87 @@ const Hero = ({ onStart, onNavigate }) => {
     </div>
   );
 
-  return (
-    <section id="hero-top" style={{ position: "relative", zIndex: 1, minHeight: mobile ? "auto" : "100vh", display: "flex", alignItems: "center", padding: mobile ? "100px 0 60px" : "128px 0 80px" }}>
-      <div style={{
-        position: "absolute", right: "-8%", top: "50%", transform: "translateY(-50%)",
-        width: mobile ? 300 : 560, height: mobile ? 300 : 560, border: "1px dashed rgba(49,99,49,0.18)", borderRadius: "50%",
-        pointerEvents: "none", animation: "spin-slow 80s linear infinite",
-      }} aria-hidden="true" />
-      <style>{`@keyframes spin-slow { to { transform: translateY(-50%) rotate(360deg); } } @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
+  const showImmersive = !isAgent;
+  const hideConsumerCopy = !isAgent; // hide left marketing column for all consumer views (logged in or not)
 
-      <div className="container">
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : tablet ? "1fr 380px" : "1fr 460px", gap: mobile ? 40 : tablet ? 48 : 72, alignItems: "center" }}>
+  return (
+    <section
+      id="hero-top"
+      style={{
+        position: "relative",
+        zIndex: 1,
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        padding: mobile ? "112px 0 80px" : "128px 0 96px",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── Full-bleed ambient background (consumer / unlogged users) ── */}
+      {showImmersive && (
+        <>
+          {/* Aurora gradient wash */}
+          <div aria-hidden="true" style={{
+            position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+            background:
+              "radial-gradient(ellipse 80% 60% at 75% 20%, rgba(246,166,35,0.18), transparent 60%)," +
+              "radial-gradient(ellipse 70% 50% at 15% 80%, rgba(49,99,49,0.28), transparent 65%)," +
+              "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(99,102,241,0.10), transparent 70%)",
+          }} />
+          {/* Dotted grid texture */}
+          <div aria-hidden="true" style={{
+            position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, opacity: 0.35,
+            backgroundImage: "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+            maskImage: "radial-gradient(ellipse 80% 70% at 50% 40%, #000 35%, transparent 80%)",
+            WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 40%, #000 35%, transparent 80%)",
+          }} />
+          {/* Floating orbs */}
+          <div aria-hidden="true" style={{
+            position: "absolute", top: "-10%", left: "-8%", width: mobile ? 280 : 480, height: mobile ? 280 : 480,
+            borderRadius: "50%", background: "radial-gradient(circle, rgba(246,166,35,0.35), transparent 65%)",
+            filter: "blur(60px)", pointerEvents: "none", animation: "drift 22s ease-in-out infinite",
+          }} />
+          <div aria-hidden="true" style={{
+            position: "absolute", bottom: "-12%", right: "-6%", width: mobile ? 320 : 540, height: mobile ? 320 : 540,
+            borderRadius: "50%", background: "radial-gradient(circle, rgba(49,99,49,0.38), transparent 65%)",
+            filter: "blur(70px)", pointerEvents: "none", animation: "drift 28s ease-in-out -8s infinite",
+          }} />
+        </>
+      )}
+      {/* Decorative dashed ring (kept for both views) */}
+      <div style={{
+        position: "absolute", right: "-10%", top: "50%", transform: "translateY(-50%)",
+        width: mobile ? 320 : 620, height: mobile ? 320 : 620, border: "1px dashed rgba(255,255,255,0.10)", borderRadius: "50%",
+        pointerEvents: "none", animation: "spin-slow 80s linear infinite", zIndex: 0,
+      }} aria-hidden="true" />
+      <div style={{
+        position: "absolute", right: "-4%", top: "50%", transform: "translateY(-50%)",
+        width: mobile ? 200 : 380, height: mobile ? 200 : 380, border: "1px dashed rgba(246,166,35,0.18)", borderRadius: "50%",
+        pointerEvents: "none", animation: "spin-slow 120s linear infinite reverse", zIndex: 0,
+      }} aria-hidden="true" />
+      <style>{`
+        @keyframes spin-slow { to { transform: translateY(-50%) rotate(360deg); } }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes drift { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(30px,-20px) scale(1.08)} }
+        @keyframes pulse-dot { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.4)} }
+        @keyframes scroll-bounce { 0%,100%{transform:translate(-50%,0);opacity:0.8} 50%{transform:translate(-50%,8px);opacity:0.4} }
+        @media (prefers-reduced-motion: reduce) {
+          [class*="reveal"], #hero-top * { animation: none !important; transition: none !important; }
+        }
+      `}</style>
+
+      <div className="container" style={{ position: "relative", zIndex: 2, width: "100%" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: hideConsumerCopy ? "1fr" : mobile ? "1fr" : tablet ? "1fr 380px" : "1fr 460px",
+          gap: mobile ? 40 : tablet ? 48 : 72,
+          alignItems: "center",
+          justifyItems: hideConsumerCopy ? "center" : "stretch",
+        }}>
 
           {/* ── Left column ── */}
-          {isAgent ? (
+          {hideConsumerCopy ? null : isAgent ? (
             /* Agent copy */
             <div>
               <p className="section-label">For Insurance Agencies</p>
@@ -118,24 +185,40 @@ const Hero = ({ onStart, onNavigate }) => {
           ) : (
             /* Consumer copy */
             <div>
-              <div className="reveal" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
-                <div style={{ width: 28, height: 2, background: "var(--gold)", flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)" }}>East Africa&apos;s #1 Travel Insurance Hub</span>
+              <div className="reveal" style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 22, padding: "8px 14px 8px 10px", borderRadius: 999, background: "rgba(246,166,35,0.10)", border: "1px solid rgba(246,166,35,0.28)", backdropFilter: "blur(8px)" }}>
+                <span style={{ position: "relative", display: "inline-flex", width: 8, height: 8 }}>
+                  <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "var(--gold)", animation: "pulse-dot 2s ease-in-out infinite" }} />
+                  <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "var(--gold)" }} />
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)" }}>East Africa&apos;s #1 Travel Insurance Hub</span>
               </div>
-              <h1 className="reveal reveal-delay-1" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(40px,5vw,72px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.025em", marginBottom: 22 }}>
-                Travel Insurance{" "}
-                <em style={{ fontStyle: "normal", background: "linear-gradient(135deg,var(--indigo-glow),#86efac)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Center.</em>
+              <h1 className="reveal reveal-delay-1" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(44px,6vw,84px)", fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", marginBottom: 22 }}>
+                Your Policies,<br />
+                <em style={{ fontStyle: "normal", background: "linear-gradient(135deg,var(--gold),#ffd27a 60%,#86efac)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Anytime. Anywhere.</em>
               </h1>
-              <p className="reveal reveal-delay-2" style={{ fontSize: 18, color: "var(--slate)", lineHeight: 1.75, marginBottom: 36, maxWidth: 520 }}>
+              <p className="reveal reveal-delay-2" style={{ fontSize: mobile ? 16 : 19, color: "var(--slate)", lineHeight: 1.7, marginBottom: 32, maxWidth: 540 }}>
                 Compare policies from Africa&apos;s leading insurers in seconds.
-                Instant certificates. Zero paperwork. Built for travelers and agencies.
+                Instant embassy-verified certificates. Zero paperwork. Built for travelers and agencies.
               </p>
-              <div className="reveal reveal-delay-3" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+              <div className="reveal reveal-delay-3" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 28 }}>
                 <button className="btn btn--primary btn--lg" onClick={() => document.getElementById("policy-showcase")?.scrollIntoView({ behavior: "smooth" })}>Compare Policies &rarr;</button>
                 <button className="btn btn--ghost btn--lg" onClick={() => document.getElementById("agencies")?.scrollIntoView({ behavior: "smooth" })}>For Agencies</button>
               </div>
+              {/* Stat strip */}
+              <div className="reveal reveal-delay-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: mobile ? 10 : 18, marginBottom: 26, maxWidth: 520 }}>
+                {[
+                  ["100K+", "Policies issued"],
+                  ["15+", "Partner insurers"],
+                  ["40+", "Embassy-accepted"],
+                ].map(([n, l]) => (
+                  <div key={l} style={{ padding: mobile ? "10px 12px" : "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid var(--glass-border)", backdropFilter: "blur(8px)" }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: mobile ? 20 : 26, fontWeight: 800, color: "var(--gold)", lineHeight: 1 }}>{n}</div>
+                    <div style={{ fontSize: 11, color: "var(--slate)", marginTop: 6, letterSpacing: "0.04em" }}>{l}</div>
+                  </div>
+                ))}
+              </div>
               <div className="reveal reveal-delay-4" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", fontSize: 13, color: "var(--slate-dark)" }}>
-                {["\u2713 No sign-up needed to compare", "\u2713 Embassy-verified certificates", "\u2713 15+ Partner insurers"].map(t => (
+                {["\u2713 No sign-up to compare", "\u2713 Instant PDF certificate"].map(t => (
                   <span key={t} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <em style={{ color: "#22c55e", fontStyle: "normal" }}>{t[0]}</em>{t.slice(1)}
                   </span>
@@ -170,10 +253,10 @@ const Hero = ({ onStart, onNavigate }) => {
             </div>
           ) : (
             /* Consumer quote wizard card */
-            <div className="reveal reveal-delay-2">
+            <div className="reveal reveal-delay-2" style={hideConsumerCopy ? { width: "100%", maxWidth: 760 } : undefined}>
               <div style={{
                 background: "var(--glass-bg-md)", border: "1px solid var(--glass-border-bright)",
-                borderRadius: "var(--radius-xl)", padding: 32, backdropFilter: "blur(24px)",
+                borderRadius: "var(--radius-xl)", padding: hideConsumerCopy && !mobile ? 44 : 32, backdropFilter: "blur(24px)",
                 boxShadow: "var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.08)",
                 position: "relative", overflow: "hidden", animation: "float 7s ease-in-out infinite",
               }} role="form" aria-label="Get an insurance quote">
@@ -271,6 +354,27 @@ const Hero = ({ onStart, onNavigate }) => {
 
         </div>
       </div>
+
+      {/* Scroll-down indicator (consumer only, desktop) */}
+      {showImmersive && !mobile && (
+        <button
+          type="button"
+          aria-label="Scroll to compare policies"
+          onClick={() => document.getElementById("policy-showcase")?.scrollIntoView({ behavior: "smooth" })}
+          style={{
+            position: "absolute", bottom: 28, left: "50%", transform: "translateX(-50%)",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+            background: "transparent", border: "none", cursor: "pointer", zIndex: 3,
+            color: "var(--slate)", fontSize: 11, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase",
+            animation: "scroll-bounce 2.4s ease-in-out infinite",
+          }}
+        >
+          <span>Scroll to explore</span>
+          <span style={{ width: 22, height: 36, borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.35)", display: "inline-flex", justifyContent: "center", paddingTop: 6 }}>
+            <span style={{ width: 3, height: 8, borderRadius: 2, background: "var(--gold)" }} />
+          </span>
+        </button>
+      )}
     </section>
   );
 };

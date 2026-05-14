@@ -502,7 +502,7 @@ const LandingPage = ({ onStartWizard, onNavigate }) => {
         document.getElementById('policy-showcase')?.scrollIntoView({ behavior: 'smooth' });
       }} onNavigate={onNavigate} />
 
-      {!isAgent && <TrustSection />}
+       {!isAgent && user && <TrustSection onNavigate={onNavigate} />}
 
       {user && !isAgent && (
         <div style={{ position: 'relative', zIndex: 1, padding: '0 0 20px' }}>

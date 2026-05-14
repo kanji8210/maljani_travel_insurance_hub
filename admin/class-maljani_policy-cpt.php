@@ -154,6 +154,62 @@ class Policy_CPT {
             },
         ] );
 
+        // Insurer post ID (so frontend can deep-link to admin/profile pages)
+        register_graphql_field( 'Policy', 'policyInsurerDatabaseId', [
+            'type'        => 'Int',
+            'description' => 'Linked insurer_profile post ID.',
+            'resolve'     => function ( $post ) {
+                $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
+                return $insurer_id ? intval( $insurer_id ) : 0;
+            },
+        ] );
+
+        // Insurer bio / profile description
+        register_graphql_field( 'Policy', 'policyInsurerBio', [
+            'type'        => 'String',
+            'description' => 'Brief profile description of the underwriting insurer.',
+            'resolve'     => function ( $post ) {
+                $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
+                if ( ! $insurer_id ) return '';
+                return (string) get_post_meta( $insurer_id, '_insurer_profile', true );
+            },
+        ] );
+
+        // Insurer website URL
+        register_graphql_field( 'Policy', 'policyInsurerWebsite', [
+            'type'        => 'String',
+            'description' => 'Official website URL of the underwriting insurer.',
+            'resolve'     => function ( $post ) {
+                $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
+                if ( ! $insurer_id ) return '';
+                return (string) get_post_meta( $insurer_id, '_insurer_website', true );
+            },
+        ] );
+
+        // Insurer LinkedIn URL
+        register_graphql_field( 'Policy', 'policyInsurerLinkedin', [
+            'type'        => 'String',
+            'description' => 'LinkedIn page URL of the underwriting insurer.',
+            'resolve'     => function ( $post ) {
+                $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
+                if ( ! $insurer_id ) return '';
+                return (string) get_post_meta( $insurer_id, '_insurer_linkedin', true );
+            },
+        ] );
+
+        // Insurer feature image URL
+        register_graphql_field( 'Policy', 'policyInsurerFeatureImage', [
+            'type'        => 'String',
+            'description' => 'Feature image URL of the underwriting insurer.',
+            'resolve'     => function ( $post ) {
+                $insurer_id = get_post_meta( $post->databaseId, '_policy_insurer', true );
+                if ( ! $insurer_id ) return '';
+                $img_id = get_post_meta( $insurer_id, '_insurer_feature_img', true );
+                if ( $img_id ) return wp_get_attachment_url( $img_id );
+                return '';
+            },
+        ] );
+
         // ── SUPPLEMENTAL FIELDS MOVING HERE ──────────────────────────────────
         
         // Countries covered — falls back to region defaults
