@@ -1532,7 +1532,7 @@ class Maljani_GraphQL_Auth {
                 if ($fee_type === 'fixed' && $fee_value > 10000000) $fee_value = 10000000;
 
                 $issuer = sanitize_text_field($input['receiptIssuerName'] ?? '');
-                $issuer = mb_substr($issuer, 0, 120);
+                $issuer = substr($issuer, 0, 120);
                 $show_processed = !empty($input['showProcessedByTick']);
 
                 update_user_meta($user_id, 'maljani_agent_display_fee_type', $fee_type);

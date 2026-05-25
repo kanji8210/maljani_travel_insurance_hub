@@ -53,8 +53,31 @@ class Maljani_Invoice {
         if ($sale->agent_id) {
             $u = get_userdata($sale->agent_id);
             $sale->agent_display = $u ? $u->display_name : '';
+
+            $issuer = (string) get_user_meta((int) $sale->agent_id, 'maljani_agent_receipt_issuer_name', true);
+            $fee_type = (string) get_user_meta((int) $sale->agent_id, 'maljani_agent_display_fee_type', true);
+            $fee_value = (float) get_user_meta((int) $sale->agent_id, 'maljani_agent_display_fee_value', true);
+            $show_processed = get_user_meta((int) $sale->agent_id, 'maljani_agent_show_processed_by_tick', true) !== '0';
+
+            $sale->receipt_issuer_name = sanitize_text_field($issuer);
+            $sale->agent_display_fee_type = in_array($fee_type, ['fixed', 'percent'], true) ? $fee_type : 'fixed';
+            $sale->agent_display_fee_value = max(0, $fee_value);
+            $sale->show_processed_by_tick = $show_processed;
         }
         return $sale;
+    }
+
+    private static function get_agent_display_fee_amount(object $sale): float {
+        $val = (float) ($sale->agent_display_fee_value ?? 0);
+        if ($val <= 0) return 0;
+
+        $type = $sale->agent_display_fee_type ?? 'fixed';
+        if ($type === 'percent') {
+            $base = (float) ($sale->amount_paid ?? 0);
+            return round(($base * $val) / 100, 2);
+        }
+
+        return round($val, 2);
     }
 
     // ── Logo helper ───────────────────────────────────────────────────────────
@@ -268,6 +291,16 @@ CSS;
         $etr = $cfg['etr_number'] ? '<span class="kra-badge">ETR No: ' . esc_html($cfg['etr_number']) . '</span>' : '';
         $vat_no = $cfg['vat_enabled'] ? '<span class="kra-badge">VAT Reg.</span>' : '<span class="kra-badge">VAT NOT APPLICABLE</span>';
 
+        $issuer_name = !empty($sale->receipt_issuer_name)
+            ? $sale->receipt_issuer_name
+            : ($sale->agent_display ?: $cfg['company_name']);
+        $show_processed = isset($sale->show_processed_by_tick)
+            ? (bool) $sale->show_processed_by_tick
+            : true;
+        $processed_note = $show_processed
+            ? '<br><small style="display:inline-block;margin-top:4px;color:#64748b">Processed by TICK</small>'
+            : '';
+
         $paid_date = $is_receipt && isset($sale->updated_at) ? date('d M Y', strtotime($sale->updated_at)) : date('d M Y');
 
         return '
@@ -275,11 +308,12 @@ CSS;
   <div class="doc-party">
     <h3>From</h3>
     <p>
-      <strong>' . esc_html($cfg['company_name']) . '</strong><br>
+            <strong>' . esc_html($issuer_name) . '</strong><br>
       ' . esc_html($cfg['address_line1']) . ($cfg['address_line2'] ? '<br>' . esc_html($cfg['address_line2']) : '') . '<br>
       ' . esc_html($cfg['city']) . ', ' . esc_html($cfg['country']) . '<br>
       ' . ($cfg['phone'] ? 'Tel: ' . esc_html($cfg['phone']) . '<br>' : '') . '
       ' . esc_html($cfg['email']) . '
+            ' . $processed_note . '
     </p>
     ' . $kra . ' ' . $etr . ' ' . $vat_no . '
   </div>
@@ -378,6 +412,29 @@ CSS;
         $inst = nl2br(esc_html($cfg['payment_instructions']));
         if (!$inst && !$is_receipt) $inst = 'Please make payment via M-Pesa, Bank Transfer, or Cash. Quote your Policy Number as payment reference.';
 
+        $agent_fee = $sale ? self::get_agent_display_fee_amount($sale) : 0;
+        $agent_fee_type = $sale->agent_display_fee_type ?? 'fixed';
+        $agent_fee_value = (float) ($sale->agent_display_fee_value ?? 0);
+        $agent_fee_label = $agent_fee_type === 'percent'
+            ? number_format($agent_fee_value, 2) . '%'
+            : esc_html($cfg['currency_symbol']) . ' ' . number_format($agent_fee_value, 2);
+        $agent_fee_block = '';
+        if ($agent_fee > 0) {
+            $agent_fee_block = '<strong>Agency Display Fee:</strong> ' . esc_html($cfg['currency_symbol']) . ' ' . number_format($agent_fee, 2)
+                . ' <small style="color:#64748b">(' . $agent_fee_label . ', display only)</small><br>'
+                . '<strong>Client-facing Total:</strong> ' . esc_html($cfg['currency_symbol']) . ' ' . number_format(((float) ($sale->amount_paid ?? 0)) + $agent_fee, 2)
+                . '<br><small style="color:#64748b">Official processed total remains ' . esc_html($cfg['currency_symbol']) . ' ' . number_format((float) ($sale->amount_paid ?? 0), 2) . '</small><br>';
+        }
+
+        $show_processed = $sale && isset($sale->show_processed_by_tick) ? (bool) $sale->show_processed_by_tick : true;
+        $processed_line = $show_processed ? '<strong>Processed by:</strong> TICK<br>' : '';
+        $issued_by_name = '';
+        if ($sale) {
+            $issued_by_name = !empty($sale->receipt_issuer_name)
+                ? $sale->receipt_issuer_name
+                : ($sale->agent_display ?: '');
+        }
+
         return '
 <div class="doc-payment">
   <div class="pay-block">
@@ -388,7 +445,9 @@ CSS;
     <h4>Policy Reference</h4>
     <p>
       <strong>Policy No:</strong> ' . esc_html($sale->policy_number ?? '—') . '<br>
-      ' . ($sale->agent_display ? '<strong>Issued by:</strong> ' . esc_html($sale->agent_display) . '<br>' : '') . '
+            ' . $processed_line . '
+            ' . $agent_fee_block . '
+            ' . ($issued_by_name ? '<strong>Issued by:</strong> ' . esc_html($issued_by_name) . '<br>' : '') . '
       <strong>Issued date:</strong> ' . date('d M Y, H:i') . '
     </p>
   </div>
