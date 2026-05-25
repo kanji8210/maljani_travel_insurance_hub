@@ -30,6 +30,7 @@ class Maljani_GraphQL_Auth {
             'register_my_policy_sales_query',
             'register_my_notifications_query',
             'register_agency_dashboard_query',
+            'register_agent_display_settings',
         ];
         foreach ($registrations as $method) {
             add_action('graphql_register_types', function () use ($method) {
@@ -1443,6 +1444,109 @@ class Maljani_GraphQL_Auth {
                     'monthlyAnalytics'   => $monthly_points,
                     'statusDistribution' => $status_dist,
                     'topProducts'        => $top_products,
+                ];
+            },
+        ]);
+    }
+
+    /**
+     * Register agent display settings query + mutation.
+     * These settings are presentation-only and never affect backend settlement math.
+     */
+    public function register_agent_display_settings() {
+        if (!function_exists('register_graphql_object_type') || !function_exists('register_graphql_field') || !function_exists('register_graphql_mutation')) {
+            return;
+        }
+
+        register_graphql_object_type('MaljaniAgentDisplaySettings', [
+            'fields' => [
+                'additionalFeeType'    => ['type' => 'String'],
+                'additionalFeeValue'   => ['type' => 'Float'],
+                'receiptIssuerName'    => ['type' => 'String'],
+                'showProcessedByTick'  => ['type' => 'Boolean'],
+            ],
+        ]);
+
+        register_graphql_field('RootQuery', 'agentDisplaySettings', [
+            'type'        => 'MaljaniAgentDisplaySettings',
+            'description' => 'Display-only fee and receipt branding settings for the current agent',
+            'resolve'     => function () {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError('You must be logged in.');
+                }
+
+                $user = wp_get_current_user();
+                if (!in_array('agent', (array) $user->roles) && !in_array('administrator', (array) $user->roles)) {
+                    throw new \GraphQL\Error\UserError('Agent access required.');
+                }
+
+                $fee_type = get_user_meta($user_id, 'maljani_agent_display_fee_type', true);
+                if (!in_array($fee_type, ['fixed', 'percent'], true)) {
+                    $fee_type = 'fixed';
+                }
+
+                return [
+                    'additionalFeeType'   => $fee_type,
+                    'additionalFeeValue'  => (float) get_user_meta($user_id, 'maljani_agent_display_fee_value', true),
+                    'receiptIssuerName'   => (string) get_user_meta($user_id, 'maljani_agent_receipt_issuer_name', true),
+                    'showProcessedByTick' => get_user_meta($user_id, 'maljani_agent_show_processed_by_tick', true) !== '0',
+                ];
+            },
+        ]);
+
+        register_graphql_mutation('maljaniUpdateAgentDisplaySettings', [
+            'inputFields' => [
+                'additionalFeeType'   => ['type' => 'String'],
+                'additionalFeeValue'  => ['type' => 'Float'],
+                'receiptIssuerName'   => ['type' => 'String'],
+                'showProcessedByTick' => ['type' => 'Boolean'],
+            ],
+            'outputFields' => [
+                'success'             => ['type' => 'Boolean'],
+                'message'             => ['type' => 'String'],
+                'additionalFeeType'   => ['type' => 'String'],
+                'additionalFeeValue'  => ['type' => 'Float'],
+                'receiptIssuerName'   => ['type' => 'String'],
+                'showProcessedByTick' => ['type' => 'Boolean'],
+            ],
+            'mutateAndGetPayload' => function ($input) {
+                $user_id = get_current_user_id();
+                if (!$user_id) {
+                    throw new \GraphQL\Error\UserError('You must be logged in.');
+                }
+
+                $user = wp_get_current_user();
+                if (!in_array('agent', (array) $user->roles) && !in_array('administrator', (array) $user->roles)) {
+                    throw new \GraphQL\Error\UserError('Agent access required.');
+                }
+
+                $fee_type = sanitize_text_field($input['additionalFeeType'] ?? 'fixed');
+                if (!in_array($fee_type, ['fixed', 'percent'], true)) {
+                    $fee_type = 'fixed';
+                }
+
+                $fee_value = isset($input['additionalFeeValue']) ? (float) $input['additionalFeeValue'] : 0;
+                if ($fee_value < 0) $fee_value = 0;
+                if ($fee_type === 'percent' && $fee_value > 100) $fee_value = 100;
+                if ($fee_type === 'fixed' && $fee_value > 10000000) $fee_value = 10000000;
+
+                $issuer = sanitize_text_field($input['receiptIssuerName'] ?? '');
+                $issuer = mb_substr($issuer, 0, 120);
+                $show_processed = !empty($input['showProcessedByTick']);
+
+                update_user_meta($user_id, 'maljani_agent_display_fee_type', $fee_type);
+                update_user_meta($user_id, 'maljani_agent_display_fee_value', $fee_value);
+                update_user_meta($user_id, 'maljani_agent_receipt_issuer_name', $issuer);
+                update_user_meta($user_id, 'maljani_agent_show_processed_by_tick', $show_processed ? '1' : '0');
+
+                return [
+                    'success'             => true,
+                    'message'             => 'Agent settings saved.',
+                    'additionalFeeType'   => $fee_type,
+                    'additionalFeeValue'  => (float) $fee_value,
+                    'receiptIssuerName'   => $issuer,
+                    'showProcessedByTick' => $show_processed,
                 ];
             },
         ]);
