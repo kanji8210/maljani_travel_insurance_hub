@@ -62,6 +62,7 @@ class Insurer_Profile_CPT {
         $website = get_post_meta($post->ID, '_insurer_website', true);
         $linkedin = get_post_meta($post->ID, '_insurer_linkedin', true);
         $pesapal_id = get_post_meta($post->ID, '_insurer_pesapal_merchant_id', true);
+        $usd_to_ksh_rate = get_post_meta($post->ID, '_insurer_usd_to_ksh_rate', true);
 
         ?>
         <style>
@@ -201,6 +202,12 @@ class Insurer_Profile_CPT {
             <!-- Tab: API & Payment -->
             <div id="tab-api" class="maljani-tab-content">
                 <div class="mj-form-group">
+                    <label for="insurer_usd_to_ksh_rate">USD to KSH Exchange Rate</label>
+                    <input type="number" id="insurer_usd_to_ksh_rate" name="insurer_usd_to_ksh_rate" value="<?php echo esc_attr($usd_to_ksh_rate); ?>" class="mj-input" placeholder="e.g. 129.50" min="0" step="0.0001" />
+                    <p class="description">Set this insurer-specific rate used to convert USD premiums to KSH during quote and checkout calculations.</p>
+                </div>
+
+                <div class="mj-form-group">
                     <label for="insurer_pesapal_id">Pesapal Merchant ID (for Split Payments)</label>
                     <input type="text" id="insurer_pesapal_id" name="insurer_pesapal_id" value="<?php echo esc_attr($pesapal_id); ?>" class="mj-input" placeholder="e.g. 5ca... " />
                     <p class="description">If provided, insurance premiums will be automatically routed to this Merchant ID via Pesapal Split Payment. If empty, funds are kept in Maljani's main account.</p>
@@ -325,6 +332,14 @@ class Insurer_Profile_CPT {
         }
         if (isset($_POST['insurer_pesapal_id'])) {
             update_post_meta($post_id, '_insurer_pesapal_merchant_id', sanitize_text_field($_POST['insurer_pesapal_id']));
+        }
+        if (isset($_POST['insurer_usd_to_ksh_rate'])) {
+            $rate = floatval($_POST['insurer_usd_to_ksh_rate']);
+            if ($rate > 0) {
+                update_post_meta($post_id, '_insurer_usd_to_ksh_rate', $rate);
+            } else {
+                delete_post_meta($post_id, '_insurer_usd_to_ksh_rate');
+            }
         }
     }
 }

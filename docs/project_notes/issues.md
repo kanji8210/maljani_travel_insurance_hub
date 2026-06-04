@@ -23,3 +23,11 @@ Log completed work and session progress here.
   - Daily WP-Cron: cover-expiry reminders (7-day & 1-day), payment reminders (unpaid >24h)
   - Cron cleared on plugin deactivation (`class-maljani-deactivator.php`)
   - Loaded in `maljani.php` after API endpoints
+
+### 2026-06-04 - Insurer USD to KSH Exchange Rate Support
+- **Status**: Completed
+- **Description**: Added insurer-level USD to KSH exchange rate meta field in the insurer profile admin form (`_insurer_usd_to_ksh_rate`) and applied it to premium calculations across:
+  - sales flow rendering and checkout insert calculations in `includes/class-maljani-sales-page.php`
+  - policy filter card premium display in `includes/class-maljani-filter.php`
+  - GraphQL sales create/update mutation premium calculations in `includes/class-maljani-graphql-auth.php`
+  - When policy currency is USD and insurer rate is set, displayed and stored premium math is converted to KSH.

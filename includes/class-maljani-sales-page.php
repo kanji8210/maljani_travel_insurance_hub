@@ -81,6 +81,60 @@ class Maljani_Sales_Page
         return true;
     }
 
+    /**
+     * Build policy currency context and resolve insurer-specific USD->KSH conversion.
+     *
+     * @param int $policy_id
+     * @return array{display_currency:string,convert_to_ksh:bool,rate:float}
+     */
+    private function get_policy_currency_context($policy_id)
+    {
+        $policy_id = intval($policy_id);
+        $currency = strtoupper((string) get_post_meta($policy_id, '_policy_currency', true));
+        if ($currency === '') {
+            $currency = 'KSH';
+        }
+        if ($currency === 'KES') {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+
+        if ($currency === 'USD') {
+            $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+            if ($insurer_id > 0) {
+                $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                if ($rate > 0) {
+                    $convert_to_ksh = true;
+                    $currency = 'KSH';
+                }
+            }
+        }
+
+        return [
+            'display_currency' => $currency,
+            'convert_to_ksh' => $convert_to_ksh,
+            'rate' => $rate,
+        ];
+    }
+
+    /**
+     * Convert premium value to display currency using resolved policy context.
+     *
+     * @param float|int|string $amount
+     * @param array $currency_context
+     * @return float
+     */
+    private function normalize_premium_amount($amount, $currency_context)
+    {
+        $value = floatval($amount);
+        if (!empty($currency_context['convert_to_ksh']) && !empty($currency_context['rate'])) {
+            $value *= floatval($currency_context['rate']);
+        }
+        return round($value, 2);
+    }
+
     // Nouvelle fonction pour gérer les redirections de sélection de police
     public function handle_policy_redirection()
     {
@@ -339,17 +393,25 @@ class Maljani_Sales_Page
         // Calcul du premium
         $premium = '';
         $currency = '';
+        $premiums = [];
         if ($policy_id && $days > 0) {
-            $currency = get_post_meta($policy_id, '_policy_currency', true);
-            if (empty($currency))
-                $currency = 'KSH';
+            $currency_context = $this->get_policy_currency_context($policy_id);
+            $currency = $currency_context['display_currency'];
 
             $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
             if (is_array($premiums)) {
                 foreach ($premiums as $row) {
                     if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
-                        $premium = $row['premium'];
+                        $premium = $this->normalize_premium_amount($row['premium'], $currency_context);
                         break;
+                    }
+                }
+
+                if (!empty($currency_context['convert_to_ksh'])) {
+                    foreach ($premiums as $idx => $row) {
+                        if (isset($row['premium'])) {
+                            $premiums[$idx]['premium'] = $this->normalize_premium_amount($row['premium'], $currency_context);
+                        }
                     }
                 }
             }
@@ -709,6 +771,7 @@ class Maljani_Sales_Page
                                 ]);
                                 foreach ($policies as $p) {
                                     $premiums = get_post_meta($p->ID, '_policy_day_premiums', true);
+                                    $currency_context = $this->get_policy_currency_context($p->ID);
 
                                     // Récupération des informations sur l'assureur
                                     $insurer_id = get_post_meta($p->ID, '_policy_insurer', true);
@@ -723,7 +786,7 @@ class Maljani_Sales_Page
                                     if (is_array($premiums)) {
                                         foreach ($premiums as $row) {
                                             if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
-                                                $policy_premium = $row['premium'];
+                                                $policy_premium = $this->normalize_premium_amount($row['premium'], $currency_context);
                                                 break;
                                             }
                                         }
@@ -1004,12 +1067,13 @@ class Maljani_Sales_Page
             }
 
             // Calcul du premium
+            $currency_context = $this->get_policy_currency_context($policy_id);
             $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
             $premium = 0;
             if (is_array($premiums)) {
                 foreach ($premiums as $row) {
                     if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
-                        $premium = floatval($row['premium']);
+                        $premium = $this->normalize_premium_amount($row['premium'], $currency_context);
                         break;
                     }
                 }

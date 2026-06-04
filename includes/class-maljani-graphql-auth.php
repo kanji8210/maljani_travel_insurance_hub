@@ -80,6 +80,43 @@ class Maljani_GraphQL_Auth {
         }
     }
 
+    private function get_policy_currency_context(int $policy_id): array {
+        $currency = strtoupper((string) get_post_meta($policy_id, '_policy_currency', true));
+        if ($currency === '') {
+            $currency = 'KSH';
+        }
+        if ($currency === 'KES') {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+        if ($currency === 'USD') {
+            $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+            if ($insurer_id > 0) {
+                $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                if ($rate > 0) {
+                    $convert_to_ksh = true;
+                    $currency = 'KSH';
+                }
+            }
+        }
+
+        return [
+            'display_currency' => $currency,
+            'convert_to_ksh' => $convert_to_ksh,
+            'rate' => $rate,
+        ];
+    }
+
+    private function normalize_premium_amount($amount, array $currency_context): float {
+        $value = floatval($amount);
+        if (!empty($currency_context['convert_to_ksh']) && !empty($currency_context['rate'])) {
+            $value *= floatval($currency_context['rate']);
+        }
+        return round($value, 2);
+    }
+
     /**
      * Handle global CORS for GraphQL preflight
      */
@@ -448,6 +485,9 @@ class Maljani_GraphQL_Auth {
                     }
                 }
 
+                $currency_context = $this->get_policy_currency_context($policy_id);
+                $premium = $this->normalize_premium_amount($premium, $currency_context);
+
                 if ($premium <= 0) {
                     ob_end_clean();
                     throw new \GraphQL\Error\UserError(__('No premium found for these dates.', 'maljani'));
@@ -781,6 +821,10 @@ class Maljani_GraphQL_Auth {
                         }
                     }
                 }
+
+                $currency_context = $this->get_policy_currency_context($policy_id);
+                $premium = $this->normalize_premium_amount($premium, $currency_context);
+
                 if ($premium <= 0) {
                     throw new \GraphQL\Error\UserError('No premium bracket found for ' . $days . ' days.');
                 }

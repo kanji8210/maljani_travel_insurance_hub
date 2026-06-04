@@ -14,6 +14,44 @@ class Maljani_Filter {
         add_action('wp_ajax_nopriv_maljani_filter_policies', array($this, 'ajax_filter'));
     }
 
+    private function get_policy_currency_context($policy_id) {
+        $policy_id = intval($policy_id);
+        $currency = strtoupper((string) get_post_meta($policy_id, '_policy_currency', true));
+        if ($currency === '') {
+            $currency = 'KSH';
+        }
+        if ($currency === 'KES') {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+        if ($currency === 'USD') {
+            $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+            if ($insurer_id > 0) {
+                $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                if ($rate > 0) {
+                    $convert_to_ksh = true;
+                    $currency = 'KSH';
+                }
+            }
+        }
+
+        return [
+            'display_currency' => $currency,
+            'convert_to_ksh' => $convert_to_ksh,
+            'rate' => $rate,
+        ];
+    }
+
+    private function normalize_premium_amount($amount, $currency_context) {
+        $value = floatval($amount);
+        if (!empty($currency_context['convert_to_ksh']) && !empty($currency_context['rate'])) {
+            $value *= floatval($currency_context['rate']);
+        }
+        return round($value, 2);
+    }
+
     //enqueue style
     public function enqueue_style() {
         try {
@@ -592,14 +630,15 @@ class Maljani_Filter {
             $region_name = ($regions && !is_wp_error($regions)) ? $regions[0]->name : 'Global';
 
             $premium = '';
-            $currency = get_post_meta($policy_id, '_policy_currency', true) ?: 'KSH';
+            $currency_context = $this->get_policy_currency_context($policy_id);
+            $currency = $currency_context['display_currency'];
             
             if ($days > 0) {
                 $premiums = get_post_meta($policy_id, '_policy_day_premiums', true);
                 if (is_array($premiums)) {
                     foreach ($premiums as $row) {
                         if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
-                            $premium = $row['premium'];
+                            $premium = $this->normalize_premium_amount($row['premium'], $currency_context);
                             break;
                         }
                     }
