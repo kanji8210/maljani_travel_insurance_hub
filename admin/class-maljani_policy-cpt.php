@@ -42,11 +42,23 @@ class Policy_CPT {
             'graphql_plural_name' => 'Regions',
         ]);
 
+        register_taxonomy('policy_type', 'policy', [
+            'label'               => 'Insurance Types',
+            'rewrite'             => ['slug' => 'policy-type'],
+            'hierarchical'        => true,
+            'show_in_rest'        => true,
+            'show_admin_column'   => true,
+            'show_in_graphql'     => true,
+            'graphql_single_name' => 'PolicyType',
+            'graphql_plural_name' => 'PolicyTypes',
+        ]);
+
         add_action('add_meta_boxes',       [$this, 'add_meta_boxes']);
         add_action('save_post',            [$this, 'save_meta_boxes']);
         add_action('admin_enqueue_scripts',[$this, 'enqueue_admin_scripts']);
         if (is_admin()) {
             add_action('wp_ajax_add_policy_region', [$this, 'ajax_add_policy_region']);
+            add_action('wp_ajax_add_policy_type', [$this, 'ajax_add_policy_type']);
         }
 
         // ── Section 15.1: Register custom post meta as WPGraphQL fields ──────
@@ -338,7 +350,9 @@ class Policy_CPT {
 
         $insurers = get_posts(['post_type' => 'insurer_profile', 'numberposts' => -1]);
         $regions  = get_terms(['taxonomy' => 'policy_region', 'hide_empty' => false]);
+        $types    = get_terms(['taxonomy' => 'policy_type', 'hide_empty' => false]);
         $current_regions = wp_get_post_terms($post->ID, 'policy_region', ['fields' => 'ids']);
+        $current_types   = wp_get_post_terms($post->ID, 'policy_type', ['fields' => 'ids']);
 
         ob_start();
         ?>
@@ -691,6 +705,26 @@ textarea.mj-in { resize: vertical; }
                     <button type="button" id="add_policy_region" class="mj-btn mj-btn-primary">Add</button>
                 </div>
             </div>
+
+            <div class="mj-field">
+                <label for="policy_type_select">Insurance Type (Category)</label>
+                <div class="mj-region-wrap">
+                    <select id="policy_type_select" name="policy_type" class="mj-in">
+                        <option value="">— Select Type —</option>
+                        <?php foreach ($types as $type):?>
+                            <option value="<?php echo $type->term_id;?>" <?php echo in_array($type->term_id, $current_types) ? 'selected' : '';?>>
+                                <?php echo esc_html($type->name);?>
+                            </option>
+                        <?php endforeach;?>
+                    </select>
+                    <input type="text" id="new_policy_type"
+                           placeholder="Quick-add type…"
+                           class="mj-in"
+                           aria-label="New insurance type name"
+                           style="max-width:180px">
+                    <button type="button" id="add_policy_type" class="mj-btn mj-btn-primary">Add</button>
+                </div>
+            </div>
         </div>
 
         <!-- ── Countries ─────────────────────────────────────── -->
@@ -994,6 +1028,10 @@ textarea.mj-in { resize: vertical; }
             wp_set_post_terms($post_id, [intval($_POST['policy_region'])], 'policy_region');
             update_post_meta($post_id, '_policy_region', intval($_POST['policy_region']));
         }
+        if (isset($_POST['policy_type'])) {
+            wp_set_post_terms($post_id, [intval($_POST['policy_type'])], 'policy_type');
+            update_post_meta($post_id, '_policy_type', intval($_POST['policy_type']));
+        }
     }
 
     // ── Scripts ───────────────────────────────────────────────────────────────
@@ -1010,6 +1048,8 @@ textarea.mj-in { resize: vertical; }
         wp_localize_script('policy-admin-js', 'policyAdmin', [
             'nonce'    => wp_create_nonce('add_policy_region_nonce'),
             'security' => wp_create_nonce('add_policy_region_nonce'),
+            'regionNonce' => wp_create_nonce('add_policy_region_nonce'),
+            'typeNonce' => wp_create_nonce('add_policy_type_nonce'),
             'ajaxurl'  => admin_url('admin-ajax.php'),
             'ajax_url' => admin_url('admin-ajax.php'),
         ]);
@@ -1024,6 +1064,19 @@ textarea.mj-in { resize: vertical; }
         $term = wp_insert_term($region, 'policy_region');
         if (!is_wp_error($term)) {
             wp_send_json_success(['term_id' => $term['term_id'], 'name' => $region]);
+        } else {
+            wp_send_json_error('Error: ' . $term->get_error_message());
+        }
+    }
+
+    public function ajax_add_policy_type() {
+        if (!current_user_can('edit_posts')) wp_send_json_error('Insufficient permissions');
+        if (!wp_verify_nonce($_POST['security'], 'add_policy_type_nonce')) wp_send_json_error('Invalid nonce');
+        $type = sanitize_text_field($_POST['type'] ?? '');
+        if (!$type) wp_send_json_error('Insurance type name is required');
+        $term = wp_insert_term($type, 'policy_type');
+        if (!is_wp_error($term)) {
+            wp_send_json_success(['term_id' => $term['term_id'], 'name' => $type]);
         } else {
             wp_send_json_error('Error: ' . $term->get_error_message());
         }

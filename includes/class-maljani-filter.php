@@ -81,6 +81,7 @@ class Maljani_Filter {
          x-data="{ 
             step: 1, 
             region: '', 
+            policyType: '',
             departure: '', 
             returnDate: '',
             days: 0,
@@ -116,6 +117,7 @@ class Maljani_Filter {
                         departure: this.departure,
                         return: this.returnDate,
                         region: this.region,
+                        policy_type: this.policyType,
                         security: maljaniFilter.security
                     });
                     
@@ -190,7 +192,25 @@ class Maljani_Filter {
                         }
                         ?>
                     </div>
+                    <div class="filter-group" style="margin-top:18px; max-width:420px;">
+                        <label>Insurance Type</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon"><i data-lucide="tag"></i></span>
+                            <select class="filter-input" x-model="policyType">
+                                <option value="">All Types</option>
+                                <?php
+                                $policy_types = get_terms(array('taxonomy' => 'policy_type', 'hide_empty' => false));
+                                if (!is_wp_error($policy_types)) {
+                                    foreach ($policy_types as $type) {
+                                        echo '<option value="' . esc_attr($type->term_id) . '">' . esc_html($type->name) . '</option>';
+                                    }
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
                     <input type="hidden" name="region_id" x-model="region">
+                    <input type="hidden" name="policy_type" x-model="policyType">
                 </div>
 
                 <!-- STEP 2: DATES -->
@@ -276,6 +296,7 @@ class Maljani_Filter {
          x-data="{ 
             step: 1, 
             region: '', 
+            policyType: '',
             departure: '', 
             returnDate: '',
             redirectUrl: '<?php echo esc_url($atts['redirect']); ?>',
@@ -289,6 +310,7 @@ class Maljani_Filter {
                     url.searchParams.set('departure', this.departure);
                     url.searchParams.set('return', this.returnDate);
                     if (this.region) url.searchParams.set('region_id', this.region);
+                    if (this.policyType) url.searchParams.set('policy_type', this.policyType);
                     window.location.href = url.toString();
                 } else {
                     // Fallback to standard submit if no redirect
@@ -345,7 +367,25 @@ class Maljani_Filter {
                         }
                         ?>
                     </div>
+                    <div class="filter-group" style="margin-top:16px; max-width:420px;">
+                        <label>Insurance Type</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon"><i data-lucide="tag"></i></span>
+                            <select class="filter-input" x-model="policyType">
+                                <option value="">All Types</option>
+                                <?php
+                                $policy_types = get_terms(array('taxonomy' => 'policy_type', 'hide_empty' => false));
+                                if (!is_wp_error($policy_types)) {
+                                    foreach ($policy_types as $type) {
+                                        echo '<option value="' . esc_attr($type->term_id) . '">' . esc_html($type->name) . '</option>';
+                                    }
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
                     <input type="hidden" name="region_id" x-model="region">
+                    <input type="hidden" name="policy_type" x-model="policyType">
                 </div>
 
                 <!-- STEP 2: DATES -->
@@ -406,6 +446,7 @@ class Maljani_Filter {
         
         // Get filter parameters from URL
         $region_id = isset($_GET['region_id']) ? intval($_GET['region_id']) : ($atts['region'] ? intval($atts['region']) : 0);
+        $policy_type_id = isset($_GET['policy_type']) ? intval($_GET['policy_type']) : 0;
         $departure = isset($_GET['departure']) ? sanitize_text_field($_GET['departure']) : '';
         $return = isset($_GET['return']) ? sanitize_text_field($_GET['return']) : '';
         
@@ -422,14 +463,23 @@ class Maljani_Filter {
             'posts_per_page' => $posts_per_page,
         );
         
+        $tax_query = array();
         if ($region_id) {
-            $args['tax_query'] = array(
-                array(
-                    'taxonomy' => 'policy_region',
-                    'field' => 'term_id',
-                    'terms' => $region_id,
-                )
+            $tax_query[] = array(
+                'taxonomy' => 'policy_region',
+                'field' => 'term_id',
+                'terms' => $region_id,
             );
+        }
+        if ($policy_type_id) {
+            $tax_query[] = array(
+                'taxonomy' => 'policy_type',
+                'field' => 'term_id',
+                'terms' => $policy_type_id,
+            );
+        }
+        if (!empty($tax_query)) {
+            $args['tax_query'] = $tax_query;
         }
         
         // Calculate column width based on columns parameter
@@ -484,6 +534,7 @@ class Maljani_Filter {
     public function ajax_filter() {
         try {
             $region = intval($_POST['region']);
+            $policy_type = intval($_POST['policy_type'] ?? 0);
             $departure = sanitize_text_field($_POST['departure']);
             $return = sanitize_text_field($_POST['return']);
             $columns = isset($_POST['columns']) ? intval($_POST['columns']) : 4;
@@ -504,6 +555,13 @@ class Maljani_Filter {
                     'taxonomy' => 'policy_region',
                     'field'    => 'term_id',
                     'terms'    => $region,
+                );
+            }
+            if ($policy_type) {
+                $tax_query[] = array(
+                    'taxonomy' => 'policy_type',
+                    'field'    => 'term_id',
+                    'terms'    => $policy_type,
                 );
             }
 

@@ -31,3 +31,15 @@ Log completed work and session progress here.
   - policy filter card premium display in `includes/class-maljani-filter.php`
   - GraphQL sales create/update mutation premium calculations in `includes/class-maljani-graphql-auth.php`
   - When policy currency is USD and insurer rate is set, displayed and stored premium math is converted to KSH.
+
+### 2026-06-04 - Policy Taxonomy Expansion (Region + Insurance Type)
+- **Status**: Completed
+- **Description**: Extended policy taxonomy management in backend:
+  - kept `policy_region` as taxonomy-driven region management with policy editor quick-add
+  - added new `policy_type` taxonomy (insurance types like Basic, Premium) with policy editor quick-add
+  - added submenu links for both taxonomies under Maljani admin menu
+  - wired save logic to persist selected region and insurance type taxonomy terms on policy save
+
+### 2026-06-04 - Frontend Filter: Insurance Type Under Region
+- **Status**: Completed
+- **Description**: Updated frontend quote/filter forms to place Insurance Type directly under Region selection and included it in AJAX + URL filtering logic for policy results.

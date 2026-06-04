@@ -198,7 +198,7 @@ jQuery(document).ready(function ($) {
             data: {
                 action: 'add_policy_region',
                 region: newRegion,
-                security: policyAdmin.nonce
+                security: policyAdmin.regionNonce || policyAdmin.nonce
             },
             beforeSend: function() {
                 $('#add_policy_region').prop('disabled', true);
@@ -211,7 +211,7 @@ jQuery(document).ready(function ($) {
                         true,
                         true
                     );
-                    $('#policy_region').append(newOption).trigger('change');
+                    $('#policy_region_select').append(newOption).trigger('change');
                     $('#new_policy_region').val('');
                 } else {
                     alert('Error: ' + response.data);
@@ -222,6 +222,49 @@ jQuery(document).ready(function ($) {
             },
             complete: function() {
                 $('#add_policy_region').prop('disabled', false);
+            }
+        });
+    });
+
+    // Add new insurance type via AJAX
+    $('#add_policy_type').click(function() {
+        const newType = $('#new_policy_type').val().trim();
+
+        if (!newType) {
+            alert('Please enter an insurance type name');
+            return;
+        }
+
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl,
+            data: {
+                action: 'add_policy_type',
+                type: newType,
+                security: policyAdmin.typeNonce
+            },
+            beforeSend: function() {
+                $('#add_policy_type').prop('disabled', true);
+            },
+            success: function(response) {
+                if (response.success) {
+                    const newOption = new Option(
+                        response.data.name,
+                        response.data.term_id,
+                        true,
+                        true
+                    );
+                    $('#policy_type_select').append(newOption).trigger('change');
+                    $('#new_policy_type').val('');
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            },
+            error: function() {
+                alert('Server error, please try again');
+            },
+            complete: function() {
+                $('#add_policy_type').prop('disabled', false);
             }
         });
     });

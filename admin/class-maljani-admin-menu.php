@@ -214,6 +214,15 @@ class Maljani_Admin_Menu {
             'edit-tags.php?taxonomy=policy_region&post_type=policy'
         );
 
+        // Manage Insurance Types (Taxonomy link)
+        add_submenu_page(
+            'maljani_travel',
+            'Manage Insurance Types',
+            '🏷️ Manage Insurance Types',
+            'manage_options',
+            'edit-tags.php?taxonomy=policy_type&post_type=policy'
+        );
+
         // Export/Import Data
         add_submenu_page(
             'maljani_travel',
