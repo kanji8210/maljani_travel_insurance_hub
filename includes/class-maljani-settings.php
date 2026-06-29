@@ -35,6 +35,7 @@ class Maljani_Settings {
         register_setting('maljani_settings_group', 'maljani_fee_service_value',  ['default' => 0,          'sanitize_callback' => 'floatval']);
         register_setting('maljani_settings_group', 'maljani_fee_agg_type',       ['default' => 'percent', 'sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_fee_agg_value',      ['default' => 0,          'sanitize_callback' => 'floatval']);
+        register_setting('maljani_settings_group', 'maljani_default_usd_to_ksh_rate', ['default' => 0, 'sanitize_callback' => 'floatval']);
         // Invoice & Compliance settings
         $inv_fields = [
             'maljani_inv_company_name', 'maljani_inv_address1', 'maljani_inv_address2',
@@ -178,6 +179,7 @@ textarea.mj-in { resize:vertical; }
         $svc_val   = get_option('maljani_fee_service_value', 0);
         $agg_type  = get_option('maljani_fee_agg_type',      'percent');
         $agg_val   = get_option('maljani_fee_agg_value',     0);
+        $default_usd_to_ksh_rate = get_option('maljani_default_usd_to_ksh_rate', 0);
         ?>
         <div class="wrap mj-settings-wrap">
             <h1>⚙️ Maljani Settings</h1>
@@ -240,6 +242,15 @@ textarea.mj-in { resize:vertical; }
                                 </div>
                                 <span class="hint">Fallback used when no per-policy aggregator commission is set.</span>
                             </div>
+                        </div>
+                        <div class="mj-sf" style="margin-top:18px;max-width:340px">
+                            <label for="default_usd_to_ksh_rate">Default USD to KSH Exchange Rate</label>
+                            <input id="default_usd_to_ksh_rate" type="number" name="maljani_default_usd_to_ksh_rate"
+                                   value="<?php echo esc_attr($default_usd_to_ksh_rate);?>"
+                                   step="0.0001" min="0"
+                                   class="mj-in"
+                                   placeholder="e.g. 129.50">
+                            <span class="hint">Used for USD policies when the selected insurer profile has no exchange rate.</span>
                         </div>
                     </div>
                 </div>

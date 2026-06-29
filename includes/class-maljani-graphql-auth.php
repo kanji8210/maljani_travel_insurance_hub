@@ -95,10 +95,13 @@ class Maljani_GraphQL_Auth {
             $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
             if ($insurer_id > 0) {
                 $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
-                if ($rate > 0) {
-                    $convert_to_ksh = true;
-                    $currency = 'KSH';
-                }
+            }
+            if ($rate <= 0) {
+                $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+            }
+            if ($rate > 0) {
+                $convert_to_ksh = true;
+                $currency = 'KSH';
             }
         }
 

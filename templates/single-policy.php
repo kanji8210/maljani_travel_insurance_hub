@@ -146,12 +146,36 @@ get_header(); ?>
         <?php
         $premiums = get_post_meta(get_the_ID(), '_policy_day_premiums', true);
         if ($premiums && is_array($premiums)) {
+            $currency = strtoupper((string) get_post_meta(get_the_ID(), '_policy_currency', true));
+            if ($currency === '' || $currency === 'KES') {
+                $currency = 'KSH';
+            }
+
+            if ($currency === 'USD') {
+                $rate = 0.0;
+                $insurer_id = intval(get_post_meta(get_the_ID(), '_policy_insurer', true));
+                if ($insurer_id > 0) {
+                    $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                }
+                if ($rate <= 0) {
+                    $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+                }
+                if ($rate > 0) {
+                    foreach ($premiums as $idx => $row) {
+                        if (isset($row['premium'])) {
+                            $premiums[$idx]['premium'] = round(floatval($row['premium']) * $rate, 2);
+                        }
+                    }
+                    $currency = 'KSH';
+                }
+            }
+
             echo '<table class="maljani-premium-table"><thead><tr><th>From</th><th>To</th><th>Premium</th></tr></thead><tbody>';
             foreach ($premiums as $row) {
-                echo '<tr><td>' . esc_html($row['from']) . '</td><td>' . esc_html($row['to']) . '</td><td>' . esc_html($row['premium']) . '</td></tr>';
+                echo '<tr><td>' . esc_html($row['from']) . '</td><td>' . esc_html($row['to']) . '</td><td>' . esc_html($currency . ' ' . number_format(floatval($row['premium']), 2)) . '</td></tr>';
             }
             echo '</tbody></table>';
-            echo '<script>window.maljaniPremiums = ' . json_encode($premiums) . ';</script>';
+            echo '<script>window.maljaniPremiums = ' . wp_json_encode($premiums) . '; window.maljaniCurrency = ' . wp_json_encode($currency) . ';</script>';
         }
         ?>
     </div>

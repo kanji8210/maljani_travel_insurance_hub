@@ -33,7 +33,9 @@ jQuery(document).ready(function ($) {
             }
         }
         if(found){
-            $('#maljani-premium-result').html('<strong>Premium for '+days+' day(s): </strong><span style="color:green;">'+found+'</span>');
+            let currency = window.maljaniCurrency ? window.maljaniCurrency + ' ' : '';
+            let formatted = Number(found).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            $('#maljani-premium-result').html('<strong>Premium for '+days+' day(s): </strong><span style="color:green;">'+currency+formatted+'</span>');
         }else{
             $('#maljani-premium-result').html('<span style="color:red;">No premium found for '+days+' days.</span>');
         }
