@@ -96,6 +96,42 @@ class Maljani_Policy_Sales_Admin {
         fclose($out);
     }
 
+    private function get_policy_currency_context($policy_id) {
+        $currency = strtoupper((string) get_post_meta($policy_id, '_policy_currency', true));
+        if ($currency === '' || $currency === 'KES') {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+        if ($currency === 'USD') {
+            $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+            if ($rate <= 0) {
+                $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+                if ($insurer_id > 0) {
+                    $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                }
+            }
+            if ($rate > 0) {
+                $convert_to_ksh = true;
+            }
+        }
+
+        return [
+            'convert_to_ksh' => $convert_to_ksh,
+            'rate' => $rate,
+        ];
+    }
+
+    private function normalize_premium_amount($policy_id, $amount) {
+        $currency_context = $this->get_policy_currency_context($policy_id);
+        $value = floatval($amount);
+        if (!empty($currency_context['convert_to_ksh']) && !empty($currency_context['rate'])) {
+            $value *= floatval($currency_context['rate']);
+        }
+        return round($value, 2);
+    }
+
     public function ajax_get_policy_premium() {
         check_ajax_referer('maljani_premium_nonce', 'security');
         $pid  = intval($_POST['policy_id'] ?? 0);
@@ -105,7 +141,7 @@ class Maljani_Policy_Sales_Admin {
         if (!$p || $p->post_type !== 'policy' || $p->post_status !== 'publish') { wp_send_json_error('Bad policy'); return; }
         $rows = get_post_meta($pid, '_policy_day_premiums', true);
         $premium = '';
-        if (is_array($rows)) foreach ($rows as $r) if ($days >= intval($r['from']) && $days <= intval($r['to'])) { $premium = $r['premium']; break; }
+        if (is_array($rows)) foreach ($rows as $r) if ($days >= intval($r['from']) && $days <= intval($r['to'])) { $premium = $this->normalize_premium_amount($pid, $r['premium']); break; }
         wp_send_json_success($premium);
     }
 

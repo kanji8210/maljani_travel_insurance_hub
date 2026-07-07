@@ -42,7 +42,7 @@ class Maljani_Cache {
             if (is_array($premiums)) {
                 foreach ($premiums as $row) {
                     if ($days >= intval($row['from']) && $days <= intval($row['to'])) {
-                        $premium = $row['premium'];
+                        $premium = self::normalize_premium_amount($policy_id, $row['premium']);
                         break;
                     }
                 }
@@ -61,6 +61,42 @@ class Maljani_Cache {
         }
         
         return $premium;
+    }
+
+    private static function get_policy_currency_context($policy_id) {
+        $currency = strtoupper((string) get_post_meta($policy_id, '_policy_currency', true));
+        if ($currency === '' || $currency === 'KES') {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+        if ($currency === 'USD') {
+            $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+            if ($rate <= 0) {
+                $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+                if ($insurer_id > 0) {
+                    $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                }
+            }
+            if ($rate > 0) {
+                $convert_to_ksh = true;
+            }
+        }
+
+        return [
+            'convert_to_ksh' => $convert_to_ksh,
+            'rate' => $rate,
+        ];
+    }
+
+    private static function normalize_premium_amount($policy_id, $amount) {
+        $currency_context = self::get_policy_currency_context($policy_id);
+        $value = floatval($amount);
+        if (!empty($currency_context['convert_to_ksh']) && !empty($currency_context['rate'])) {
+            $value *= floatval($currency_context['rate']);
+        }
+        return round($value, 2);
     }
     
     /**
@@ -186,7 +222,8 @@ class Maljani_Cache {
      * @return string Cache key
      */
     private static function get_premium_cache_key($policy_id, $days) {
-        return 'maljani_premium_' . $policy_id . '_' . $days;
+        $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+        return 'maljani_premium_' . $policy_id . '_' . $days . '_' . md5((string) $rate);
     }
     
     /**

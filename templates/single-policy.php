@@ -152,13 +152,12 @@ get_header(); ?>
             }
 
             if ($currency === 'USD') {
-                $rate = 0.0;
-                $insurer_id = intval(get_post_meta(get_the_ID(), '_policy_insurer', true));
-                if ($insurer_id > 0) {
-                    $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
-                }
+                $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
                 if ($rate <= 0) {
-                    $rate = floatval(get_option('maljani_default_usd_to_ksh_rate', 0));
+                    $insurer_id = intval(get_post_meta(get_the_ID(), '_policy_insurer', true));
+                    if ($insurer_id > 0) {
+                        $rate = floatval(get_post_meta($insurer_id, '_insurer_usd_to_ksh_rate', true));
+                    }
                 }
                 if ($rate > 0) {
                     foreach ($premiums as $idx => $row) {

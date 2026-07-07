@@ -32,9 +32,9 @@ Log completed work and session progress here.
   - GraphQL sales create/update mutation premium calculations in `includes/class-maljani-graphql-auth.php`
   - When policy currency is USD and insurer rate is set, displayed and stored premium math is converted to KSH.
 
-### 2026-06-29 - Default Exchange Rate Fallback
+### 2026-06-29 - Default Exchange Rate KSH Display
 - **Status**: Completed
-- **Description**: Added `maljani_default_usd_to_ksh_rate` to Settings as the fallback USD to KSH exchange rate when an insurer profile has no `_insurer_usd_to_ksh_rate`. Applied the fallback across policy filter display, sales page calculations, GraphQL/Auth premium calculations, and the single-policy frontend calculator/table payload.
+- **Description**: Added `maljani_default_usd_to_ksh_rate` to Settings as the global USD to KSH exchange rate. When set, USD policy premiums display/calculate in KSH across policy filter display, sales page calculations, WPGraphQL policy fields, GraphQL/Auth premium calculations, and the single-policy frontend calculator/table payload. Insurer `_insurer_usd_to_ksh_rate` is only used if the global default is not set.
 
 ### 2026-06-04 - Policy Taxonomy Expansion (Region + Insurance Type)
 - **Status**: Completed

@@ -81,6 +81,44 @@ class Policy_CPT {
         }
     }
 
+    private function get_policy_currency_context( $policy_id ) {
+        $policy_id = intval( $policy_id );
+        $currency = strtoupper( (string) get_post_meta( $policy_id, '_policy_currency', true ) );
+        if ( $currency === '' || $currency === 'KES' ) {
+            $currency = 'KSH';
+        }
+
+        $rate = 0.0;
+        $convert_to_ksh = false;
+        if ( $currency === 'USD' ) {
+            $rate = floatval( get_option( 'maljani_default_usd_to_ksh_rate', 0 ) );
+            if ( $rate <= 0 ) {
+                $insurer_id = intval( get_post_meta( $policy_id, '_policy_insurer', true ) );
+                if ( $insurer_id > 0 ) {
+                    $rate = floatval( get_post_meta( $insurer_id, '_insurer_usd_to_ksh_rate', true ) );
+                }
+            }
+            if ( $rate > 0 ) {
+                $convert_to_ksh = true;
+                $currency = 'KSH';
+            }
+        }
+
+        return [
+            'display_currency' => $currency,
+            'convert_to_ksh'   => $convert_to_ksh,
+            'rate'             => $rate,
+        ];
+    }
+
+    private function normalize_premium_amount( $amount, array $currency_context ) {
+        $value = floatval( $amount );
+        if ( ! empty( $currency_context['convert_to_ksh'] ) && ! empty( $currency_context['rate'] ) ) {
+            $value *= floatval( $currency_context['rate'] );
+        }
+        return round( $value, 2 );
+    }
+
     private function _do_register_graphql_fields() {
 
         // Simple string fields
@@ -100,13 +138,30 @@ class Policy_CPT {
                 'description' => 'Policy meta: ' . $meta_key,
                 'resolve'     => function ( $post ) use ( $gql_key, $meta_key ) {
                     $val = get_post_meta( $post->databaseId, $meta_key, true );
-                    if ( $gql_key === 'policyCurrency' && empty( $val ) ) {
-                        return 'KES';
+                    if ( $gql_key === 'policyCurrency' ) {
+                        $currency_context = $this->get_policy_currency_context( $post->databaseId );
+                        return $currency_context['display_currency'];
                     }
                     return $val ?: '';
                 },
             ] );
         }
+
+        register_graphql_field( 'Policy', 'defaultExchangeRateSet', [
+            'type'        => 'Boolean',
+            'description' => 'True when the global default USD to KSH exchange rate is configured (> 0).',
+            'resolve'     => function () {
+                return floatval( get_option( 'maljani_default_usd_to_ksh_rate', 0 ) ) > 0;
+            },
+        ] );
+
+        register_graphql_field( 'Policy', 'defaultExchangeRateValue', [
+            'type'        => 'Float',
+            'description' => 'Global default USD to KSH exchange rate value. Zero means not configured.',
+            'resolve'     => function () {
+                return floatval( get_option( 'maljani_default_usd_to_ksh_rate', 0 ) );
+            },
+        ] );
 
         // Premium brackets — list of {from, to, premium} objects
         // Guard against double-registration (can happen if init fires more than once)
@@ -115,9 +170,11 @@ class Policy_CPT {
             register_graphql_object_type( 'PolicyPremiumBracket', [
                 'description' => 'A day-range premium bracket for a travel insurance policy.',
                 'fields'      => [
-                    'from'    => [ 'type' => 'Int',   'description' => 'Start day (inclusive).' ],
-                    'to'      => [ 'type' => 'Int',   'description' => 'End day (inclusive).' ],
-                    'premium' => [ 'type' => 'Float', 'description' => 'Gross premium amount.' ],
+                    'from'         => [ 'type' => 'Int',   'description' => 'Start day (inclusive).' ],
+                    'to'           => [ 'type' => 'Int',   'description' => 'End day (inclusive).' ],
+                    'premium'      => [ 'type' => 'Float', 'description' => 'Display premium amount (KSH when USD conversion is active).' ],
+                    'usdPremium'   => [ 'type' => 'Float', 'description' => 'Original USD premium before conversion. Null for non-USD policies.' ],
+                    'exchangeRate' => [ 'type' => 'Float', 'description' => 'USD to KSH exchange rate used for this bracket. Zero when not converted.' ],
                 ],
             ] );
             $bracket_type_registered = true;
@@ -131,11 +188,15 @@ class Policy_CPT {
                 if ( ! is_array( $brackets ) ) {
                     return [];
                 }
-                return array_map( function ( $b ) {
+                $currency_context = $this->get_policy_currency_context( $post->databaseId );
+                return array_map( function ( $b ) use ( $currency_context ) {
+                    $raw_premium = floatval( $b['premium'] ?? 0 );
                     return [
-                        'from'    => intval( $b['from']    ?? 0 ),
-                        'to'      => intval( $b['to']      ?? 0 ),
-                        'premium' => floatval( $b['premium'] ?? 0 ),
+                        'from'         => intval( $b['from'] ?? 0 ),
+                        'to'           => intval( $b['to'] ?? 0 ),
+                        'premium'      => $this->normalize_premium_amount( $raw_premium, $currency_context ),
+                        'usdPremium'   => ! empty( $currency_context['convert_to_ksh'] ) ? round( $raw_premium, 2 ) : null,
+                        'exchangeRate' => ! empty( $currency_context['convert_to_ksh'] ) ? floatval( $currency_context['rate'] ) : 0.0,
                     ];
                 }, array_values( $brackets ) );
             },

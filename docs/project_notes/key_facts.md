@@ -16,7 +16,7 @@ Log project configuration, constants, environment details, and important URLs he
 - **API Engine**: Insurer API integration via adapters.
 - **Frontend**: WordPress templates with modern CSS (glassmorphism).
 - **Automation**: Agentic AI skills in `.agents/skills/`.
-- **Default Exchange Rate Option**: `maljani_default_usd_to_ksh_rate` stores the fallback USD -> KSH rate used when an insurer profile has no `_insurer_usd_to_ksh_rate`.
+- **Default Exchange Rate Option**: `maljani_default_usd_to_ksh_rate` stores the global USD -> KSH rate. When set, USD policy premiums are displayed/calculated in KSH using this rate; insurer `_insurer_usd_to_ksh_rate` is only used if the global default is not set.
 
 ## Important URLs
 - **Admin Dashboard**: `/wp-admin/`

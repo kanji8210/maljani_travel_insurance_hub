@@ -250,7 +250,7 @@ textarea.mj-in { resize:vertical; }
                                    step="0.0001" min="0"
                                    class="mj-in"
                                    placeholder="e.g. 129.50">
-                            <span class="hint">Used for USD policies when the selected insurer profile has no exchange rate.</span>
+                            <span class="hint">When set, all USD policy premiums are displayed/calculated in KSH using this rate.</span>
                         </div>
                     </div>
                 </div>
