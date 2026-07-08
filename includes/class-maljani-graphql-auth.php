@@ -637,6 +637,8 @@ class Maljani_GraphQL_Auth {
                 'id'            => ['type' => 'Int',    'description' => 'Sale row ID'],
                 'policyId'      => ['type' => 'Int',    'description' => 'WordPress post ID of the policy'],
                 'policyTitle'   => ['type' => 'String', 'description' => 'Title of the policy plan'],
+                'policyInsurerName' => ['type' => 'String', 'description' => 'Underwriting insurer display name'],
+                'policyInsurerLogo' => ['type' => 'String', 'description' => 'Underwriting insurer logo URL'],
                 'policyNumber'  => ['type' => 'String', 'description' => 'Generated policy number'],
                 'region'        => ['type' => 'String', 'description' => 'Travel destination region'],
                 'premium'       => ['type' => 'Float',  'description' => 'Daily premium rate'],
@@ -686,10 +688,34 @@ class Maljani_GraphQL_Auth {
 
                 $sales = [];
                 foreach ($results as $row) {
+                    $policy_id = (int) $row->policy_id;
+                    $insurer_id = (int) get_post_meta($policy_id, '_policy_insurer', true);
+                    $insurer_name = '';
+                    $insurer_logo = '';
+                    if ($insurer_id > 0) {
+                        $insurer_name = (string) get_post_meta($insurer_id, '_insurer_name', true);
+                        if ($insurer_name === '') {
+                            $insurer_name = get_the_title($insurer_id);
+                        }
+
+                        $logo_id = (int) get_post_meta($insurer_id, '_insurer_logo_id', true);
+                        if ($logo_id > 0) {
+                            $logo_url = wp_get_attachment_url($logo_id);
+                            if ($logo_url) {
+                                $insurer_logo = $logo_url;
+                            }
+                        }
+                        if ($insurer_logo === '') {
+                            $insurer_logo = (string) get_post_meta($insurer_id, '_insurer_logo', true);
+                        }
+                    }
+
                     $sales[] = [
                         'id'            => (int) $row->id,
-                        'policyId'      => (int) $row->policy_id,
-                        'policyTitle'   => get_the_title($row->policy_id),
+                        'policyId'      => $policy_id,
+                        'policyTitle'   => get_the_title($policy_id),
+                        'policyInsurerName' => $insurer_name,
+                        'policyInsurerLogo' => $insurer_logo,
                         'policyNumber'  => $row->policy_number,
                         'region'        => $row->region,
                         'premium'       => (float) $row->premium,
