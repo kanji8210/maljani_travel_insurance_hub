@@ -186,8 +186,11 @@ class Maljani_API_Endpoints {
         $sale_id = (int)$ref_parts[0];
 
         if ($sale_id > 0) {
-            if ($status_data->status_code === 1) { // 1 = Completed
-                $this->activate_policy($sale_id, $tracking_id);
+            $status_code = (int)($status_data->status_code ?? -1);
+            if ($status_code === 1) { // 1 = Completed
+                $this->confirm_pesapal_payment($sale_id, $tracking_id);
+            } elseif (in_array($status_code, [2, 3], true)) { // Failed / reversed
+                $this->mark_pesapal_payment_failed($sale_id, $tracking_id);
             }
         }
 
@@ -256,7 +259,7 @@ class Maljani_API_Endpoints {
         $pesapal = new Maljani_Pesapal_Gateway();
 
         $name_parts = explode(' ', $sale->insured_names, 2);
-        $payment_url = $pesapal->create_order(
+        $order = $pesapal->create_order(
             $sale_id,
             (float) $sale->amount_paid,
             'Travel Insurance - ' . $sale->policy_number,
@@ -269,39 +272,55 @@ class Maljani_API_Endpoints {
             ]
         );
 
-        if (is_wp_error($payment_url)) {
-            return new WP_REST_Response(['error' => $payment_url->get_error_message()], 500);
+        if (is_wp_error($order)) {
+            return new WP_REST_Response(['error' => $order->get_error_message()], 500);
         }
 
-        return new WP_REST_Response(['paymentUrl' => $payment_url], 200);
-    }
-
-    private function activate_policy($sale_id, $tracking_id) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'policy_sale';
-        
-        // 1. Update Payment and Policy Status
-        $wpdb->update($table, 
+        $wpdb->update($table,
             [
-                'payment_status'    => 'confirmed', 
-                'payment_reference' => $tracking_id,
-                'policy_status'     => 'active'
+                'payment_reference' => $order['order_tracking_id'] ?: $order['merchant_reference'],
+                'payment_status'    => 'pending',
             ],
             ['id' => $sale_id]
         );
 
-        // 2. Trigger the Insurer API Engine
-        if (!class_exists('Maljani_Insurer_Engine')) {
-            require_once plugin_dir_path(__FILE__) . 'class-maljani-insurer-engine.php';
-        }
+        return new WP_REST_Response([
+            'paymentUrl'        => $order['redirect_url'],
+            'orderTrackingId'   => $order['order_tracking_id'],
+            'merchantReference' => $order['merchant_reference'],
+        ], 200);
+    }
 
-        if (class_exists('Maljani_Insurer_Engine')) {
-            $engine = new Maljani_Insurer_Engine();
-            $engine->trigger_registration($sale_id);
-        }
+    private function confirm_pesapal_payment($sale_id, $tracking_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+        
+        $wpdb->update($table, 
+            [
+                'payment_status'    => 'confirmed', 
+                'payment_reference' => $tracking_id,
+                'policy_status'     => 'pending_review',
+                'workflow_status'   => 'submitted_to_insurer',
+            ],
+            ['id' => $sale_id]
+        );
 
-        // 3. Notify Admin (To be implemented in notification class)
-        do_action('maljani_policy_activated', $sale_id);
+        do_action('maljani_payment_confirmed', $sale_id);
+    }
+
+    private function mark_pesapal_payment_failed($sale_id, $tracking_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'policy_sale';
+
+        $wpdb->update($table,
+            [
+                'payment_status'    => 'failed',
+                'payment_reference' => $tracking_id,
+            ],
+            ['id' => $sale_id]
+        );
+
+        do_action('maljani_payment_failed', $sale_id);
     }
 }
 new Maljani_API_Endpoints();

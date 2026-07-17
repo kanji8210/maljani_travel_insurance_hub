@@ -47,3 +47,7 @@ Log completed work and session progress here.
 ### 2026-06-04 - Frontend Filter: Insurance Type Under Region
 - **Status**: Completed
 - **Description**: Updated frontend quote/filter forms to place Insurance Type directly under Region selection and included it in AJAX + URL filtering logic for policy results.
+
+### 2026-07-17 - Pesapal Payment Confirmation Without Auto-Issuance
+- **Status**: Completed
+- **Description**: Updated Pesapal v3 checkout flow to use configured TIC-Kenya credentials without split-payment routing. Successful IPN callbacks now confirm payment and move the sale to manual insurer processing (`policy_status=pending_review`, `workflow_status=submitted_to_insurer`) instead of activating the policy or triggering insurer API registration. Updated user notification copy and admin Pesapal wording to reflect insurer-issued documents and future insurer-facing workflows.

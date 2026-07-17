@@ -343,7 +343,7 @@ textarea.mj-in { resize:vertical; }
                         <div class="card-icon" style="background:#eff6ff">💳</div>
                         <div>
                             <h2>Pesapal Payment Gateway</h2>
-                            <p>Configure your Pesapal v3.0 API keys for automated premium collection and split payments.</p>
+                            <p>Configure your Pesapal v3.0 API keys for automated premium collection. Additional payout routing can be handled later.</p>
                         </div>
                     </div>
                     <div class="mj-settings-card-body">

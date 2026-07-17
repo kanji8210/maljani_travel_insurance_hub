@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "antigravity-agent-manager": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/antigravity-agent-manager/SKILL.md",
+      "computedHash": "ebccdbfba826d0dab602bd02b37aeb81fe77cee4500f28489d385cce2683dab7"
+    },
+    "antigravity-skill-orchestrator": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/antigravity-skill-orchestrator/SKILL.md",
+      "computedHash": "5e63014e9701fd1973632cf2eab421be84c21827244e2cae9e8e9cfeccd7c255"
+    },
+    "antigravity-workflows": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/antigravity-workflows/SKILL.md",
+      "computedHash": "bfbda0457686fb49fcf519ba2351419ed8651dcca5e828f87ac9d15a9e336f10"
+    }
+  }
+}

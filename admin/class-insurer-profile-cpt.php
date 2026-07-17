@@ -208,9 +208,9 @@ class Insurer_Profile_CPT {
                 </div>
 
                 <div class="mj-form-group">
-                    <label for="insurer_pesapal_id">Pesapal Merchant ID (for Split Payments)</label>
+                    <label for="insurer_pesapal_id">Pesapal Merchant ID (reserved)</label>
                     <input type="text" id="insurer_pesapal_id" name="insurer_pesapal_id" value="<?php echo esc_attr($pesapal_id); ?>" class="mj-input" placeholder="e.g. 5ca... " />
-                    <p class="description">If provided, insurance premiums will be automatically routed to this Merchant ID via Pesapal Split Payment. If empty, funds are kept in Maljani's main account.</p>
+                    <p class="description">Stored for future insurer-facing payment workflows. Current Pesapal checkout collects into TIC-Kenya's configured merchant account.</p>
                 </div>
             </div>
         </div>

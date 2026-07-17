@@ -27,8 +27,8 @@ class Maljani_User_Notifications {
         // New sale created
         add_action( 'maljani_new_sale', [ $instance, 'on_new_sale' ], 10, 2 );
 
-        // Payment confirmed & policy activated (Pesapal IPN)
-        add_action( 'maljani_policy_activated', [ $instance, 'on_policy_activated' ], 10, 1 );
+        // Payment confirmed (Pesapal IPN); insurer document processing remains manual for now.
+        add_action( 'maljani_payment_confirmed', [ $instance, 'on_payment_confirmed' ], 10, 1 );
 
         // Admin quick-status / full-edit changes
         add_action( 'maljani_admin_status_change', [ $instance, 'on_admin_status_change' ], 10, 3 );
@@ -204,9 +204,9 @@ class Maljani_User_Notifications {
     }
 
     /**
-     * Payment confirmed via Pesapal IPN → policy activated.
+    * Payment confirmed via Pesapal IPN → manual insurer processing.
      */
-    public function on_policy_activated( $sale_id ): void {
+    public function on_payment_confirmed( $sale_id ): void {
         $sale = self::get_sale( (int) $sale_id );
         if ( ! $sale ) {
             return;
@@ -220,7 +220,7 @@ class Maljani_User_Notifications {
         $pol_num = $sale->policy_number ?: '#' . $sale_id;
 
         self::push( $user_id, 'status_change', 'Payment Confirmed',
-            "Payment for policy {$pol_num} has been confirmed and your policy is now active!", (int) $sale_id );
+            "Payment for policy {$pol_num} has been confirmed. TIC-Kenya will now submit the details to the insurer for document issuance.", (int) $sale_id );
     }
 
     /**

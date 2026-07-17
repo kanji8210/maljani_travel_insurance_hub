@@ -1168,18 +1168,6 @@ class Maljani_Sales_Page
                     require_once plugin_dir_path(__FILE__) . 'api/class-maljani-pesapal-gateway.php';
                     $gateway = new Maljani_Pesapal_Gateway();
                     
-                    $insurer_id = get_post_meta($policy_id, '_policy_insurer', true);
-                    $insurer_pesapal_id = $insurer_id ? get_post_meta($insurer_id, '_insurer_pesapal_merchant_id', true) : '';
-
-                    $split_payload = [];
-                    if (!empty($insurer_pesapal_id)) {
-                        // Split Payment: Premium to Insurer, rest to Maljani (implied)
-                        $split_payload[] = [
-                            'merchant_id' => $insurer_pesapal_id,
-                            'amount'      => (float)$net_to_insurer
-                        ];
-                    }
-
                     $billing_info = [
                         'email_address' => sanitize_email($_POST['insured_email']),
                         'phone_number'  => sanitize_text_field($_POST['insured_phone']),
@@ -1191,8 +1179,7 @@ class Maljani_Sales_Page
                         $sale_id,
                         $amount_tot_client,
                         'Insurance Policy Purchase: ' . $policy_number,
-                        $billing_info,
-                        $split_payload
+                        $billing_info
                     );
 
                     if (!is_wp_error($order_resp) && isset($order_resp['redirect_url'])) {

@@ -88,7 +88,7 @@ class Maljani_Pesapal_Gateway {
     /**
      * Create Order and Return Payment URL
      */
-    public function create_order($sale_id, $amount, $description, $billing_info = [], $split_payload = []) {
+    public function create_order($sale_id, $amount, $description, $billing_info = []) {
         $token = $this->get_token();
         if (is_wp_error($token)) return $token;
 
@@ -100,9 +100,15 @@ class Maljani_Pesapal_Gateway {
 
         $endpoint = $this->api_base . '/api/Transactions/SubmitOrderRequest';
 
+        $merchant_reference = (string)$sale_id . '-' . time();
+        $currency = strtoupper(get_option('maljani_inv_currency', 'KES'));
+        if ($currency === 'KSH') {
+            $currency = 'KES';
+        }
+
         $body_array = [
-            'id'               => (string)$sale_id . '-' . time(), // Unique internal ID
-            'currency'         => get_option('maljani_inv_currency', 'KSH'),
+            'id'               => $merchant_reference,
+            'currency'         => $currency,
             'amount'           => (float)$amount,
             'description'      => $description,
             'callback_url'     => home_url('/checkout-thank-you/'), // Fallback return URL
@@ -118,28 +124,33 @@ class Maljani_Pesapal_Gateway {
             ], $billing_info)
         ];
 
-        // Handle Split Payment if payload provided
-        if (!empty($split_payload)) {
-            $body_array['split_claims'] = $split_payload;
-        }
-
         $response = wp_remote_post($endpoint, [
             'headers' => [
                 'Content-Type'  => 'application/json',
                 'Accept'        => 'application/json',
                 'Authorization' => 'Bearer ' . $token
             ],
-            'body' => json_encode($body_array)
+            'body'    => wp_json_encode($body_array),
+            'timeout' => 30,
         ]);
 
         if (is_wp_error($response)) return $response;
 
+        $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response));
-        if (isset($body->redirect_url)) {
-            return $body->redirect_url;
+        if ($code < 200 || $code >= 300) {
+            return new WP_Error('order_failed', 'Order creation failed: ' . ($body->error->message ?? $body->message ?? 'HTTP ' . $code));
         }
 
-        return new WP_Error('order_failed', 'Order creation failed: ' . ($body->error->message ?? 'Unknown error'));
+        if (isset($body->redirect_url)) {
+            return [
+                'redirect_url'        => $body->redirect_url,
+                'order_tracking_id'  => $body->order_tracking_id ?? '',
+                'merchant_reference' => $body->merchant_reference ?? $merchant_reference,
+            ];
+        }
+
+        return new WP_Error('order_failed', 'Order creation failed: ' . ($body->error->message ?? $body->message ?? 'Unknown error'));
     }
 
     /**
