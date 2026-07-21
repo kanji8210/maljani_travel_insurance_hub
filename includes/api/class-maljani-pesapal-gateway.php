@@ -16,10 +16,41 @@ class Maljani_Pesapal_Gateway {
     private $api_base;
 
     public function __construct() {
-        $this->consumer_key    = get_option('maljani_pesapal_consumer_key');
-        $this->consumer_secret = get_option('maljani_pesapal_consumer_secret');
+        $this->consumer_key    = trim((string) get_option('maljani_pesapal_consumer_key'));
+        $this->consumer_secret = trim((string) get_option('maljani_pesapal_consumer_secret'));
         $this->is_sandbox      = get_option('maljani_pesapal_mode', 'sandbox') === 'sandbox';
         $this->api_base        = $this->is_sandbox ? 'https://cybqa.pesapal.com/pesapalv3' : 'https://pay.pesapal.com/v3';
+    }
+
+    private function response_error_message($response, $fallback = 'Unknown error') {
+        if (is_wp_error($response)) {
+            return $response->get_error_message();
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        $raw_body = wp_remote_retrieve_body($response);
+        $body = json_decode($raw_body);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $raw_body = trim(wp_strip_all_tags((string) $raw_body));
+            return trim('HTTP ' . $code . ': ' . ($raw_body ?: $fallback));
+        }
+
+        $candidates = [
+            $body->error->message ?? null,
+            $body->error_description ?? null,
+            $body->message ?? null,
+            $body->error ?? null,
+            $body->status ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim('HTTP ' . $code . ': ' . $candidate);
+            }
+        }
+
+        return trim('HTTP ' . $code . ': ' . $fallback);
     }
 
     /**
@@ -34,22 +65,24 @@ class Maljani_Pesapal_Gateway {
         
         $response = wp_remote_post($endpoint, [
             'headers' => ['Content-Type' => 'application/json', 'Accept' => 'application/json'],
-            'body'    => json_encode([
+            'body'    => wp_json_encode([
                 'consumer_key'    => $this->consumer_key,
                 'consumer_secret' => $this->consumer_secret
-            ])
+            ]),
+            'timeout' => 30,
         ]);
 
         if (is_wp_error($response)) {
             return $response;
         }
 
+        $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response));
-        if (isset($body->token)) {
+        if ($code >= 200 && $code < 300 && isset($body->token)) {
             return $body->token;
         }
 
-        return new WP_Error('token_failed', 'Failed to retrieve Pesapal token: ' . ($body->error->message ?? 'Unknown error'));
+        return new WP_Error('token_failed', 'Failed to retrieve Pesapal token: ' . $this->response_error_message($response, 'No token returned. Check Pesapal environment and API credentials.'));
     }
 
     /**
@@ -68,21 +101,23 @@ class Maljani_Pesapal_Gateway {
                 'Accept'        => 'application/json',
                 'Authorization' => 'Bearer ' . $token
             ],
-            'body' => json_encode([
+            'body' => wp_json_encode([
                 'url'                 => $ipn_url,
                 'ipn_notification_type' => 'GET'
-            ])
+            ]),
+            'timeout' => 30,
         ]);
 
         if (is_wp_error($response)) return $response;
 
+        $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response));
-        if (isset($body->ipn_id)) {
+        if ($code >= 200 && $code < 300 && isset($body->ipn_id)) {
             update_option('maljani_pesapal_ipn_id', $body->ipn_id);
             return $body->ipn_id;
         }
 
-        return new WP_Error('ipn_failed', 'Failed to register IPN.');
+        return new WP_Error('ipn_failed', 'Failed to register IPN: ' . $this->response_error_message($response));
     }
 
     /**
@@ -139,7 +174,7 @@ class Maljani_Pesapal_Gateway {
         $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response));
         if ($code < 200 || $code >= 300) {
-            return new WP_Error('order_failed', 'Order creation failed: ' . ($body->error->message ?? $body->message ?? 'HTTP ' . $code));
+            return new WP_Error('order_failed', 'Order creation failed: ' . $this->response_error_message($response));
         }
 
         if (isset($body->redirect_url)) {
@@ -150,7 +185,7 @@ class Maljani_Pesapal_Gateway {
             ];
         }
 
-        return new WP_Error('order_failed', 'Order creation failed: ' . ($body->error->message ?? $body->message ?? 'Unknown error'));
+        return new WP_Error('order_failed', 'Order creation failed: ' . $this->response_error_message($response, 'No redirect URL returned.'));
     }
 
     /**

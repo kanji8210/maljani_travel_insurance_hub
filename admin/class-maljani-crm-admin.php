@@ -55,7 +55,7 @@ class Maljani_CRM_Admin {
         echo '<p>Review policies submitted by agencies, forward them to insurers, and upload finalized documents.</p>';
         
         echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr><th>ID / Date</th><th>Agency</th><th>Client Name</th><th>Premium/Comm</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+        echo '<thead><tr><th>ID / Date</th><th>Agency</th><th>Client Name</th><th>Settlement Breakdown</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
         
         if (empty($policies)) {
             echo '<tr><td colspan="6">No active policies in the workflow.</td></tr>';
@@ -63,9 +63,18 @@ class Maljani_CRM_Admin {
             foreach ($policies as $p) {
                 echo "<tr>";
                 echo "<td>#{$p->id}<br/><small>{$p->updated_at}</small></td>";
+                $tic_revenue = floatval($p->service_fee_amount ?? 0) + floatval($p->maljani_commission_amount ?? 0);
+
                 echo "<td>" . esc_html($p->agency_name ?: 'Direct/System') . "</td>";
                 echo "<td>" . esc_html($p->insured_names) . "<br/><small>" . esc_html($p->insured_email) . "</small></td>";
-                echo "<td>$" . esc_html($p->premium) . "<br/><small>Comm: $" . esc_html($p->commission_amount) . "</small></td>";
+                echo "<td>";
+                echo "<strong>Client Paid:</strong> $" . esc_html(number_format(floatval($p->amount_paid ?? 0), 2)) . "<br/>";
+                echo "<small>Net to Insurer: $" . esc_html(number_format(floatval($p->net_to_insurer ?? 0), 2)) . "</small><br/>";
+                echo "<small>TIC Revenue: $" . esc_html(number_format($tic_revenue, 2)) . "</small>";
+                if (floatval($p->agent_commission_amount ?? 0) > 0) {
+                    echo "<br/><small>Agency Comm: $" . esc_html(number_format(floatval($p->agent_commission_amount), 2)) . "</small>";
+                }
+                echo "</td>";
                 
                 $status_colors = [
                     'pending_review' => 'orange',

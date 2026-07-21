@@ -318,11 +318,11 @@ class Maljani_CRM {
         $client_id = intval($request->get_param('client_id'));
         if (!$client_id) return new WP_REST_Response(['success' => false, 'message' => 'Client ID required'], 400);
 
-        // Calculate commission
+        // Calculate agency commission for reporting; settlement remains manual.
         $agencies_table = $wpdb->prefix . 'maljani_agencies';
         $commission_pct = $wpdb->get_var($wpdb->prepare("SELECT commission_percent FROM $agencies_table WHERE id = %d", $agency_id));
         $premium = floatval($request->get_param('premium'));
-        $commission_amount = ($premium * floatval($commission_pct)) / 100;
+        $agent_commission_amount = ($premium * floatval($commission_pct)) / 100;
 
         $table = $wpdb->prefix . 'policy_sale';
         $wpdb->insert($table, [
@@ -330,7 +330,8 @@ class Maljani_CRM {
             'client_id' => $client_id,
             'policy_id' => intval($request->get_param('policy_id')), // Base maljani policy ID
             'premium' => $premium,
-            'commission_amount' => $commission_amount,
+            'agent_commission_amount' => $agent_commission_amount,
+            'agent_commission_status' => 'unpaid',
             'days' => intval($request->get_param('days')),
             'departure' => sanitize_text_field($request->get_param('departure')),
             'return' => sanitize_text_field($request->get_param('return')),
@@ -380,12 +381,12 @@ class Maljani_CRM {
             }
         }
         
-        // Recalculate commission if premium changed
+        // Recalculate agency commission if premium changed
         if (isset($update_data['premium'])) {
             $owner = $wpdb->get_var($wpdb->prepare("SELECT agency_id FROM $table WHERE id = %d", $sale_id));
             $agencies_table = $wpdb->prefix . 'maljani_agencies';
             $commission_pct = $wpdb->get_var($wpdb->prepare("SELECT commission_percent FROM $agencies_table WHERE id = %d", $owner));
-            $update_data['commission_amount'] = (floatval($update_data['premium']) * floatval($commission_pct)) / 100;
+            $update_data['agent_commission_amount'] = (floatval($update_data['premium']) * floatval($commission_pct)) / 100;
         }
 
         $wpdb->update($table, $update_data, ['id' => $sale_id]);

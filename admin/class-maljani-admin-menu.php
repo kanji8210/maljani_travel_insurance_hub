@@ -155,8 +155,8 @@ class Maljani_Admin_Menu {
 
         add_submenu_page(
             'maljani_travel',
-            'Manage Payments',
-            'Manage Payments',
+            'Manual Insurer Settlements',
+            'Insurer Settlements',
             'manage_maljani_payments',
             'maljani_payments_admin',
             [$this, 'render_payments_admin']

@@ -11,9 +11,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Maljani_Settings {
     public function __construct() {
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_post_maljani_test_pesapal_connection', [$this, 'handle_pesapal_connection_test']);
         add_action('update_option_maljani_user_registration_page', [$this, 'maybe_add_registration_shortcode'], 10, 2);
         add_action('update_option_maljani_user_dashboard_page',    [$this, 'maybe_add_dashboard_shortcode'],    10, 2);
         add_action('update_option_maljani_policy_sale_page',       [$this, 'maybe_add_policy_sale_shortcode'],  10, 2);
+    }
+
+    public function handle_pesapal_connection_test() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('maljani_test_pesapal_connection');
+
+        require_once plugin_dir_path(__FILE__) . 'api/class-maljani-pesapal-gateway.php';
+        $gateway = new Maljani_Pesapal_Gateway();
+        $token = $gateway->get_token();
+
+        if (is_wp_error($token)) {
+            set_transient('maljani_pesapal_test_notice', [
+                'type' => 'error',
+                'message' => $token->get_error_message(),
+            ], 60);
+        } else {
+            set_transient('maljani_pesapal_test_notice', [
+                'type' => 'success',
+                'message' => 'Pesapal connection successful. Token received for ' . (get_option('maljani_pesapal_mode', 'sandbox') === 'live' ? 'Live' : 'Sandbox') . ' mode.',
+            ], 60);
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=maljani_settings'));
+        exit;
     }
 
     public function register_settings() {
@@ -180,10 +208,20 @@ textarea.mj-in { resize:vertical; }
         $agg_type  = get_option('maljani_fee_agg_type',      'percent');
         $agg_val   = get_option('maljani_fee_agg_value',     0);
         $default_usd_to_ksh_rate = get_option('maljani_default_usd_to_ksh_rate', 0);
+        $pesapal_notice = get_transient('maljani_pesapal_test_notice');
+        if ($pesapal_notice) {
+            delete_transient('maljani_pesapal_test_notice');
+        }
         ?>
         <div class="wrap mj-settings-wrap">
             <h1>⚙️ Maljani Settings</h1>
             <p class="subtitle">Configure pages, global fee defaults, email templates, and system preferences.</p>
+
+            <?php if ($pesapal_notice): ?>
+                <div class="notice notice-<?php echo esc_attr($pesapal_notice['type']); ?> is-dismissible mj-notice">
+                    <p><?php echo esc_html($pesapal_notice['message']); ?></p>
+                </div>
+            <?php endif; ?>
 
             <form method="post" action="options.php">
                 <?php settings_fields('maljani_settings_group'); ?>
@@ -373,6 +411,10 @@ textarea.mj-in { resize:vertical; }
                                        value="<?php echo esc_attr(get_option('maljani_pesapal_ipn_id')); ?>" placeholder="Automatically registered...">
                                 <span class="hint">The system will automatically register this when you save valid keys.</span>
                             </div>
+                        </div>
+                        <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=maljani_test_pesapal_connection'), 'maljani_test_pesapal_connection')); ?>" class="button button-secondary">Test Saved Pesapal Connection</a>
+                            <span class="hint">Save settings first, then test the saved key/secret against the selected environment.</span>
                         </div>
                     </div>
                 </div>

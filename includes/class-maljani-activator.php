@@ -62,6 +62,10 @@ class Maljani_Activator {
             agent_commission_status ENUM('unpaid','paid','received','disputed') DEFAULT 'unpaid',
             agency_comm_disputed_note TEXT,
             net_to_insurer DECIMAL(10,2) DEFAULT 0.00,
+            insurer_payment_status ENUM('not_due','due','paid','failed') DEFAULT 'not_due',
+            insurer_payment_reference VARCHAR(191),
+            insurer_payment_date DATETIME NULL,
+            insurer_payment_note TEXT,
             payment_reference VARCHAR(191),
             payment_status ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending',
             policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed',
@@ -140,6 +144,19 @@ class Maljani_Activator {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_comm_disputed_note` TEXT DEFAULT NULL AFTER `agent_commission_status`");
         }
 
+        if (!in_array('insurer_payment_status', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insurer_payment_status` ENUM('not_due','due','paid','failed') DEFAULT 'not_due' AFTER `net_to_insurer`");
+        }
+        if (!in_array('insurer_payment_reference', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insurer_payment_reference` VARCHAR(191) DEFAULT NULL AFTER `insurer_payment_status`");
+        }
+        if (!in_array('insurer_payment_date', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insurer_payment_date` DATETIME NULL AFTER `insurer_payment_reference`");
+        }
+        if (!in_array('insurer_payment_note', $columns)) {
+            $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insurer_payment_note` TEXT DEFAULT NULL AFTER `insurer_payment_date`");
+        }
+
         // Add passengers count column if missing
         if (!in_array('passengers', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `passengers` INT UNSIGNED NOT NULL DEFAULT 1 AFTER `days`");
@@ -152,6 +169,7 @@ class Maljani_Activator {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `agency_id` BIGINT UNSIGNED DEFAULT NULL AFTER `agent_id`");
         }
         // Also ensure payment_status and policy_status have all values
+        $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `insurer_payment_status` ENUM('not_due','due','paid','failed') DEFAULT 'not_due'");
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `payment_status` ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending'");
         $wpdb->query("ALTER TABLE `$table_name` MODIFY COLUMN `policy_status` ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed'");
 

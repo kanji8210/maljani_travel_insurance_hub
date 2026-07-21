@@ -51,3 +51,7 @@ Log completed work and session progress here.
 ### 2026-07-17 - Pesapal Payment Confirmation Without Auto-Issuance
 - **Status**: Completed
 - **Description**: Updated Pesapal v3 checkout flow to use configured TIC-Kenya credentials without split-payment routing. Successful IPN callbacks now confirm payment and move the sale to manual insurer processing (`policy_status=pending_review`, `workflow_status=submitted_to_insurer`) instead of activating the policy or triggering insurer API registration. Updated user notification copy and admin Pesapal wording to reflect insurer-issued documents and future insurer-facing workflows.
+
+### 2026-07-19 - Manual Insurer Settlement Cleanup
+- **Status**: Completed
+- **Description**: Simplified payment operations around confirmed sales: customer payments still collect to TIC-Kenya, `policy_sale` now tracks manual insurer settlement fields (`insurer_payment_status`, reference, date, note), and payment confirmation marks insurer settlement as due while moving workflow to `submitted_to_insurer`. Updated CRM/admin views to use settlement breakdown fields instead of legacy split/payment wording.

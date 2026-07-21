@@ -32,7 +32,6 @@ class Maljani_Database_Tools {
                 policy_number VARCHAR(64),
                 region VARCHAR(191),
                 premium DECIMAL(10,2),
-                commission_amount DECIMAL(10,2) DEFAULT 0.00,
                 days INT,
                 departure DATE,
                 `return` DATE,
@@ -51,6 +50,10 @@ class Maljani_Database_Tools {
                 agent_commission_amount DECIMAL(10,2) DEFAULT 0.00,
                 agent_commission_status VARCHAR(20) DEFAULT 'unpaid',
                 net_to_insurer DECIMAL(10,2) DEFAULT 0.00,
+                insurer_payment_status ENUM('not_due','due','paid','failed') DEFAULT 'not_due',
+                insurer_payment_reference VARCHAR(191),
+                insurer_payment_date DATETIME NULL,
+                insurer_payment_note TEXT,
                 payment_reference VARCHAR(191),
                 payment_status ENUM('confirmed','failed','pending') DEFAULT 'pending',
                 policy_status ENUM('approved','unconfirmed','verified','confirmed','active','claimed','expired') DEFAULT 'unconfirmed',
@@ -253,7 +256,7 @@ class Maljani_Database_Tools {
 
         // Define required columns for each table
         $required_columns = [
-            'policy_sale' => ['id', 'policy_id', 'client_id', 'agency_id', 'policy_number', 'premium', 'commission_amount', 'workflow_status', 'insured_names', 'insured_email'],
+            'policy_sale' => ['id', 'policy_id', 'client_id', 'agency_id', 'policy_number', 'premium', 'agent_commission_amount', 'net_to_insurer', 'insurer_payment_status', 'workflow_status', 'insured_names', 'insured_email'],
             'maljani_api_keys' => ['id', 'key_name', 'api_key', 'status'],
             'maljani_chat_conversations' => ['id', 'email', 'status'],
             'maljani_chat_messages' => ['id', 'conversation_id', 'message'],

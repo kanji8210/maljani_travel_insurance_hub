@@ -29,8 +29,14 @@ class Maljani_Moderation_Admin {
         // Handle Payment Confirmation
         if (isset($_POST['mj_action']) && $_POST['mj_action'] === 'confirm_payment' && check_admin_referer('mj_moderation_nonce')) {
             $sale_id = intval($_POST['sale_id']);
-            $wpdb->update($table_sales, ['payment_status' => 'confirmed', 'workflow_status' => 'paid'], ['id' => $sale_id]);
-            echo '<div class="notice notice-success is-dismissible"><p>Payment confirmed for Sale #' . $sale_id . '</p></div>';
+            $wpdb->update($table_sales, [
+                'payment_status'  => 'confirmed',
+                'insurer_payment_status' => 'due',
+                'policy_status'   => 'pending_review',
+                'workflow_status' => 'submitted_to_insurer',
+            ], ['id' => $sale_id]);
+            do_action('maljani_payment_confirmed', $sale_id);
+            echo '<div class="notice notice-success is-dismissible"><p>Payment confirmed for Sale #' . $sale_id . '. The policy is now queued for manual insurer processing.</p></div>';
             // Auto-send receipt email to client
             if (class_exists('Maljani_Invoice')) {
                 $sent = Maljani_Invoice::send_receipt_email($sale_id);
@@ -65,7 +71,6 @@ class Maljani_Moderation_Admin {
                 $stages = [
                     'draft' => ['label' => 'Untouched', 'icon' => '📄', 'color' => '#64748b'],
                     'pending_review' => ['label' => 'In Review', 'icon' => '🔍', 'color' => '#f59e0b'],
-                    'paid' => ['label' => 'Paid', 'icon' => '💰', 'color' => '#10b981'],
                     'submitted_to_insurer' => ['label' => 'Sent to Insurer', 'icon' => '📩', 'color' => '#3b82f6'],
                     'active' => ['label' => 'Active', 'icon' => '✅', 'color' => '#8b5cf6'],
                 ];
@@ -132,7 +137,7 @@ class Maljani_Moderation_Admin {
                             <tr><td colspan="6">No sales found in this stage.</td></tr>
                         <?php else : foreach ($sales as $sale) : 
                             $bg_color = '';
-                            if ($sale->workflow_status === 'paid') $bg_color = 'background-color: rgba(16, 185, 129, 0.05);';
+                            if ($sale->payment_status === 'confirmed') $bg_color = 'background-color: rgba(16, 185, 129, 0.05);';
                         ?>
                             <tr style="<?php echo $bg_color; ?>">
                                 <td><strong>#<?php echo $sale->id; ?></strong></td>

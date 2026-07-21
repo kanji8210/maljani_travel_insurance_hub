@@ -8,67 +8,96 @@ class Maljani_Payments_Admin {
         }
 
         global $wpdb;
-        $payments_table = $wpdb->prefix . 'maljani_payments';
-        $agencies_table = $wpdb->prefix . 'maljani_agencies';
         $policy_table = $wpdb->prefix . 'policy_sale';
+        $agencies_table = $wpdb->prefix . 'maljani_agencies';
 
-        // Handle edits
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['maljani_payment_action']) && wp_verify_nonce($_POST['_wpnonce'], 'maljani_edit_payment')) {
-            if ($_POST['maljani_payment_action'] === 'update_status') {
-                $payment_id = intval($_POST['payment_id']);
-                $allowed_statuses = ['pending', 'verified', 'forwarded'];
-                $new_status = sanitize_text_field($_POST['status']);
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['maljani_settlement_action']) && wp_verify_nonce($_POST['_wpnonce'], 'maljani_edit_settlement')) {
+            if ($_POST['maljani_settlement_action'] === 'update_insurer_settlement') {
+                $sale_id = intval($_POST['sale_id']);
+                $allowed_statuses = ['not_due', 'due', 'paid', 'failed'];
+                $new_status = sanitize_text_field($_POST['insurer_payment_status']);
+
                 if (!in_array($new_status, $allowed_statuses, true)) {
-                    echo '<div class="notice notice-error is-dismissible"><p>Invalid payment status.</p></div>';
+                    echo '<div class="notice notice-error is-dismissible"><p>Invalid settlement status.</p></div>';
                 } else {
-                    $wpdb->update($payments_table, ['status' => $new_status, 'updated_at' => current_time('mysql', 1)], ['id' => $payment_id]);
-                    echo '<div class="notice notice-success is-dismissible"><p>Payment status updated.</p></div>';
+                    $payment_date = sanitize_text_field($_POST['insurer_payment_date'] ?? '');
+                    if ($new_status === 'paid' && $payment_date === '') {
+                        $payment_date = current_time('mysql', 1);
+                    }
+
+                    $wpdb->update($policy_table, [
+                        'insurer_payment_status' => $new_status,
+                        'insurer_payment_reference' => sanitize_text_field($_POST['insurer_payment_reference'] ?? ''),
+                        'insurer_payment_date' => $payment_date ?: null,
+                        'insurer_payment_note' => sanitize_textarea_field($_POST['insurer_payment_note'] ?? ''),
+                        'updated_at' => current_time('mysql', 1),
+                    ], ['id' => $sale_id]);
+
+                    echo '<div class="notice notice-success is-dismissible"><p>Insurer settlement updated for Sale #' . esc_html($sale_id) . '.</p></div>';
                 }
             }
         }
 
-        $payments = $wpdb->get_results("
-            SELECT p.*, COALESCE(a.name, a.agency_name) AS agency_display_name, s.policy_number 
-            FROM $payments_table p 
-            LEFT JOIN $agencies_table a ON p.agency_id = a.id 
-            LEFT JOIN $policy_table s ON p.policy_id = s.id
-            ORDER BY p.created_at DESC
+        $sales = $wpdb->get_results("
+            SELECT s.*, COALESCE(a.name, a.agency_name) AS agency_display_name
+            FROM $policy_table s
+            LEFT JOIN $agencies_table a ON s.agency_id = a.id
+            WHERE s.payment_status = 'confirmed'
+            ORDER BY FIELD(COALESCE(s.insurer_payment_status, 'due'), 'due', 'failed', 'not_due', 'paid'), s.updated_at DESC
             LIMIT 500
         ");
 
         echo '<div class="wrap">';
-        echo '<h1 class="wp-heading-inline">Manage Payments</h1>';
+        echo '<h1 class="wp-heading-inline">Manual Insurer Settlements</h1>';
+        echo '<p>Track manual transfers from TIC-Kenya to insurers. Customer payment collection remains recorded on each policy sale.</p>';
         echo '<hr class="wp-header-end">';
 
         echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr><th>Date</th><th>Agency</th><th>Policy #</th><th>Amount</th><th>Reference</th><th>Status</th><th>Actions</th></tr></thead>';
+        echo '<thead><tr><th>Sale / Date</th><th>Agency</th><th>Client / Policy</th><th>Client Paid</th><th>Amount to Insurer</th><th>Customer Payment Ref</th><th>Insurer Settlement</th></tr></thead>';
         echo '<tbody>';
 
-        if (empty($payments)) {
-            echo '<tr><td colspan="7">No payment records found.</td></tr>';
+        if (empty($sales)) {
+            echo '<tr><td colspan="7">No confirmed sales are ready for insurer settlement.</td></tr>';
         } else {
-            foreach ($payments as $p) {
+            foreach ($sales as $sale) {
+                $status = $sale->insurer_payment_status ?: 'due';
+                $status_labels = [
+                    'not_due' => 'Not Due',
+                    'due' => 'Due to Insurer',
+                    'paid' => 'Paid to Insurer',
+                    'failed' => 'Issue / Failed',
+                ];
+                $status_color = $status === 'paid' ? 'green' : ($status === 'failed' ? 'red' : ($status === 'due' ? 'orange' : 'gray'));
+
                 echo '<tr>';
-                echo '<td>' . esc_html($p->created_at) . '</td>';
-                echo '<td>' . esc_html($p->agency_display_name ?: 'System') . '</td>';
-                echo '<td>' . esc_html($p->policy_number ?: 'Draft #' . $p->policy_id) . '</td>';
-                echo '<td>KES ' . esc_html(number_format(floatval($p->amount), 2)) . '</td>';
-                echo '<td>' . esc_html($p->reference) . '</td>';
-                
-                $status_color = $p->status === 'verified' ? 'green' : ($p->status === 'forwarded' ? 'blue' : 'orange');
-                echo '<td><span style="color:' . $status_color . '; font-weight:bold;">' . esc_html(strtoupper($p->status)) . '</span></td>';
-                
+                echo '<td>#' . esc_html($sale->id) . '<br><small>' . esc_html($sale->updated_at) . '</small></td>';
+                echo '<td>' . esc_html($sale->agency_display_name ?: 'Direct/System') . '</td>';
+                echo '<td>' . esc_html($sale->insured_names) . '<br><small>' . esc_html($sale->policy_number ?: 'Draft #' . $sale->id) . '</small></td>';
+                echo '<td>KES ' . esc_html(number_format(floatval($sale->amount_paid), 2)) . '</td>';
+                echo '<td><strong>KES ' . esc_html(number_format(floatval($sale->net_to_insurer), 2)) . '</strong></td>';
+                echo '<td>' . esc_html($sale->payment_reference ?: '-') . '</td>';
                 echo '<td>';
-                echo '<form method="post" style="display:inline-flex; gap: 5px;">';
-                wp_nonce_field('maljani_edit_payment');
-                echo '<input type="hidden" name="maljani_payment_action" value="update_status">';
-                echo '<input type="hidden" name="payment_id" value="' . esc_attr($p->id) . '">';
-                echo '<select name="status">';
-                echo '<option value="pending" ' . selected($p->status, 'pending', false) . '>Pending</option>';
-                echo '<option value="verified" ' . selected($p->status, 'verified', false) . '>Received & Verified</option>';
-                echo '<option value="forwarded" ' . selected($p->status, 'forwarded', false) . '>Forwarded to Insurer</option>';
-                echo '</select> ';
-                echo '<button type="submit" class="button button-small">Update</button>';
+                echo '<span style="color:' . esc_attr($status_color) . '; font-weight:bold;">' . esc_html($status_labels[$status] ?? strtoupper($status)) . '</span>';
+                if (!empty($sale->insurer_payment_date)) {
+                    echo '<br><small>Paid: ' . esc_html($sale->insurer_payment_date) . '</small>';
+                }
+                if (!empty($sale->insurer_payment_reference)) {
+                    echo '<br><small>Ref: ' . esc_html($sale->insurer_payment_reference) . '</small>';
+                }
+
+                echo '<form method="post" style="margin-top:8px;display:grid;gap:6px;max-width:280px;">';
+                wp_nonce_field('maljani_edit_settlement');
+                echo '<input type="hidden" name="maljani_settlement_action" value="update_insurer_settlement">';
+                echo '<input type="hidden" name="sale_id" value="' . esc_attr($sale->id) . '">';
+                echo '<select name="insurer_payment_status">';
+                foreach ($status_labels as $value => $label) {
+                    echo '<option value="' . esc_attr($value) . '" ' . selected($status, $value, false) . '>' . esc_html($label) . '</option>';
+                }
+                echo '</select>';
+                echo '<input type="text" name="insurer_payment_reference" value="' . esc_attr($sale->insurer_payment_reference ?? '') . '" placeholder="Bank/M-Pesa reference">';
+                echo '<input type="datetime-local" name="insurer_payment_date" value="' . esc_attr(!empty($sale->insurer_payment_date) ? date('Y-m-d\TH:i', strtotime($sale->insurer_payment_date)) : '') . '">';
+                echo '<textarea name="insurer_payment_note" rows="2" placeholder="Optional note">' . esc_textarea($sale->insurer_payment_note ?? '') . '</textarea>';
+                echo '<button type="submit" class="button button-small">Update Settlement</button>';
                 echo '</form>';
                 echo '</td>';
                 echo '</tr>';
