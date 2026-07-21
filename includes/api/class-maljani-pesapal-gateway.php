@@ -29,11 +29,15 @@ class Maljani_Pesapal_Gateway {
 
         $code = wp_remote_retrieve_response_code($response);
         $raw_body = wp_remote_retrieve_body($response);
+        $payload = trim(wp_strip_all_tags((string) $raw_body));
+        if (strlen($payload) > 500) {
+            $payload = substr($payload, 0, 500) . '...';
+        }
+
         $body = json_decode($raw_body);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            $raw_body = trim(wp_strip_all_tags((string) $raw_body));
-            return trim('HTTP ' . $code . ': ' . ($raw_body ?: $fallback));
+            return trim('HTTP ' . $code . ': ' . ($payload ?: $fallback));
         }
 
         $candidates = [
@@ -41,7 +45,6 @@ class Maljani_Pesapal_Gateway {
             $body->error_description ?? null,
             $body->message ?? null,
             $body->error ?? null,
-            $body->status ?? null,
         ];
 
         foreach ($candidates as $candidate) {
@@ -50,7 +53,10 @@ class Maljani_Pesapal_Gateway {
             }
         }
 
-        return trim('HTTP ' . $code . ': ' . $fallback);
+        $status = isset($body->status) ? ' Pesapal status: ' . sanitize_text_field((string) $body->status) . '.' : '';
+        $payload_message = $payload ? ' Response: ' . $payload : '';
+
+        return trim('HTTP ' . $code . ':' . $status . ' ' . $fallback . $payload_message);
     }
 
     /**
@@ -82,7 +88,10 @@ class Maljani_Pesapal_Gateway {
             return $body->token;
         }
 
-        return new WP_Error('token_failed', 'Failed to retrieve Pesapal token: ' . $this->response_error_message($response, 'No token returned. Check Pesapal environment and API credentials.'));
+        $message = $this->response_error_message($response, 'No token returned. Check Pesapal environment and API credentials.');
+        error_log('Maljani Pesapal token request failed (' . ($this->is_sandbox ? 'sandbox' : 'live') . '): ' . $message);
+
+        return new WP_Error('token_failed', 'Failed to retrieve Pesapal token: ' . $message);
     }
 
     /**
