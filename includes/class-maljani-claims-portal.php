@@ -17,10 +17,50 @@ class Maljani_Claims_Portal {
     public function __construct() {
         add_shortcode( self::SHORTCODE, [ $this, 'render_portal' ] );
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        add_action( 'rest_api_init', [ $this, 'register_rest_routes' ] );
         add_action( 'admin_menu', [ $this, 'register_admin_page' ] );
         add_action( 'admin_post_maljani_submit_claim_request', [ $this, 'handle_submission' ] );
         add_action( 'admin_post_nopriv_maljani_submit_claim_request', [ $this, 'handle_submission' ] );
         add_action( 'admin_post_maljani_update_claim_request', [ $this, 'handle_admin_update' ] );
+    }
+
+    public function register_rest_routes() {
+        register_rest_route( 'maljani/v1', '/claims/config', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'rest_get_config' ],
+            'permission_callback' => '__return_true',
+        ] );
+
+        register_rest_route( 'maljani/v1', '/claims', [
+            'methods'             => WP_REST_Server::CREATABLE,
+            'callback'            => [ $this, 'rest_submit_request' ],
+            'permission_callback' => '__return_true',
+        ] );
+    }
+
+    public function rest_get_config() {
+        return new WP_REST_Response( [
+            'fee'      => max( 0, (float) get_option( 'maljani_claim_assistance_fee', 0 ) ),
+            'currency' => sanitize_text_field( get_option( 'maljani_inv_currency', 'KSH' ) ),
+            'nonce'    => wp_create_nonce( 'maljani_submit_claim_request' ),
+        ] );
+    }
+
+    public function rest_submit_request( WP_REST_Request $request ) {
+        $nonce = sanitize_text_field( $request->get_header( 'X-Maljani-Nonce' ) );
+        if ( ! wp_verify_nonce( $nonce, 'maljani_submit_claim_request' ) ) {
+            return new WP_Error( 'maljani_invalid_claim_nonce', __( 'Invalid request.', 'maljani' ), [ 'status' => 403 ] );
+        }
+
+        $result = $this->create_request( (array) $request->get_json_params() );
+        if ( is_wp_error( $result ) ) {
+            return $result;
+        }
+
+        return new WP_REST_Response( [
+            'success'   => true,
+            'reference' => $result['reference'],
+        ], 201 );
     }
 
     public function enqueue_assets() {
@@ -164,23 +204,32 @@ class Maljani_Claims_Portal {
         }
 
         $redirect = wp_get_referer() ?: home_url( '/' );
-        $required = [ 'client_name', 'client_email', 'client_phone', 'policy_number', 'insurer_name', 'description' ];
-        foreach ( $required as $field ) {
-            if ( empty( trim( (string) ( $_POST[ $field ] ?? '' ) ) ) ) {
-                wp_safe_redirect( add_query_arg( 'claim_error', 'required', $redirect ) );
-                exit;
-            }
-        }
-
-        $email = sanitize_email( wp_unslash( $_POST['client_email'] ) );
-        if ( ! is_email( $email ) || empty( $_POST['consent'] ) ) {
-            wp_safe_redirect( add_query_arg( 'claim_error', 'invalid', $redirect ) );
+        $result = $this->create_request( wp_unslash( $_POST ) );
+        if ( is_wp_error( $result ) ) {
+            wp_safe_redirect( add_query_arg( 'claim_error', $result->get_error_code(), $redirect ) );
             exit;
         }
 
-        $request_type = sanitize_key( wp_unslash( $_POST['request_type'] ?? 'claim' ) );
+        wp_safe_redirect( add_query_arg( 'claim_submitted', rawurlencode( $result['reference'] ), remove_query_arg( [ 'claim_error', 'claim_submitted' ], $redirect ) ) );
+        exit;
+    }
+
+    private function create_request( array $data ) {
+        $required = [ 'client_name', 'client_email', 'client_phone', 'policy_number', 'insurer_name', 'description' ];
+        foreach ( $required as $field ) {
+            if ( empty( trim( (string) ( $data[ $field ] ?? '' ) ) ) ) {
+                return new WP_Error( 'required', __( 'Complete all required fields.', 'maljani' ), [ 'status' => 400 ] );
+            }
+        }
+
+        $email = sanitize_email( $data['client_email'] );
+        if ( ! is_email( $email ) || empty( $data['consent'] ) ) {
+            return new WP_Error( 'invalid', __( 'Enter a valid email and accept the authorization.', 'maljani' ), [ 'status' => 400 ] );
+        }
+
+        $request_type = sanitize_key( $data['request_type'] ?? 'claim' );
         $request_type = in_array( $request_type, [ 'claim', 'refund' ], true ) ? $request_type : 'claim';
-        $currency = strtoupper( sanitize_text_field( wp_unslash( $_POST['currency'] ?? 'KSH' ) ) );
+        $currency = strtoupper( sanitize_text_field( $data['currency'] ?? 'KSH' ) );
         $currency = in_array( $currency, [ 'KSH', 'USD', 'EUR', 'GBP' ], true ) ? $currency : 'KSH';
         $fee = max( 0, (float) get_option( 'maljani_claim_assistance_fee', 0 ) );
         $reference = $this->generate_reference();
@@ -192,16 +241,16 @@ class Maljani_Claims_Portal {
                 'reference'        => $reference,
                 'user_id'          => get_current_user_id(),
                 'request_type'     => $request_type,
-                'client_name'      => sanitize_text_field( wp_unslash( $_POST['client_name'] ) ),
+                'client_name'      => sanitize_text_field( $data['client_name'] ),
                 'client_email'     => $email,
-                'client_phone'     => sanitize_text_field( wp_unslash( $_POST['client_phone'] ) ),
-                'policy_number'    => sanitize_text_field( wp_unslash( $_POST['policy_number'] ) ),
-                'insurer_name'     => sanitize_text_field( wp_unslash( $_POST['insurer_name'] ) ),
-                'incident_date'    => $this->sanitize_date( $_POST['incident_date'] ?? '' ),
-                'incident_type'    => sanitize_text_field( wp_unslash( $_POST['incident_type'] ?? '' ) ),
-                'requested_amount' => empty( $_POST['requested_amount'] ) ? null : max( 0, (float) $_POST['requested_amount'] ),
+                'client_phone'     => sanitize_text_field( $data['client_phone'] ),
+                'policy_number'    => sanitize_text_field( $data['policy_number'] ),
+                'insurer_name'     => sanitize_text_field( $data['insurer_name'] ),
+                'incident_date'    => $this->sanitize_date( $data['incident_date'] ?? '' ),
+                'incident_type'    => sanitize_text_field( $data['incident_type'] ?? '' ),
+                'requested_amount' => empty( $data['requested_amount'] ) ? null : max( 0, (float) $data['requested_amount'] ),
                 'currency'         => $currency,
-                'description'      => sanitize_textarea_field( wp_unslash( $_POST['description'] ) ),
+                'description'      => sanitize_textarea_field( $data['description'] ),
                 'fee_amount'       => $fee,
                 'fee_status'       => $fee > 0 ? 'pending' : 'not_required',
                 'status'           => $fee > 0 ? 'awaiting_payment' : 'new',
@@ -210,19 +259,17 @@ class Maljani_Claims_Portal {
         );
 
         if ( ! $inserted ) {
-            wp_safe_redirect( add_query_arg( 'claim_error', 'save', $redirect ) );
-            exit;
+            return new WP_Error( 'save', __( 'The request could not be saved.', 'maljani' ), [ 'status' => 500 ] );
         }
 
         $admin_email = get_option( 'admin_email' );
         wp_mail(
             $admin_email,
             sprintf( '[%s] New %s assistance request', $reference, ucfirst( $request_type ) ),
-            sprintf( "A new request was submitted by %s (%s).\n\nReview: %s", sanitize_text_field( wp_unslash( $_POST['client_name'] ) ), $email, admin_url( 'admin.php?page=maljani-claims&request_id=' . $wpdb->insert_id ) )
+            sprintf( "A new request was submitted by %s (%s).\n\nReview: %s", sanitize_text_field( $data['client_name'] ), $email, admin_url( 'admin.php?page=maljani-claims&request_id=' . $wpdb->insert_id ) )
         );
 
-        wp_safe_redirect( add_query_arg( 'claim_submitted', rawurlencode( $reference ), remove_query_arg( [ 'claim_error', 'claim_submitted' ], $redirect ) ) );
-        exit;
+        return [ 'reference' => $reference, 'id' => (int) $wpdb->insert_id ];
     }
 
     public function handle_admin_update() {
