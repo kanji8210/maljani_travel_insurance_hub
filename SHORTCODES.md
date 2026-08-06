@@ -70,6 +70,18 @@ User dashboard (requires login)
 
 ---
 
+### Claims & Refunds
+
+#### `[maljani_claims_portal]`
+Public intake portal for clients who want TIC-Kenya to file or follow up on an insurance claim or premium refund request.
+```
+[maljani_claims_portal]
+```
+
+The assistance fee is configured under **TIC-Kenya > Settings > Global Fee Defaults**. Each submission keeps a snapshot of the fee shown to the client. Staff process requests under **TIC-Kenya > Claims & Refunds**.
+
+---
+
 ### Utility
 
 #### `[maljani_icon]`
@@ -108,6 +120,11 @@ Display SVG icons
 ### Customer Portal
 ```
 [maljani_user_dashboard]
+```
+
+### Claims & Refunds Portal
+```
+[maljani_claims_portal]
 ```
 
 ---

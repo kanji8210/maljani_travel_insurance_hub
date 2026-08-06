@@ -14,8 +14,8 @@ class Maljani_Workflow {
             'submitted_to_insurer' => ['role' => 'maljani_editor'] // Editor or Admin forwards to insurer
         ],
         'submitted_to_insurer' => [
-            'pending_review' => ['role' => 'insurer'], // Insurer asks for clarification
-            'approved' => ['role' => 'insurer'] // Insurer approves
+            'pending_review' => ['role' => 'maljani_editor'], // Admin returns the request for clarification
+            'approved' => ['role' => 'maljani_editor'] // Admin records insurer issuance
         ],
         'approved' => [
             'active' => ['role' => 'maljani_admin'] // Only Admins activate with final docs
@@ -44,6 +44,7 @@ class Maljani_Workflow {
         $sale_id = intval($request->get_param('id'));
         $target_status = sanitize_text_field($request->get_param('target_status'));
         $notes = sanitize_textarea_field($request->get_param('notes'));
+        $policy_number = sanitize_text_field($request->get_param('policy_number'));
         
         $table = $wpdb->prefix . 'policy_sale';
         $policy = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $sale_id));
@@ -65,8 +66,22 @@ class Maljani_Workflow {
             return new WP_REST_Response(['success' => false, 'message' => 'Unauthorized for this transition'], 403);
         }
 
+        if ($target_status === 'approved' && $policy_number === '') {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => 'Enter the policy number issued on the insurer website before marking this request as issued.',
+            ], 400);
+        }
+
         // Perform transition
-        $wpdb->update($table, ['workflow_status' => $target_status, 'updated_at' => current_time('mysql', 1)], ['id' => $sale_id]);
+        $update_data = [
+            'workflow_status' => $target_status,
+            'updated_at' => current_time('mysql', 1),
+        ];
+        if ($target_status === 'approved') {
+            $update_data['policy_number'] = $policy_number;
+        }
+        $wpdb->update($table, $update_data, ['id' => $sale_id]);
         
         // Update regular policy_status for backward compatibility
         $mapped_base_status = self::map_workflow_to_base_status($target_status);
@@ -74,7 +89,10 @@ class Maljani_Workflow {
             $wpdb->update($table, ['policy_status' => $mapped_base_status], ['id' => $sale_id]);
         }
         
-        self::log_audit('policy', $sale_id, "status_change_{$current_status}_to_{$target_status}", get_current_user_id(), ['notes' => $notes]);
+        self::log_audit('policy', $sale_id, "status_change_{$current_status}_to_{$target_status}", get_current_user_id(), [
+            'notes' => $notes,
+            'policy_number' => $target_status === 'approved' ? $policy_number : '',
+        ]);
         
         // Fire hooks so Notification system can pick it up
         do_action('maljani_workflow_transition', $sale_id, $current_status, $target_status, $policy, $notes);

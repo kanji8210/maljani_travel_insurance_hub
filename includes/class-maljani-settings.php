@@ -63,6 +63,7 @@ class Maljani_Settings {
         register_setting('maljani_settings_group', 'maljani_fee_service_value',  ['default' => 0,          'sanitize_callback' => 'floatval']);
         register_setting('maljani_settings_group', 'maljani_fee_agg_type',       ['default' => 'percent', 'sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_fee_agg_value',      ['default' => 0,          'sanitize_callback' => 'floatval']);
+        register_setting('maljani_settings_group', 'maljani_claim_assistance_fee', ['default' => 0, 'sanitize_callback' => function($value) { return max(0, floatval($value)); }]);
         register_setting('maljani_settings_group', 'maljani_default_usd_to_ksh_rate', ['default' => 0, 'sanitize_callback' => 'floatval']);
         // Invoice & Compliance settings
         $inv_fields = [
@@ -207,6 +208,7 @@ textarea.mj-in { resize:vertical; }
         $svc_val   = get_option('maljani_fee_service_value', 0);
         $agg_type  = get_option('maljani_fee_agg_type',      'percent');
         $agg_val   = get_option('maljani_fee_agg_value',     0);
+        $claim_assistance_fee = get_option('maljani_claim_assistance_fee', 0);
         $default_usd_to_ksh_rate = get_option('maljani_default_usd_to_ksh_rate', 0);
         $pesapal_notice = get_transient('maljani_pesapal_test_notice');
         if ($pesapal_notice) {
@@ -279,6 +281,16 @@ textarea.mj-in { resize:vertical; }
                                            placeholder="0.00">
                                 </div>
                                 <span class="hint">Fallback used when no per-policy aggregator commission is set.</span>
+                            </div>
+
+                            <div class="mj-sf">
+                                <label for="claim_assistance_fee">Claims &amp; Refunds Assistance Fee</label>
+                                <input id="claim_assistance_fee" type="number" name="maljani_claim_assistance_fee"
+                                       value="<?php echo esc_attr($claim_assistance_fee);?>"
+                                       step="0.01" min="0"
+                                       class="mj-in"
+                                       placeholder="0.00">
+                                    <span class="hint">Fixed fee in the configured invoice currency, disclosed to clients and saved on each assistance request.</span>
                             </div>
                         </div>
                         <div class="mj-sf" style="margin-top:18px;max-width:340px">

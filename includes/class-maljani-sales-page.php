@@ -1126,12 +1126,12 @@ class Maljani_Sales_Page
                 $agent_comm_amount = $calc_fee('_policy_agency_comm_type', '_policy_agency_comm_value', '_policy_agency_comm_pct', $premium);
             }
 
-            // Générer un numéro de police unique
-            $policy_number = 'POL-' . date('Ymd') . '-' . mt_rand(1000, 9999);
+            // The insurer-issued policy number is recorded manually during processing.
+            $policy_number = '';
 
             $result = $wpdb->insert($table, [
                 'policy_id' => $policy_id,
-                'policy_number' => $policy_number, // Généré automatiquement
+                'policy_number' => $policy_number,
                 'region' => $region_name,
                 'premium' => $premium,
                 'days' => $days,
@@ -1178,7 +1178,7 @@ class Maljani_Sales_Page
                     $order_resp = $gateway->create_order(
                         $sale_id,
                         $amount_tot_client,
-                        'Insurance Policy Purchase: ' . $policy_number,
+                        'Insurance Policy Request #' . $sale_id,
                         $billing_info
                     );
 

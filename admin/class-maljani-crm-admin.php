@@ -52,7 +52,8 @@ class Maljani_CRM_Admin {
         ");
 
         echo '<div class="wrap maljani-crm-wrap"><h1>Maljani CRM Admin Hub</h1>';
-        echo '<p>Review policies submitted by agencies, forward them to insurers, and upload finalized documents.</p>';
+        echo '<p>Review paid requests, manually enter the customer details on the insurer website, record the insurer-issued policy number, then activate the policy.</p>';
+        echo '<div class="notice notice-info inline"><p><strong>Manual issuance workflow:</strong> 1. Start Processing &rarr; 2. Enter the customer information on the insurer website &rarr; 3. Enter the issued policy number here &rarr; 4. Mark Issued &rarr; 5. Upload final documents and activate.</p></div>';
         
         echo '<table class="wp-list-table widefat fixed striped">';
         echo '<thead><tr><th>ID / Date</th><th>Agency</th><th>Client Name</th><th>Settlement Breakdown</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
@@ -84,14 +85,27 @@ class Maljani_CRM_Admin {
                     'verification_ready' => 'darkgreen'
                 ];
                 $color = $status_colors[$p->workflow_status] ?? 'gray';
+                $status_labels = [
+                    'pending_review' => 'Pending Review',
+                    'submitted_to_insurer' => 'Processing',
+                    'approved' => 'Issued',
+                    'active' => 'Active',
+                    'verification_ready' => 'Verification Ready',
+                ];
+                $status_label = $status_labels[$p->workflow_status] ?? ucwords(str_replace('_', ' ', $p->workflow_status));
                 
-                echo "<td><span style='background:{$color};color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:bold;'>" . esc_html(strtoupper(str_replace('_', ' ', $p->workflow_status))) . "</span></td>";
+                echo "<td><span style='background:{$color};color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:bold;'>" . esc_html(strtoupper($status_label)) . "</span></td>";
                 
                 echo "<td>";
                 // Action buttons based on status
                 if ($p->workflow_status === 'pending_review') {
-                    echo "<button class='button button-primary maljani-transition-btn' data-id='{$p->id}' data-target='submitted_to_insurer'>Forward to Insurer</button> ";
+                    echo "<button class='button button-primary maljani-transition-btn' data-id='{$p->id}' data-target='submitted_to_insurer'>Start Processing</button> ";
                     echo "<button class='button maljani-transition-btn' data-id='{$p->id}' data-target='draft'>Return to Agency</button>";
+                } elseif ($p->workflow_status === 'submitted_to_insurer') {
+                    echo "<div style='margin-bottom:6px;font-size:12px;max-width:280px;'>Enter the customer details on the insurer website, then record the policy number it issues.</div>";
+                    echo "<input type='text' class='maljani-issued-policy-number' data-id='{$p->id}' value='' placeholder='Insurer policy number' style='width:180px;margin-right:4px;' aria-label='Insurer-issued policy number'>";
+                    echo "<button class='button button-primary maljani-transition-btn' data-id='{$p->id}' data-target='approved'>Mark Issued</button> ";
+                    echo "<button class='button maljani-transition-btn' data-id='{$p->id}' data-target='pending_review'>Needs Clarification</button>";
                 } elseif ($p->workflow_status === 'approved') {
                     echo "<button class='button button-primary maljani-doc-upload-btn' data-id='{$p->id}'>Upload Final Docs & Activate</button>";
                 } elseif ($p->workflow_status === 'active') {
@@ -111,6 +125,7 @@ class Maljani_CRM_Admin {
         <div id="maljani-doc-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;">
             <div style="background:#fff;width:400px;margin:100px auto;padding:20px;border-radius:5px;">
                 <h2>Upload Final Documents</h2>
+                <p>The insurer-issued policy number has been recorded. Upload the documents received from the insurer to activate the policy.</p>
                 <form id="maljani-doc-form" enctype="multipart/form-data">
                     <input type="hidden" id="maljani-upload-policy-id" name="policy_id" value="">
                     <input type="hidden" name="action" value="maljani_crm_upload_doc">
@@ -131,17 +146,31 @@ class Maljani_CRM_Admin {
         // Inline script for transition buttons (will move to external later if complex)
         jQuery(document).ready(function($) {
             $('.maljani-transition-btn').on('click', function() {
-                if(!confirm('Are you sure you want to change this policy status?')) return;
                 var id = $(this).data('id');
                 var target = $(this).data('target');
                 var btn = $(this);
+                var policyNumber = '';
+                var confirmation = 'Are you sure you want to change this policy status?';
+
+                if (target === 'submitted_to_insurer') {
+                    confirmation = 'Start manual processing? You will need to enter the customer details on the insurer website.';
+                } else if (target === 'approved') {
+                    policyNumber = $('.maljani-issued-policy-number[data-id="' + id + '"]').val().trim();
+                    if (!policyNumber) {
+                        alert('Enter the policy number issued by the insurer first.');
+                        return;
+                    }
+                    confirmation = 'Confirm that ' + policyNumber + ' is the policy number issued by the insurer?';
+                }
+
+                if(!confirm(confirmation)) return;
                 btn.prop('disabled', true).text('Working...');
                 
                 $.ajax({
                     url: maljaniCrmParams.rest_url + '/policies/' + id + '/transition',
                     method: 'POST',
                     beforeSend: function(xhr) { xhr.setRequestHeader('X-WP-Nonce', maljaniCrmParams.nonce); },
-                    data: { target_status: target, notes: 'Admin action' }
+                    data: { target_status: target, policy_number: policyNumber, notes: 'Admin manual insurer processing' }
                 }).done(function(res) {
                     location.reload();
                 }).fail(function(err) {
@@ -194,6 +223,17 @@ class Maljani_CRM_Admin {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         global $wpdb;
 
+        $sale = $wpdb->get_row($wpdb->prepare(
+            "SELECT policy_number, workflow_status FROM {$wpdb->prefix}policy_sale WHERE id = %d",
+            $policy_id
+        ));
+        if (!$sale || empty($sale->policy_number)) {
+            wp_send_json_error('Enter the insurer-issued policy number and mark the request as issued before activation.');
+        }
+        if ($sale->workflow_status !== 'approved') {
+            wp_send_json_error('Only an issued policy can be activated.');
+        }
+
         $upload_dir = wp_upload_dir();
         $crm_dir = $upload_dir['basedir'] . '/maljani_crm_docs';
         if (!file_exists($crm_dir)) wp_mkdir_p($crm_dir);
@@ -230,7 +270,10 @@ class Maljani_CRM_Admin {
         }
 
         // Transition policy to active
-        $wpdb->update($tables['policy'], ['workflow_status' => 'active'], ['id' => $policy_id]);
+        $wpdb->update($tables['policy'], [
+            'workflow_status' => 'active',
+            'policy_status' => 'active',
+        ], ['id' => $policy_id]);
         if (class_exists('Maljani_Workflow')) {
             Maljani_Workflow::log_audit('policy', $policy_id, 'docs_uploaded_active', get_current_user_id(), []);
             // Fire transition hook for notifications

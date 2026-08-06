@@ -305,7 +305,7 @@ class Maljani_API_Endpoints {
                 'payment_reference' => $tracking_id,
                 'insurer_payment_status' => 'due',
                 'policy_status'     => 'pending_review',
-                'workflow_status'   => 'submitted_to_insurer',
+                'workflow_status'   => 'pending_review',
             ],
             ['id' => $sale_id]
         );

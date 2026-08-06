@@ -104,6 +104,7 @@ class Maljani_CRM_Dashboard {
                     <button class="crm-tab active" data-target="clients">Clients</button>
                     <button class="crm-tab" data-target="policies">Policies</button>
                     <button class="crm-tab" data-target="payments">Commissions</button>
+                    <a class="crm-tab" href="<?php echo esc_url( Maljani_Claims_Portal::get_portal_url() ); ?>">Claims &amp; Refunds</a>
                 </nav>
             </header>
 

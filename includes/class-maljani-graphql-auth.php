@@ -530,7 +530,7 @@ class Maljani_GraphQL_Auth {
                     $agent_comm_amount = $calc_fee('_policy_agency_comm_type', '_policy_agency_comm_value', '_policy_agency_comm_pct', $premium);
                 }
 
-                $policy_number = 'POL-GQL-' . date('Ymd') . '-' . str_pad(random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+                $policy_number = '';
 
                 // Verify the policy post is published before creating a sale record
                 if (get_post_status($policy_id) !== 'publish') {
@@ -607,7 +607,6 @@ class Maljani_GraphQL_Auth {
 
                 // Fire action so notifications and other integrations can react
                 do_action('maljani_new_sale', $sale_id, [
-                    'policy_number' => $policy_number,
                     'insured_names' => sanitize_text_field($input['insuredNames'] ?? ''),
                     'insured_email' => sanitize_email($input['insuredEmail'] ?? ''),
                     'amount_paid'   => $amount_tot_client,
@@ -616,7 +615,7 @@ class Maljani_GraphQL_Auth {
 
                 return [
                     'saleId' => (int) $sale_id,
-                    'policyNumber' => $policy_number,
+                    'policyNumber' => '',
                     'amountPaid' => (float) $amount_tot_client,
                 ];
             }

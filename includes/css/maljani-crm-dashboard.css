@@ -52,7 +52,7 @@
     background: none; border: none; padding: 20px 5px; font-size: 11px;
     font-weight: 700; cursor: pointer; border-bottom: 2px solid transparent;
     color: var(--text-muted); transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); 
-    text-transform: uppercase; letter-spacing: 1.5px;
+    text-transform: uppercase; letter-spacing: 1.5px; text-decoration: none;
 }
 
 .crm-tab.active { border-bottom-color: var(--primary); color: white; }

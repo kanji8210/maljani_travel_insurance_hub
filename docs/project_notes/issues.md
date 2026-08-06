@@ -55,3 +55,11 @@ Log completed work and session progress here.
 ### 2026-07-19 - Manual Insurer Settlement Cleanup
 - **Status**: Completed
 - **Description**: Simplified payment operations around confirmed sales: customer payments still collect to TIC-Kenya, `policy_sale` now tracks manual insurer settlement fields (`insurer_payment_status`, reference, date, note), and payment confirmation marks insurer settlement as due while moving workflow to `submitted_to_insurer`. Updated CRM/admin views to use settlement breakdown fields instead of legacy split/payment wording.
+
+### 2026-08-04 - Manual Insurer Policy Issuance Workflow
+- **Status**: Completed
+- **Description**: Clarified and enforced the admin issuance flow: payment confirmation queues a request for review; admin starts Processing and manually enters customer details on the insurer website; the insurer-issued policy number is required when marking the request Issued; only issued requests can be activated after document upload. New requests use the sale ID as their request reference and no longer receive a provisional `POL-*` policy number.
+
+### 2026-08-05 - Claims & Refunds Assistance Portal
+- **Status**: Completed
+- **Description**: Added the public `[maljani_claims_portal]` intake form for claim and premium refund assistance, a dedicated request ledger with fee snapshots and workflow/payment states, and a staff processing queue under TIC-Kenya. The fixed assistance fee is managed in Global Fee Defaults, and Page Management can create the public portal page. Sensitive evidence uploads are intentionally deferred; staff request documents through a private channel after intake review.

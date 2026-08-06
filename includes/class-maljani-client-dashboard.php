@@ -57,6 +57,7 @@ class Maljani_Client_Dashboard
                 <button class="client-tab active" data-target="my-policies">Dashboard</button>
                 <button class="client-tab" data-target="my-profile">Profile Settings</button>
                 <button class="client-tab" data-target="get-support">Support</button>
+                <a class="client-tab" href="<?php echo esc_url( Maljani_Claims_Portal::get_portal_url() ); ?>">Claims &amp; Refunds</a>
             </nav>
 
             <div class="client-content stagger-up" style="animation-delay: 0.2s;">

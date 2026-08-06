@@ -14,8 +14,31 @@ class Maljani_Moderation_Admin {
         if (isset($_POST['mj_action']) && $_POST['mj_action'] === 'update_workflow' && check_admin_referer('mj_moderation_nonce')) {
             $sale_id = intval($_POST['sale_id']);
             $new_status = sanitize_text_field($_POST['workflow_status']);
-            $wpdb->update($table_sales, ['workflow_status' => $new_status], ['id' => $sale_id]);
-            echo '<div class="notice notice-success is-dismissible"><p>Workflow status updated.</p></div>';
+            $policy_number = sanitize_text_field($_POST['policy_number'] ?? '');
+            $sale = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_sales WHERE id = %d", $sale_id));
+            $allowed_statuses = ['draft', 'pending_review', 'submitted_to_insurer', 'approved', 'active'];
+
+            if (!$sale || !in_array($new_status, $allowed_statuses, true)) {
+                echo '<div class="notice notice-error is-dismissible"><p>Invalid workflow update.</p></div>';
+            } elseif (in_array($new_status, ['approved', 'active'], true) && $policy_number === '' && empty($sale->policy_number)) {
+                echo '<div class="notice notice-error is-dismissible"><p>Enter the policy number issued by the insurer before marking this request as issued or active.</p></div>';
+            } else {
+                $update_data = ['workflow_status' => $new_status];
+                if ($policy_number !== '') {
+                    $update_data['policy_number'] = $policy_number;
+                }
+                $base_statuses = [
+                    'draft' => 'unconfirmed',
+                    'pending_review' => 'pending_review',
+                    'submitted_to_insurer' => 'pending_review',
+                    'approved' => 'approved',
+                    'active' => 'active',
+                ];
+                $update_data['policy_status'] = $base_statuses[$new_status];
+                $wpdb->update($table_sales, $update_data, ['id' => $sale_id]);
+                do_action('maljani_workflow_transition', $sale_id, $sale->workflow_status, $new_status, $sale, 'Admin moderation update');
+                echo '<div class="notice notice-success is-dismissible"><p>Workflow status updated.</p></div>';
+            }
         }
 
         // Handle Agency Commission Status Update
@@ -33,10 +56,10 @@ class Maljani_Moderation_Admin {
                 'payment_status'  => 'confirmed',
                 'insurer_payment_status' => 'due',
                 'policy_status'   => 'pending_review',
-                'workflow_status' => 'submitted_to_insurer',
+                'workflow_status' => 'pending_review',
             ], ['id' => $sale_id]);
             do_action('maljani_payment_confirmed', $sale_id);
-            echo '<div class="notice notice-success is-dismissible"><p>Payment confirmed for Sale #' . $sale_id . '. The policy is now queued for manual insurer processing.</p></div>';
+            echo '<div class="notice notice-success is-dismissible"><p>Payment confirmed for Sale #' . $sale_id . '. Review the request, then start manual insurer processing.</p></div>';
             // Auto-send receipt email to client
             if (class_exists('Maljani_Invoice')) {
                 $sent = Maljani_Invoice::send_receipt_email($sale_id);
@@ -71,7 +94,8 @@ class Maljani_Moderation_Admin {
                 $stages = [
                     'draft' => ['label' => 'Untouched', 'icon' => '📄', 'color' => '#64748b'],
                     'pending_review' => ['label' => 'In Review', 'icon' => '🔍', 'color' => '#f59e0b'],
-                    'submitted_to_insurer' => ['label' => 'Sent to Insurer', 'icon' => '📩', 'color' => '#3b82f6'],
+                    'submitted_to_insurer' => ['label' => 'Processing', 'icon' => '⚙️', 'color' => '#3b82f6'],
+                    'approved' => ['label' => 'Issued', 'icon' => '📄', 'color' => '#8b5cf6'],
                     'active' => ['label' => 'Active', 'icon' => '✅', 'color' => '#8b5cf6'],
                 ];
                 foreach ($stages as $key => $stage) : 
@@ -144,7 +168,7 @@ class Maljani_Moderation_Admin {
                                 <td>
                                     <div class="mj-policy-info">
                                         <span class="mj-policy-name"><?php echo esc_html($sale->region); ?> Policy</span>
-                                        <code><?php echo esc_html($sale->policy_number); ?></code>
+                                        <code><?php echo esc_html($sale->policy_number ?: 'Not issued'); ?></code>
                                         <br>
                                         <small><?php echo date('M d, Y', strtotime($sale->created_at)); ?></small>
                                     </div>
@@ -193,13 +217,17 @@ class Maljani_Moderation_Admin {
                                         <?php wp_nonce_field('mj_moderation_nonce'); ?>
                                         <input type="hidden" name="mj_action" value="update_workflow">
                                         <input type="hidden" name="sale_id" value="<?php echo $sale->id; ?>">
-                                        <select name="workflow_status" onchange="this.form.submit()" class="mj-mini-select">
+                                        <select name="workflow_status" class="mj-mini-select">
                                             <?php foreach ($stages as $key => $stage) : ?>
                                                 <option value="<?php echo $key; ?>" <?php selected($sale->workflow_status, $key); ?>>
                                                     <?php echo $stage['label']; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <?php if (in_array($sale->workflow_status, ['submitted_to_insurer', 'approved'], true)) : ?>
+                                            <input type="text" name="policy_number" value="<?php echo esc_attr($sale->policy_number); ?>" placeholder="Insurer policy number" aria-label="Insurer-issued policy number">
+                                        <?php endif; ?>
+                                        <button type="submit" class="button button-small">Update Stage</button>
                                         <span class="mj-badge status-<?php echo $sale->payment_status; ?>">
                                             Payment: <?php echo strtoupper($sale->payment_status); ?>
                                         </span>

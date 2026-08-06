@@ -186,7 +186,7 @@ class Maljani_User_Notifications {
      * New sale created (QuoteWizard / GraphQL).
      */
     public function on_new_sale( int $sale_id, array $data ): void {
-        $pol_num  = $data['policy_number'] ?? '#' . $sale_id;
+        $request_ref = '#' . $sale_id;
         $email    = $data['insured_email'] ?? '';
         $user     = $email ? get_user_by( 'email', $email ) : null;
         $user_id  = $user ? (int) $user->ID : 0;
@@ -199,8 +199,8 @@ class Maljani_User_Notifications {
             return;
         }
 
-        self::push( $user_id, 'info', 'Policy Created',
-            "Your travel insurance policy {$pol_num} has been recorded. We'll notify you as it progresses.", $sale_id );
+        self::push( $user_id, 'info', 'Policy Request Received',
+            "Your travel insurance request {$request_ref} has been recorded. We'll notify you when the insurer issues the policy number.", $sale_id );
     }
 
     /**
@@ -217,10 +217,8 @@ class Maljani_User_Notifications {
             return;
         }
 
-        $pol_num = $sale->policy_number ?: '#' . $sale_id;
-
         self::push( $user_id, 'status_change', 'Payment Confirmed',
-            "Payment for policy {$pol_num} has been confirmed. TIC-Kenya will now submit the details to the insurer for document issuance.", (int) $sale_id );
+            "Payment for request #{$sale_id} has been confirmed. TIC-Kenya will review the request before starting manual insurer processing.", (int) $sale_id );
     }
 
     /**

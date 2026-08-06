@@ -116,6 +116,39 @@ class Maljani_Activator {
         ) $charset_collate;";
         dbDelta($notif_sql);
 
+        // Create the claims and refunds assistance request ledger.
+        $claims_table = $wpdb->prefix . 'maljani_claim_requests';
+        $claims_sql = "CREATE TABLE IF NOT EXISTS $claims_table (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            reference VARCHAR(32) NOT NULL,
+            user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            request_type ENUM('claim','refund') NOT NULL DEFAULT 'claim',
+            client_name VARCHAR(191) NOT NULL,
+            client_email VARCHAR(191) NOT NULL,
+            client_phone VARCHAR(32) NOT NULL,
+            policy_number VARCHAR(64) NOT NULL,
+            insurer_name VARCHAR(191) NOT NULL,
+            incident_date DATE DEFAULT NULL,
+            incident_type VARCHAR(100),
+            requested_amount DECIMAL(12,2) DEFAULT NULL,
+            currency VARCHAR(8) NOT NULL DEFAULT 'KSH',
+            description LONGTEXT NOT NULL,
+            fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            fee_status ENUM('not_required','pending','paid','waived','refunded') NOT NULL DEFAULT 'pending',
+            payment_reference VARCHAR(191),
+            status ENUM('new','awaiting_payment','documents_required','in_review','submitted','approved','rejected','closed') NOT NULL DEFAULT 'new',
+            admin_notes LONGTEXT,
+            consent TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY reference (reference),
+            KEY client_email (client_email),
+            KEY status (status),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+        dbDelta($claims_sql);
+
         // Register custom roles
         add_role('agent', __('Agent', 'maljani'), [
             'read' => true,

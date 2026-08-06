@@ -34,3 +34,18 @@ Log key architectural decisions, their context, and trade-offs here.
 
 **Consequences:**
 - Modular, portable skills that provide high-quality design and persistent memory.
+
+### ADR-002: Insurer-Issued Policy Numbers (2026-08-04)
+
+**Context:**
+- TIC-Kenya staff issue policies manually by entering customer data on each insurer's website.
+- A policy number does not exist until the insurer completes issuance.
+
+**Decision:**
+- Use the sale ID as the request reference before issuance.
+- Store `policy_number` only when an admin records the number returned by the insurer.
+- Require that number before a request can become Issued or Active.
+
+**Consequences:**
+- Customer and admin interfaces distinguish requests from issued policies.
+- The workflow cannot expose a generated internal reference as an insurer policy number.

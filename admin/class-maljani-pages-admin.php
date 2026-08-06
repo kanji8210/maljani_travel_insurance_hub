@@ -88,6 +88,13 @@ class Maljani_Pages_Admin {
                 'description' => 'Embeds the live chat widget on a dedicated support page.',
                 'template'    => '',
             ],
+            'claims_portal' => [
+                'title'       => 'Claims & Refunds',
+                'shortcode'   => '[maljani_claims_portal]',
+                'role'        => 'Public',
+                'description' => 'Client intake for claim filing and premium refund assistance.',
+                'template'    => '',
+            ],
         ];
     }
 
