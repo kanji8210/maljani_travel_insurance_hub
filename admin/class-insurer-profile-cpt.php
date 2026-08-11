@@ -63,6 +63,10 @@ class Insurer_Profile_CPT {
         $linkedin = get_post_meta($post->ID, '_insurer_linkedin', true);
         $pesapal_id = get_post_meta($post->ID, '_insurer_pesapal_merchant_id', true);
         $usd_to_ksh_rate = get_post_meta($post->ID, '_insurer_usd_to_ksh_rate', true);
+        $claim_form_attachment_id = intval(get_post_meta($post->ID, '_insurer_claim_form_attachment_id', true));
+        $claim_form_url = $claim_form_attachment_id ? wp_get_attachment_url($claim_form_attachment_id) : '';
+        $claim_form_path = $claim_form_attachment_id ? get_attached_file($claim_form_attachment_id) : '';
+        $claim_form_label = $claim_form_path ? wp_basename($claim_form_path) : '';
 
         ?>
         <style>
@@ -104,7 +108,45 @@ class Insurer_Profile_CPT {
             }
             .img-preview-box img { width: 100%; height: 100%; object-fit: cover; }
             .img-preview-box.feature-img { width: 180px; height: 120px; }
-            
+            .doc-preview-box {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-height: 76px;
+                padding: 16px;
+                margin-bottom: 15px;
+                background: #f8fafc;
+                border: 1px dashed #cbd5e1;
+                border-radius: 12px;
+            }
+            .doc-preview-box .doc-icon {
+                flex: 0 0 40px;
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: #dbeafe;
+                color: #1d4ed8;
+                font-size: 18px;
+                font-weight: 700;
+            }
+            .doc-preview-box .doc-meta {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .doc-preview-box .doc-name {
+                font-weight: 600;
+                color: #1e293b;
+                word-break: break-word;
+            }
+            .doc-preview-box .doc-link a {
+                color: #2563eb;
+                text-decoration: none;
+            }
+             
             .mj-btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-size: 13px; }
             .mj-btn-primary { background: #4f46e5; color: white; }
             .mj-btn-primary:hover { background: #4338ca; transform: translateY(-1px); }
@@ -118,6 +160,7 @@ class Insurer_Profile_CPT {
             <div class="maljani-admin-tabs">
                 <div class="maljani-tab-link active" data-tab="basic">Basic Info</div>
                 <div class="maljani-tab-link" data-tab="profile">Profile & Media</div>
+                <div class="maljani-tab-link" data-tab="claims">Claims</div>
                 <div class="maljani-tab-link" data-tab="links">External Links</div>
                 <div class="maljani-tab-link" data-tab="api" style="color:#0ea5e9">API & Payment</div>
             </div>
@@ -182,6 +225,34 @@ class Insurer_Profile_CPT {
                     <div style="display:flex; gap:10px;">
                         <button type="button" class="mj-btn mj-btn-primary" id="upload_insurer_feature_img">Upload Image</button>
                         <button type="button" class="mj-btn mj-btn-secondary" id="remove_insurer_feature_img">Remove</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Claims -->
+            <div id="tab-claims" class="maljani-tab-content">
+                <div class="mj-form-group">
+                    <label>Insurer Claim Form Template</label>
+                    <div class="doc-preview-box" id="insurer_claim_form_preview_container">
+                        <?php if ($claim_form_url) : ?>
+                            <span class="doc-icon">FORM</span>
+                            <div class="doc-meta">
+                                <span class="doc-name" id="insurer_claim_form_name"><?php echo esc_html($claim_form_label ?: 'Claim form'); ?></span>
+                                <span class="doc-link" id="insurer_claim_form_link"><a href="<?php echo esc_url($claim_form_url); ?>" target="_blank" rel="noopener noreferrer">Preview uploaded form</a></span>
+                            </div>
+                        <?php else : ?>
+                            <span class="doc-icon">FORM</span>
+                            <div class="doc-meta">
+                                <span class="doc-name" id="insurer_claim_form_name">No claim form uploaded yet</span>
+                                <span class="doc-link" id="insurer_claim_form_link">Upload the insurer's official blank claim form for clients to download and complete.</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <input type="hidden" id="insurer_claim_form_attachment_id" name="insurer_claim_form_attachment_id" value="<?php echo esc_attr($claim_form_attachment_id); ?>" />
+                    <p class="description">Upload the insurer-specific blank claim form template as PDF, DOC, or DOCX. Clients will download this form, complete it, and upload their filled scan during claims or refund requests.</p>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="mj-btn mj-btn-primary" id="upload_insurer_claim_form">Upload Claim Form</button>
+                        <button type="button" class="mj-btn mj-btn-secondary" id="remove_insurer_claim_form" <?php echo !$claim_form_attachment_id ? 'style="display:none;"' : ''; ?>>Remove</button>
                     </div>
                 </div>
             </div>
@@ -287,6 +358,49 @@ class Insurer_Profile_CPT {
                     $('#insurer_feature_img_preview_container').html('<span style="color:#94a3b8; font-size:40px;">🖼️</span>');
                     $(this).hide();
                 });
+
+                // Claim form upload logic
+                $('#upload_insurer_claim_form').on('click', function(e){
+                    e.preventDefault();
+                    var frame = wp.media({
+                        title: 'Select Insurer Claim Form',
+                        button: { text: 'Use this claim form' },
+                        library: {
+                            type: [
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                            ]
+                        },
+                        multiple: false
+                    });
+                    frame.on('select', function(){
+                        var attachment = frame.state().get('selection').first().toJSON();
+                        $('#insurer_claim_form_attachment_id').val(attachment.id);
+                        $('#insurer_claim_form_preview_container').html(
+                            '<span class="doc-icon">FORM</span>' +
+                            '<div class="doc-meta">' +
+                                '<span class="doc-name" id="insurer_claim_form_name">' + attachment.filename + '</span>' +
+                                '<span class="doc-link" id="insurer_claim_form_link"><a href="' + attachment.url + '" target="_blank" rel="noopener noreferrer">Preview uploaded form</a></span>' +
+                            '</div>'
+                        );
+                        $('#remove_insurer_claim_form').show();
+                    });
+                    frame.open();
+                });
+
+                $('#remove_insurer_claim_form').on('click', function(e){
+                    e.preventDefault();
+                    $('#insurer_claim_form_attachment_id').val('');
+                    $('#insurer_claim_form_preview_container').html(
+                        '<span class="doc-icon">FORM</span>' +
+                        '<div class="doc-meta">' +
+                            '<span class="doc-name" id="insurer_claim_form_name">No claim form uploaded yet</span>' +
+                            '<span class="doc-link" id="insurer_claim_form_link">Upload the insurer\\\'s official blank claim form for clients to download and complete.</span>' +
+                        '</div>'
+                    );
+                    $(this).hide();
+                });
             });
 
         })( jQuery );
@@ -323,6 +437,19 @@ class Insurer_Profile_CPT {
         }
         if (isset($_POST['insurer_feature_img'])) {
             update_post_meta($post_id, '_insurer_feature_img', intval($_POST['insurer_feature_img']));
+        }
+        if (isset($_POST['insurer_claim_form_attachment_id'])) {
+            $claim_form_attachment_id = intval($_POST['insurer_claim_form_attachment_id']);
+            $allowed_claim_form_mimes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ];
+            if ($claim_form_attachment_id > 0 && in_array(get_post_mime_type($claim_form_attachment_id), $allowed_claim_form_mimes, true)) {
+                update_post_meta($post_id, '_insurer_claim_form_attachment_id', $claim_form_attachment_id);
+            } else {
+                delete_post_meta($post_id, '_insurer_claim_form_attachment_id');
+            }
         }
         if (isset($_POST['insurer_website'])) {
             update_post_meta($post_id, '_insurer_website', esc_url_raw($_POST['insurer_website']));
