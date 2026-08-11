@@ -130,13 +130,19 @@ class Maljani_Activator {
             insurer_name VARCHAR(191) NOT NULL,
             incident_date DATE DEFAULT NULL,
             incident_type VARCHAR(100),
+            refund_reason ENUM('VISA_REJECTION','TRIP_CANCELLATION','DUPLICATE_PURCHASE','OTHER') DEFAULT NULL,
+            payout_method ENUM('MPESA','BANK_TRANSFER') DEFAULT NULL,
+            payout_account_details LONGTEXT,
+            proof_document_url TEXT,
+            supporting_docs_urls LONGTEXT,
             requested_amount DECIMAL(12,2) DEFAULT NULL,
             currency VARCHAR(8) NOT NULL DEFAULT 'KSH',
             description LONGTEXT NOT NULL,
             fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             fee_status ENUM('not_required','pending','paid','waived','refunded') NOT NULL DEFAULT 'pending',
+            payment_status VARCHAR(24) NOT NULL DEFAULT 'PENDING',
             payment_reference VARCHAR(191),
-            status ENUM('new','awaiting_payment','documents_required','in_review','submitted','approved','rejected','closed') NOT NULL DEFAULT 'new',
+            status VARCHAR(32) NOT NULL DEFAULT 'new',
             admin_notes LONGTEXT,
             consent TINYINT(1) NOT NULL DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -148,6 +154,28 @@ class Maljani_Activator {
             KEY created_at (created_at)
         ) $charset_collate;";
         dbDelta($claims_sql);
+
+        $claim_fees_table = $wpdb->prefix . 'maljani_claim_fee_configurations';
+        $claim_fees_sql = "CREATE TABLE IF NOT EXISTS $claim_fees_table (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            insurance_type VARCHAR(32) NOT NULL DEFAULT 'TRAVEL',
+            fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            currency VARCHAR(8) NOT NULL DEFAULT 'KES',
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY active_insurance_type (insurance_type, is_active)
+        ) $charset_collate;";
+        dbDelta($claim_fees_sql);
+
+        if (!(int) $wpdb->get_var("SELECT COUNT(*) FROM `$claim_fees_table` WHERE insurance_type = 'TRAVEL' AND is_active = 1")) {
+            $wpdb->insert($claim_fees_table, [
+                'insurance_type' => 'TRAVEL',
+                'fee_amount'     => max(0, (float) get_option('maljani_claim_assistance_fee', 0)),
+                'currency'       => sanitize_text_field(get_option('maljani_inv_currency', 'KES')),
+                'is_active'      => 1,
+            ]);
+        }
 
         // Register custom roles
         add_role('agent', __('Agent', 'maljani'), [
@@ -208,6 +236,25 @@ class Maljani_Activator {
 
         if (!in_array('insured_dob', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insured_dob` DATE DEFAULT NULL AFTER `insured_names`");
+        }
+
+        $claims_table = $wpdb->prefix . 'maljani_claim_requests';
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $claims_table)) === $claims_table) {
+            $claim_columns = $wpdb->get_col("DESCRIBE `$claims_table`", 0);
+            $claim_additions = [
+                'refund_reason'          => "ENUM('VISA_REJECTION','TRIP_CANCELLATION','DUPLICATE_PURCHASE','OTHER') DEFAULT NULL AFTER `incident_type`",
+                'payout_method'          => "ENUM('MPESA','BANK_TRANSFER') DEFAULT NULL AFTER `refund_reason`",
+                'payout_account_details' => "LONGTEXT DEFAULT NULL AFTER `payout_method`",
+                'proof_document_url'     => "TEXT DEFAULT NULL AFTER `payout_account_details`",
+                'supporting_docs_urls'   => "LONGTEXT DEFAULT NULL AFTER `proof_document_url`",
+                'payment_status'         => "VARCHAR(24) NOT NULL DEFAULT 'PENDING' AFTER `fee_status`",
+            ];
+            foreach ($claim_additions as $column => $definition) {
+                if (!in_array($column, $claim_columns, true)) {
+                    $wpdb->query("ALTER TABLE `$claims_table` ADD COLUMN `$column` $definition");
+                }
+            }
+            $wpdb->query("ALTER TABLE `$claims_table` MODIFY COLUMN `status` VARCHAR(32) NOT NULL DEFAULT 'new'");
         }
 
         // Migrate agencies table columns

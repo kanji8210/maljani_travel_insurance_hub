@@ -49,3 +49,17 @@ Log key architectural decisions, their context, and trade-offs here.
 **Consequences:**
 - Customer and admin interfaces distinguish requests from issued policies.
 - The workflow cannot expose a generated internal reference as an insurer policy number.
+
+### ADR-003: Claims Feature Module Boundaries (2026-08-11)
+
+**Context:**
+- Claims and refunds are expanding into insurer templates, typed client documents, staff review, and assistance-fee payments.
+- Keeping the feature at the root of the general frontend and backend directories would make those changes harder to maintain.
+
+**Decision:**
+- Keep Tick claim and refund screens under `src/components/claims/`, exposed through that folder's `index.js`.
+- Keep the WordPress claims portal and its private assets under `includes/claims/`.
+
+**Consequences:**
+- Claims-specific components and backend services can be added without expanding the general component and include roots.
+- Existing routes, class names, shortcodes, and REST contracts remain unchanged.

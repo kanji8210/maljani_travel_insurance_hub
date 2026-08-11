@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Définition de la version du plugin
-define( 'MALJANI_VERSION', '1.0.9' );
+define( 'MALJANI_VERSION', '1.0.11' );
 
 // ==========================
 // INCLUSIONS PRINCIPALES
@@ -66,7 +66,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-user-dashboar
 // Add client dashboard
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-client-dashboard.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-registration.php';
-require_once plugin_dir_path(__FILE__) . 'includes/class-maljani-claims-portal.php';
+require_once plugin_dir_path(__FILE__) . 'includes/claims/class-maljani-claims-portal.php';
 new Maljani_Claims_Portal();
 // Include invoice engine
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-maljani-invoice.php';

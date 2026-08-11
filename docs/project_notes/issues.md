@@ -63,3 +63,11 @@ Log completed work and session progress here.
 ### 2026-08-05 - Claims & Refunds Assistance Portal
 - **Status**: Completed
 - **Description**: Added the public `[maljani_claims_portal]` intake form for claim and premium refund assistance, a dedicated request ledger with fee snapshots and workflow/payment states, and a staff processing queue under TIC-Kenya. The fixed assistance fee is managed in Global Fee Defaults, and Page Management can create the public portal page. Sensitive evidence uploads are intentionally deferred; staff request documents through a private channel after intake review.
+
+### 2026-08-06 - Refund & Cancellation Intake
+- **Status**: Completed
+- **Description**: Extended the headless refund flow with active-policy selection, cancellation reasons, M-Pesa or bank payout details, conditional visa rejection proof, multipart submission, and insurer refund statuses. Proof files are MIME/size validated, stored in a protected uploads directory, and available only through a capability-checked admin download. Added `POST /wp-json/maljani/v1/refunds/submit`, migration support for existing claim ledgers, and the `/refunds/new` frontend route while preserving `/claims-refunds` as an alias.
+
+### 2026-08-11 - Claims Feature Folder Organization
+- **Status**: Completed
+- **Description**: Moved Tick claim/refund screens into `src/components/claims/` behind a feature entry point, and moved the WordPress claims portal plus its stylesheet into `includes/claims/`. Updated loader and asset paths without changing routes, shortcodes, REST endpoints, or behavior.
