@@ -204,6 +204,13 @@ class Maljani_CRM_Admin {
                             alert('Error: ' + res.data);
                             btn.prop('disabled', false).text('Upload & Activate');
                         }
+                    },
+                    error: function(xhr) {
+                        var message = xhr.responseJSON && xhr.responseJSON.data
+                            ? xhr.responseJSON.data
+                            : 'The upload request failed. Check the server upload limits and error log.';
+                        alert('Error: ' + message);
+                        btn.prop('disabled', false).text('Upload & Activate');
                     }
                 });
             });
@@ -215,7 +222,7 @@ class Maljani_CRM_Admin {
 
     public function handle_doc_upload() {
         check_ajax_referer('maljani_doc_upload', 'nonce');
-        if (!current_user_can('edit_others_posts')) wp_send_json_error('Unauthorized');
+        if (!current_user_can('edit_maljani_policies')) wp_send_json_error('Unauthorized');
 
         $policy_id = intval($_POST['policy_id']);
         if (!$policy_id || empty($_FILES['embassy_letter'])) wp_send_json_error('Missing files');
@@ -234,54 +241,91 @@ class Maljani_CRM_Admin {
             wp_send_json_error('Only an issued policy can be activated.');
         }
 
-        $upload_dir = wp_upload_dir();
-        $crm_dir = $upload_dir['basedir'] . '/maljani_crm_docs';
-        if (!file_exists($crm_dir)) wp_mkdir_p($crm_dir);
-
         $tables = [
             'docs' => $wpdb->prefix . 'maljani_documents',
             'policy' => $wpdb->prefix . 'policy_sale'
         ];
+        $stored_documents = [];
 
-        // Handle embassy letter
-        $file = $_FILES['embassy_letter'];
-        $filename = $policy_id . '_embassy_' . time() . '.pdf';
-        $dest = $crm_dir . '/' . $filename;
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
-            $wpdb->insert($tables['docs'], [
-                'policy_id' => $policy_id, 'type' => 'embassy_letter',
-                'file_path' => $upload_dir['baseurl'] . '/maljani_crm_docs/' . $filename,
-                'uploaded_by' => get_current_user_id()
-            ]);
+        $embassy_document = $this->store_document($_FILES['embassy_letter'], $policy_id, 'embassy_letter', $tables['docs']);
+        if (is_wp_error($embassy_document)) {
+            wp_send_json_error($embassy_document->get_error_message());
         }
+        $stored_documents[] = $embassy_document;
 
-        // Handle optional policy doc
         if (!empty($_FILES['policy_doc']['tmp_name'])) {
-            $file2 = $_FILES['policy_doc'];
-            $filename2 = $policy_id . '_policy_' . time() . '.pdf';
-            $dest2 = $crm_dir . '/' . $filename2;
-            if (move_uploaded_file($file2['tmp_name'], $dest2)) {
-                $wpdb->insert($tables['docs'], [
-                    'policy_id' => $policy_id, 'type' => 'policy_doc',
-                    'file_path' => $upload_dir['baseurl'] . '/maljani_crm_docs/' . $filename2,
-                    'uploaded_by' => get_current_user_id()
-                ]);
+            $policy_document = $this->store_document($_FILES['policy_doc'], $policy_id, 'policy_doc', $tables['docs']);
+            if (is_wp_error($policy_document)) {
+                $this->delete_stored_documents($stored_documents, $tables['docs']);
+                wp_send_json_error($policy_document->get_error_message());
             }
+            $stored_documents[] = $policy_document;
         }
 
-        // Transition policy to active
-        $wpdb->update($tables['policy'], [
+        $updated = $wpdb->update($tables['policy'], [
             'workflow_status' => 'active',
             'policy_status' => 'active',
         ], ['id' => $policy_id]);
+        if ($updated === false) {
+            $this->delete_stored_documents($stored_documents, $tables['docs']);
+            wp_send_json_error('The documents were uploaded, but the policy could not be activated. Please try again.');
+        }
+
         if (class_exists('Maljani_Workflow')) {
             Maljani_Workflow::log_audit('policy', $policy_id, 'docs_uploaded_active', get_current_user_id(), []);
-            // Fire transition hook for notifications
             $policy = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$tables['policy']} WHERE id = %d", $policy_id));
             do_action('maljani_workflow_transition', $policy_id, 'approved', 'active', $policy, 'Admin uploaded final documents');
         }
 
-        wp_send_json_success();
+        wp_send_json_success(['documents' => array_column($stored_documents, 'url')]);
+    }
+
+    private function store_document($file, $policy_id, $type, $documents_table) {
+        if (!isset($file['error']) || (int) $file['error'] !== UPLOAD_ERR_OK || empty($file['tmp_name'])) {
+            return new WP_Error('maljani_upload_failed', 'The selected document could not be uploaded.');
+        }
+
+        $allowed_mimes = ['pdf' => 'application/pdf'];
+        $uploaded = wp_handle_upload($file, [
+            'test_form' => false,
+            'mimes' => $allowed_mimes,
+        ]);
+        if (!empty($uploaded['error'])) {
+            return new WP_Error('maljani_upload_failed', sanitize_text_field($uploaded['error']));
+        }
+        if (empty($uploaded['file']) || empty($uploaded['url']) || !is_file($uploaded['file'])) {
+            return new WP_Error('maljani_upload_location', 'WordPress did not return a valid file location for the uploaded document.');
+        }
+
+        global $wpdb;
+        $inserted = $wpdb->insert(
+            $documents_table,
+            [
+                'policy_id' => $policy_id,
+                'type' => $type,
+                'file_path' => esc_url_raw($uploaded['url']),
+                'uploaded_by' => get_current_user_id(),
+            ],
+            ['%d', '%s', '%s', '%d']
+        );
+        if ($inserted === false) {
+            wp_delete_file($uploaded['file']);
+            return new WP_Error('maljani_upload_database', 'The file was uploaded, but its location could not be saved. Please check the documents table.');
+        }
+
+        return [
+            'id' => (int) $wpdb->insert_id,
+            'file' => $uploaded['file'],
+            'url' => esc_url_raw($uploaded['url']),
+        ];
+    }
+
+    private function delete_stored_documents($documents, $documents_table) {
+        global $wpdb;
+        foreach ($documents as $document) {
+            $wpdb->delete($documents_table, ['id' => $document['id']], ['%d']);
+            wp_delete_file($document['file']);
+        }
     }
 }
 

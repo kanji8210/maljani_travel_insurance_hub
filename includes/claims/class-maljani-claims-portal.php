@@ -140,7 +140,7 @@ class Maljani_Claims_Portal {
         $pending = 0;
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table ) {
             $pending = (int) $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$table} WHERE status NOT IN ('approved', 'rejected', 'closed', 'COMPLETED', 'REJECTED')"
+                "SELECT COUNT(*) FROM {$table} WHERE LOWER(status) IN ('pending','pending_review','pending_fee','processing','documents_required','in_review','submitted','new','awaiting_payment')"
             );
         }
 

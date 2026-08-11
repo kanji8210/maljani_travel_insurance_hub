@@ -71,3 +71,9 @@ Log completed work and session progress here.
 ### 2026-08-11 - Claims Feature Folder Organization
 - **Status**: Completed
 - **Description**: Moved Tick claim/refund screens into `src/components/claims/` behind a feature entry point, and moved the WordPress claims portal plus its stylesheet into `includes/claims/`. Updated loader and asset paths without changing routes, shortcodes, REST endpoints, or behavior.
+
+### 2026-08-11 - CRM Final Document Upload Reliability
+
+- **Status**: Completed
+- **Description**: Replaced silent CRM document moves with WordPress upload handling and checked file, URL, database insert, and policy transition results. Failed uploads now roll back stored files and rows, return actionable admin errors, and cannot activate a policy with an empty document location.
+
