@@ -6,6 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Maljani_Claims_Portal {
     private const SHORTCODE = 'maljani_claims_portal';
+    private const MAX_CLAIM_SUPPORTING_DOCUMENTS = 16;
 
     public static function get_portal_url() {
         $page_id = absint( get_option( 'maljani_page_claims_portal' ) );
@@ -60,8 +61,11 @@ class Maljani_Claims_Portal {
         ] );
     }
 
-    public function rest_get_config() {
+    public function rest_get_config( WP_REST_Request $request ) {
         $configuration = $this->get_active_claim_fee();
+        $claim_form = $this->get_insurer_claim_form(
+            sanitize_text_field( (string) $request->get_param( 'insurer_name' ) )
+        );
         return new WP_REST_Response( [
             'id'             => $configuration['id'],
             'insurance_type' => 'TRAVEL',
@@ -71,6 +75,9 @@ class Maljani_Claims_Portal {
             'is_active'      => true,
             'updated_at'     => $configuration['updated_at'],
             'nonce'          => wp_create_nonce( 'maljani_submit_claim_request' ),
+            'claim_form_url' => $claim_form['url'] ?? null,
+            'claim_form_label' => $claim_form['label'] ?? null,
+            'claim_documents_max' => self::MAX_CLAIM_SUPPORTING_DOCUMENTS,
         ] );
     }
 
@@ -288,35 +295,17 @@ class Maljani_Claims_Portal {
         $payout_details = null;
         $proof_document_url = null;
         $supporting_documents = [];
+        $parsed_payout = $this->parse_payout_details( $data );
+        if ( is_wp_error( $parsed_payout ) ) {
+            return $parsed_payout;
+        }
+        $payout_method = $parsed_payout['method'];
+        $payout_details = $parsed_payout['details'];
         if ( 'refund' === $request_type ) {
             $allowed_reasons = [ 'VISA_REJECTION', 'TRIP_CANCELLATION', 'DUPLICATE_PURCHASE', 'OTHER' ];
             $refund_reason = strtoupper( sanitize_key( $data['reason'] ?? '' ) );
             if ( ! in_array( $refund_reason, $allowed_reasons, true ) ) {
                 return new WP_Error( 'invalid_reason', __( 'Select a valid cancellation reason.', 'maljani' ), [ 'status' => 400 ] );
-            }
-
-            $payout_method = strtoupper( sanitize_key( $data['payout_method'] ?? '' ) );
-            if ( 'MPESA' === $payout_method ) {
-                $mpesa_phone = preg_replace( '/[^0-9+]/', '', (string) ( $data['mpesa_phone'] ?? '' ) );
-                if ( ! preg_match( '/^(?:\+?254|0)[17]\d{8}$/', $mpesa_phone ) ) {
-                    return new WP_Error( 'invalid_mpesa', __( 'Enter a valid Safaricom mobile number.', 'maljani' ), [ 'status' => 400 ] );
-                }
-                $payout_details = [ 'phone' => $mpesa_phone ];
-            } elseif ( 'BANK_TRANSFER' === $payout_method ) {
-                $bank_fields = [ 'bank_name', 'bank_account_name', 'bank_account_number', 'bank_branch' ];
-                foreach ( $bank_fields as $bank_field ) {
-                    if ( empty( trim( (string) ( $data[ $bank_field ] ?? '' ) ) ) ) {
-                        return new WP_Error( 'invalid_bank', __( 'Complete all bank payout fields.', 'maljani' ), [ 'status' => 400 ] );
-                    }
-                }
-                $payout_details = [
-                    'bank_name'      => sanitize_text_field( $data['bank_name'] ),
-                    'account_name'   => sanitize_text_field( $data['bank_account_name'] ),
-                    'account_number' => sanitize_text_field( $data['bank_account_number'] ),
-                    'branch'         => sanitize_text_field( $data['bank_branch'] ),
-                ];
-            } else {
-                return new WP_Error( 'invalid_payout', __( 'Select a valid payout method.', 'maljani' ), [ 'status' => 400 ] );
             }
 
             $proof_file = $files['proof_document'] ?? null;
@@ -346,8 +335,8 @@ class Maljani_Claims_Portal {
             if ( empty( $claim_files ) ) {
                 return new WP_Error( 'claim_documents_required', __( 'Upload at least one supporting document.', 'maljani' ), [ 'status' => 400 ] );
             }
-            if ( count( $claim_files ) > 8 ) {
-                return new WP_Error( 'claim_documents_limit', __( 'Upload no more than eight supporting documents.', 'maljani' ), [ 'status' => 400 ] );
+            if ( count( $claim_files ) > self::MAX_CLAIM_SUPPORTING_DOCUMENTS ) {
+                return new WP_Error( 'claim_documents_limit', sprintf( __( 'Upload no more than %d supporting documents.', 'maljani' ), self::MAX_CLAIM_SUPPORTING_DOCUMENTS ), [ 'status' => 400 ] );
             }
             foreach ( $claim_files as $claim_file ) {
                 $uploaded_document = $this->upload_proof_document( $claim_file );
@@ -396,7 +385,11 @@ class Maljani_Claims_Portal {
         );
 
         if ( ! $inserted ) {
-            $this->delete_private_documents( $supporting_documents );
+            $failed_uploads = $supporting_documents;
+            if ( $proof_document_url ) {
+                $failed_uploads[] = $proof_document_url;
+            }
+            $this->delete_private_documents( $failed_uploads );
             return new WP_Error( 'save', __( 'The request could not be saved.', 'maljani' ), [ 'status' => 500 ] );
         }
 
@@ -523,10 +516,12 @@ class Maljani_Claims_Portal {
                         <tr><th><?php esc_html_e( 'Contact', 'maljani' ); ?></th><td><a href="mailto:<?php echo esc_attr( $request->client_email ); ?>"><?php echo esc_html( $request->client_email ); ?></a><br><?php echo esc_html( $request->client_phone ); ?></td></tr>
                         <tr><th><?php esc_html_e( 'Policy', 'maljani' ); ?></th><td><?php echo esc_html( $request->policy_number ); ?> · <?php echo esc_html( $request->insurer_name ); ?></td></tr>
                         <tr><th><?php esc_html_e( 'Event', 'maljani' ); ?></th><td><?php echo esc_html( $request->incident_type ?: '—' ); ?><?php if ( $request->incident_date ) : ?><br><?php echo esc_html( mysql2date( get_option( 'date_format' ), $request->incident_date ) ); ?><?php endif; ?></td></tr>
-                        <?php if ( 'refund' === $request->request_type ) : ?>
-                            <tr><th><?php esc_html_e( 'Refund reason', 'maljani' ); ?></th><td><?php echo esc_html( $this->labelize( $request->refund_reason ) ); ?></td></tr>
+                        <?php if ( $request->payout_method ) : ?>
                             <tr><th><?php esc_html_e( 'Payout method', 'maljani' ); ?></th><td><?php echo esc_html( $this->labelize( $request->payout_method ) ); ?></td></tr>
                             <tr><th><?php esc_html_e( 'Payout details', 'maljani' ); ?></th><td><pre style="white-space:pre-wrap;margin:0"><?php echo esc_html( wp_json_encode( json_decode( $request->payout_account_details, true ), JSON_PRETTY_PRINT ) ); ?></pre></td></tr>
+                        <?php endif; ?>
+                        <?php if ( 'refund' === $request->request_type ) : ?>
+                            <tr><th><?php esc_html_e( 'Refund reason', 'maljani' ); ?></th><td><?php echo esc_html( $this->labelize( $request->refund_reason ) ); ?></td></tr>
                             <tr><th><?php esc_html_e( 'Proof document', 'maljani' ); ?></th><td><?php if ( $request->proof_document_url ) : ?><a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=maljani_download_claim_proof&request_id=' . $request->id ), 'maljani_download_claim_proof_' . $request->id ) ); ?>"><?php esc_html_e( 'Download document', 'maljani' ); ?></a><?php else : ?>—<?php endif; ?></td></tr>
                         <?php else : ?>
                             <tr><th><?php esc_html_e( 'Supporting documents', 'maljani' ); ?></th><td>
@@ -759,6 +754,93 @@ class Maljani_Claims_Portal {
         $value = sanitize_text_field( wp_unslash( $value ) );
         $date = DateTime::createFromFormat( 'Y-m-d', $value );
         return $date && $date->format( 'Y-m-d' ) === $value ? $value : null;
+    }
+
+    private function parse_payout_details( array $data ) {
+        $payout_method = strtoupper( sanitize_key( $data['payout_method'] ?? '' ) );
+        if ( 'MPESA' === $payout_method ) {
+            $mpesa_phone = preg_replace( '/[^0-9+]/', '', (string) ( $data['mpesa_phone'] ?? '' ) );
+            if ( ! preg_match( '/^(?:\+?254|0)[17]\d{8}$/', $mpesa_phone ) ) {
+                return new WP_Error( 'invalid_mpesa', __( 'Enter a valid Safaricom mobile number.', 'maljani' ), [ 'status' => 400 ] );
+            }
+
+            return [
+                'method'  => 'MPESA',
+                'details' => [ 'phone' => $mpesa_phone ],
+            ];
+        }
+
+        if ( 'BANK_TRANSFER' === $payout_method ) {
+            $bank_fields = [ 'bank_name', 'bank_account_name', 'bank_account_number', 'bank_branch' ];
+            foreach ( $bank_fields as $bank_field ) {
+                if ( empty( trim( (string) ( $data[ $bank_field ] ?? '' ) ) ) ) {
+                    return new WP_Error( 'invalid_bank', __( 'Complete all bank payout fields.', 'maljani' ), [ 'status' => 400 ] );
+                }
+            }
+
+            return [
+                'method'  => 'BANK_TRANSFER',
+                'details' => [
+                    'bank_name'      => sanitize_text_field( $data['bank_name'] ),
+                    'account_name'   => sanitize_text_field( $data['bank_account_name'] ),
+                    'account_number' => sanitize_text_field( $data['bank_account_number'] ),
+                    'branch'         => sanitize_text_field( $data['bank_branch'] ),
+                ],
+            ];
+        }
+
+        return new WP_Error( 'invalid_payout', __( 'Select a valid payout method.', 'maljani' ), [ 'status' => 400 ] );
+    }
+
+    private function get_insurer_claim_form( $insurer_name ) {
+        if ( '' === trim( (string) $insurer_name ) ) {
+            return null;
+        }
+
+        $insurer_id = $this->find_insurer_profile_by_name( $insurer_name );
+        if ( $insurer_id <= 0 ) {
+            return null;
+        }
+
+        $attachment_id = (int) get_post_meta( $insurer_id, '_insurer_claim_form_attachment_id', true );
+        if ( $attachment_id <= 0 ) {
+            return null;
+        }
+
+        $url = wp_get_attachment_url( $attachment_id );
+        if ( ! $url ) {
+            return null;
+        }
+
+        $path = get_attached_file( $attachment_id );
+        return [
+            'url'   => esc_url_raw( $url ),
+            'label' => $path ? wp_basename( $path ) : wp_basename( wp_parse_url( $url, PHP_URL_PATH ) ),
+        ];
+    }
+
+    private function find_insurer_profile_by_name( $insurer_name ) {
+        $normalized_target = strtolower( trim( (string) $insurer_name ) );
+        if ( '' === $normalized_target ) {
+            return 0;
+        }
+
+        $insurers = get_posts( [
+            'post_type'      => 'insurer_profile',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ] );
+
+        foreach ( $insurers as $insurer_id ) {
+            $title = strtolower( trim( get_the_title( $insurer_id ) ) );
+            $official_name = strtolower( trim( (string) get_post_meta( $insurer_id, '_insurer_name', true ) ) );
+            if ( $normalized_target === $title || $normalized_target === $official_name ) {
+                return (int) $insurer_id;
+            }
+        }
+
+        return 0;
     }
 
     private function labelize( $value ) {
