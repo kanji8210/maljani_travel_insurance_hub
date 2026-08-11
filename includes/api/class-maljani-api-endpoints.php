@@ -65,6 +65,21 @@ class Maljani_API_Endpoints {
             ],
         ]);
 
+        register_rest_route('maljani/v1', '/certificate/(?P<sale_id>\d+)', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'serve_certificate'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+            'args' => [
+                'sale_id' => [
+                    'required'          => true,
+                    'validate_callback' => function($v) { return is_numeric($v) && $v > 0; },
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
         // ── Initiate Pesapal payment ──────────────────────────────────────────
         register_rest_route('maljani/v1', '/initiate-payment', [
             'methods'             => 'POST',
@@ -225,6 +240,28 @@ class Maljani_API_Endpoints {
             : Maljani_Invoice::build_invoice_html($sale);
 
         return new WP_REST_Response(['html' => $html], 200);
+    }
+
+    public function serve_certificate(WP_REST_Request $request) {
+        $sale_id = (int) $request->get_param('sale_id');
+
+        require_once plugin_dir_path( dirname( __FILE__ ) ) . '../admin/class-maljani-verification-certificate.php';
+
+        $sale = Maljani_Verification_Certificate::get_sale( $sale_id );
+        if ( ! $sale ) {
+            return new WP_REST_Response( [ 'error' => 'Sale not found' ], 404 );
+        }
+
+        if ( ! Maljani_Verification_Certificate::user_can_view_sale( $sale ) ) {
+            return new WP_REST_Response( [ 'error' => 'Unauthorized' ], 403 );
+        }
+
+        $html = Maljani_Verification_Certificate::build_certificate_html( $sale );
+        if ( '' === $html ) {
+            return new WP_REST_Response( [ 'error' => 'Certificate unavailable' ], 500 );
+        }
+
+        return new WP_REST_Response( [ 'html' => $html ], 200 );
     }
 
     /**

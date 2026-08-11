@@ -78,6 +78,7 @@ class Maljani_Claims_Portal {
             'claim_form_url' => $claim_form['url'] ?? null,
             'claim_form_label' => $claim_form['label'] ?? null,
             'claim_documents_max' => self::MAX_CLAIM_SUPPORTING_DOCUMENTS,
+            'insurers'       => $this->get_available_insurers(),
         ] );
     }
 
@@ -825,12 +826,7 @@ class Maljani_Claims_Portal {
             return 0;
         }
 
-        $insurers = get_posts( [
-            'post_type'      => 'insurer_profile',
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'fields'         => 'ids',
-        ] );
+        $insurers = $this->get_insurer_profile_ids();
 
         foreach ( $insurers as $insurer_id ) {
             $title = strtolower( trim( get_the_title( $insurer_id ) ) );
@@ -841,6 +837,35 @@ class Maljani_Claims_Portal {
         }
 
         return 0;
+    }
+
+    private function get_available_insurers() {
+        $insurer_names = [];
+        foreach ( $this->get_insurer_profile_ids() as $insurer_id ) {
+            $name = trim( (string) get_post_meta( $insurer_id, '_insurer_name', true ) );
+            if ( '' === $name ) {
+                $name = trim( get_the_title( $insurer_id ) );
+            }
+            if ( '' !== $name ) {
+                $insurer_names[] = $name;
+            }
+        }
+
+        $insurer_names = array_values( array_unique( $insurer_names ) );
+        natcasesort( $insurer_names );
+
+        return array_values( $insurer_names );
+    }
+
+    private function get_insurer_profile_ids() {
+        return get_posts( [
+            'post_type'      => 'insurer_profile',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ] );
     }
 
     private function labelize( $value ) {
