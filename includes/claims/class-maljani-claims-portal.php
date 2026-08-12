@@ -27,12 +27,19 @@ class Maljani_Claims_Portal {
         add_action( 'admin_post_maljani_download_claim_document', [ $this, 'download_supporting_document' ] );
         add_action( 'update_option_maljani_claim_assistance_fee', [ $this, 'sync_claim_fee_configuration' ], 10, 2 );
         add_action( 'update_option_maljani_inv_currency', [ $this, 'sync_claim_fee_currency' ], 10, 2 );
+        add_filter( 'rest_pre_serve_request', [ $this, 'serve_claim_form_template' ], 10, 4 );
     }
 
     public function register_rest_routes() {
         register_rest_route( 'maljani/v1', '/claims/config', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [ $this, 'rest_get_config' ],
+            'permission_callback' => '__return_true',
+        ] );
+
+        register_rest_route( 'maljani/v1', '/claims/form-template', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'rest_get_claim_form_template' ],
             'permission_callback' => '__return_true',
         ] );
 
@@ -77,9 +84,47 @@ class Maljani_Claims_Portal {
             'nonce'          => wp_create_nonce( 'maljani_submit_claim_request' ),
             'claim_form_url' => $claim_form['url'] ?? null,
             'claim_form_label' => $claim_form['label'] ?? null,
+            'claim_form_editor_url' => ! empty( $claim_form['editable'] )
+                ? add_query_arg( 'insurer_name', sanitize_text_field( (string) $request->get_param( 'insurer_name' ) ), '/wp-json/maljani/v1/claims/form-template' )
+                : null,
             'claim_documents_max' => self::MAX_CLAIM_SUPPORTING_DOCUMENTS,
             'insurers'       => $this->get_available_insurers(),
         ] );
+    }
+
+    public function rest_get_claim_form_template( WP_REST_Request $request ) {
+        $claim_form = $this->get_insurer_claim_form(
+            sanitize_text_field( (string) $request->get_param( 'insurer_name' ) )
+        );
+        if ( empty( $claim_form['editable'] ) || empty( $claim_form['path'] ) || ! is_file( $claim_form['path'] ) ) {
+            return new WP_Error( 'claim_form_unavailable', __( 'An editable PDF claim form is not available for this insurer.', 'maljani' ), [ 'status' => 404 ] );
+        }
+
+        return new WP_REST_Response( [
+            'maljani_claim_form_path' => $claim_form['path'],
+            'label'                   => $claim_form['label'],
+        ] );
+    }
+
+    public function serve_claim_form_template( $served, $result, $request, $server ) {
+        if ( '/maljani/v1/claims/form-template' !== $request->get_route() || is_wp_error( $result ) ) {
+            return $served;
+        }
+
+        $data = $result instanceof WP_REST_Response ? $result->get_data() : [];
+        $path = wp_normalize_path( (string) ( $data['maljani_claim_form_path'] ?? '' ) );
+        $upload_dir = wp_upload_dir();
+        $uploads_root = wp_normalize_path( trailingslashit( $upload_dir['basedir'] ) );
+        if ( ! $path || 0 !== strpos( $path, $uploads_root ) || ! is_file( $path ) ) {
+            return $served;
+        }
+
+        nocache_headers();
+        header( 'Content-Type: application/pdf' );
+        header( 'Content-Disposition: inline; filename="' . sanitize_file_name( $data['label'] ?? 'claim-form.pdf' ) . '"' );
+        header( 'Content-Length: ' . filesize( $path ) );
+        readfile( $path );
+        return true;
     }
 
     public function sync_claim_fee_configuration( $old_value, $new_value ) {
@@ -815,8 +860,10 @@ class Maljani_Claims_Portal {
 
         $path = get_attached_file( $attachment_id );
         return [
-            'url'   => esc_url_raw( $url ),
-            'label' => $path ? wp_basename( $path ) : wp_basename( wp_parse_url( $url, PHP_URL_PATH ) ),
+            'url'      => esc_url_raw( $url ),
+            'label'    => $path ? wp_basename( $path ) : wp_basename( wp_parse_url( $url, PHP_URL_PATH ) ),
+            'path'     => $path ? wp_normalize_path( $path ) : '',
+            'editable' => 'application/pdf' === get_post_mime_type( $attachment_id ),
         ];
     }
 
