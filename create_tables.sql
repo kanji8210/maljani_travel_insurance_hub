@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS wp_maljani_agencies (
     user_id BIGINT UNSIGNED DEFAULT 0,
     notes TEXT,
     agency_name VARCHAR(191),
+    ira_licence_number VARCHAR(100),
+    insurer_agreement_ids LONGTEXT,
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

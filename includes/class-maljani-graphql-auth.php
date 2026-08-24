@@ -120,6 +120,27 @@ class Maljani_GraphQL_Auth {
         return round($value, 2);
     }
 
+    private function get_agency_insurer_agreement_ids(int $user_id): array {
+        global $wpdb;
+
+        $agency_id = $this->resolve_agency_id($user_id);
+        if (!$agency_id) return [];
+
+        $stored = $wpdb->get_var($wpdb->prepare(
+            "SELECT insurer_agreement_ids FROM {$wpdb->prefix}maljani_agencies WHERE id = %d",
+            $agency_id
+        ));
+        $ids = maybe_unserialize($stored);
+        if (!is_array($ids)) return [];
+
+        return array_values(array_unique(array_filter(array_map('intval', $ids))));
+    }
+
+    private function agent_has_insurer_agreement(int $user_id, int $insurer_id): bool {
+        if ($insurer_id <= 0) return false;
+        return in_array($insurer_id, $this->get_agency_insurer_agreement_ids($user_id), true);
+    }
+
     /**
      * Handle global CORS for GraphQL preflight
      */
@@ -233,6 +254,8 @@ class Maljani_GraphQL_Auth {
                 'accountType' => ['type' => 'String'],
                 'phone' => ['type' => 'String'],
                 'agencyName' => ['type' => 'String'],
+                'iraLicenceNumber' => ['type' => 'String'],
+                'insurerAgreementIds' => ['type' => ['list_of' => 'Int']],
             ],
             'outputFields' => [
                 'authToken' => ['type' => 'String'],
@@ -257,6 +280,35 @@ class Maljani_GraphQL_Auth {
                 $account_type = in_array($input['accountType'] ?? '', ['agent', 'insured'], true)
                     ? $input['accountType']
                     : 'insured';
+
+                $ira_licence_number = sanitize_text_field($input['iraLicenceNumber'] ?? '');
+                $agreement_ids = array_values(array_unique(array_filter(array_map(
+                    'intval',
+                    is_array($input['insurerAgreementIds'] ?? null) ? $input['insurerAgreementIds'] : []
+                ))));
+
+                if ($account_type === 'agent') {
+                    if ($ira_licence_number === '') {
+                        throw new \GraphQL\Error\UserError(__('IRA licence number is required for agency accounts.', 'maljani'));
+                    }
+                    if (empty($agreement_ids)) {
+                        throw new \GraphQL\Error\UserError(__('Select at least one insurer with whom your agency has a working agreement.', 'maljani'));
+                    }
+                    $valid_insurer_ids = get_posts([
+                        'post_type' => 'insurer_profile',
+                        'post_status' => 'publish',
+                        'post__in' => $agreement_ids,
+                        'fields' => 'ids',
+                        'numberposts' => -1,
+                    ]);
+                    $valid_insurer_ids = array_map('intval', $valid_insurer_ids);
+                    sort($valid_insurer_ids);
+                    $submitted_ids = $agreement_ids;
+                    sort($submitted_ids);
+                    if ($valid_insurer_ids !== $submitted_ids) {
+                        throw new \GraphQL\Error\UserError(__('One or more selected insurers are invalid.', 'maljani'));
+                    }
+                }
 
                 $user_id = wp_create_user($email, $input['password'], $email);
                 if (is_wp_error($user_id)) {
@@ -287,6 +339,8 @@ class Maljani_GraphQL_Auth {
                         'contact_phone' => sanitize_text_field($input['phone']),
                         'user_id' => $user_id,
                         'commission_rate' => 10.00,
+                        'ira_licence_number' => $ira_licence_number,
+                        'insurer_agreement_ids' => maybe_serialize($agreement_ids),
                         'status' => 'pending'
                     ]);
                 } else {
@@ -512,6 +566,18 @@ class Maljani_GraphQL_Auth {
 
                 $current_user = wp_get_current_user();
                 $is_agent = in_array('agent', (array)$current_user->roles);
+
+                if ($is_agent) {
+                    $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
+                    if (!$this->agent_has_insurer_agreement(get_current_user_id(), $insurer_id)) {
+                        $insurer_name = $insurer_id ? get_the_title($insurer_id) : __('the selected insurer', 'maljani');
+                        ob_end_clean();
+                        throw new \GraphQL\Error\UserError(sprintf(
+                            __('Your agency does not have a recorded working agreement with %s. You may view this policy, but you cannot submit it.', 'maljani'),
+                            $insurer_name
+                        ));
+                    }
+                }
 
                 $maljani_comm_amount = $calc_fee('_policy_aggregator_comm_type', '_policy_aggregator_comm_value', '_policy_aggregator_comm_pct', $premium);
                 $net_to_insurer = round($premium - $maljani_comm_amount, 2);
@@ -1270,6 +1336,8 @@ class Maljani_GraphQL_Auth {
                 'contactEmail'   => ['type' => 'String'],
                 'contactPhone'   => ['type' => 'String'],
                 'commissionRate' => ['type' => 'Float'],
+                'iraLicenceNumber' => ['type' => 'String'],
+                'insurerAgreementIds' => ['type' => ['list_of' => 'Int']],
                 'status'         => ['type' => 'String'],
                 'createdAt'      => ['type' => 'String'],
             ],
@@ -1382,6 +1450,8 @@ class Maljani_GraphQL_Auth {
                     'contactEmail'   => $agency->contact_email ?: '',
                     'contactPhone'   => $agency->contact_phone ?: '',
                     'commissionRate' => (float) ($agency->commission_rate ?: $agency->commission_percent ?: 0),
+                    'iraLicenceNumber' => $agency->ira_licence_number ?: '',
+                    'insurerAgreementIds' => array_values(array_map('intval', (array) maybe_unserialize($agency->insurer_agreement_ids ?: ''))),
                     'status'         => $agency->status ?: 'pending',
                     'createdAt'      => $agency->created_at ?: '',
                 ] : null;

@@ -8,6 +8,13 @@ class Maljani_Agencies_Admin {
         global $wpdb;
         $tbl = $wpdb->prefix . 'maljani_agencies';
         $sales_tbl = $wpdb->prefix . 'policy_sale';
+        $insurers = get_posts([
+            'post_type' => 'insurer_profile',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'orderby' => 'title',
+            'order' => 'ASC',
+        ]);
 
         // ── Handle POST actions ──────────────────────────────────────────────
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['maljani_agency_action']) && wp_verify_nonce($_POST['_wpnonce'], 'maljani_agency_nonce')) {
@@ -22,6 +29,8 @@ class Maljani_Agencies_Admin {
                     'contact_email'     => sanitize_email($_POST['contact_email']),
                     'contact_phone'     => sanitize_text_field($_POST['contact_phone'] ?? ''),
                     'commission_rate'   => floatval($_POST['commission_rate']),
+                    'ira_licence_number'=> sanitize_text_field($_POST['ira_licence_number'] ?? ''),
+                    'insurer_agreement_ids' => maybe_serialize(array_values(array_unique(array_filter(array_map('intval', $_POST['insurer_agreement_ids'] ?? []))))),
                     'notes'             => sanitize_textarea_field($_POST['notes'] ?? ''),
                     'updated_at'        => current_time('mysql', 1),
                 ], ['id' => $id]);
@@ -51,6 +60,8 @@ class Maljani_Agencies_Admin {
                     'contact_email'   => $email,
                     'contact_phone'   => sanitize_text_field($_POST['contact_phone'] ?? ''),
                     'commission_rate' => floatval($_POST['commission_rate']),
+                    'ira_licence_number' => sanitize_text_field($_POST['ira_licence_number'] ?? ''),
+                    'insurer_agreement_ids' => maybe_serialize(array_values(array_unique(array_filter(array_map('intval', $_POST['insurer_agreement_ids'] ?? []))))),
                     'user_id'         => $user_id,
                     'status'          => 'approved', // Admin creates are auto-approved
                     'notes'           => sanitize_textarea_field($_POST['notes'] ?? ''),
@@ -191,8 +202,20 @@ class Maljani_Agencies_Admin {
                         <div><label>Contact Name *</label><input type="text" name="contact_name" required></div>
                         <div><label>Contact Email *</label><input type="email" name="contact_email" required><small style="color:#64748b">A WP agent account will be linked/created.</small></div>
                         <div><label>Phone</label><input type="text" name="contact_phone"></div>
+                        <div><label>IRA Licence Number *</label><input type="text" name="ira_licence_number" required></div>
                         <div><label>Commission Rate (%)</label><input type="number" name="commission_rate" value="0" step="0.01" min="0" max="100"></div>
                         <div><label>Notes</label><textarea name="notes" placeholder="Internal notes…"></textarea></div>
+                        <div style="grid-column:1/-1">
+                            <label>Insurer Working Agreements *</label>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                <?php foreach ($insurers as $insurer): ?>
+                                    <label style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-weight:500">
+                                        <input type="checkbox" name="insurer_agreement_ids[]" value="<?php echo esc_attr($insurer->ID); ?>" style="width:auto">
+                                        <?php echo esc_html($insurer->post_title); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     </div>
                     <button type="submit" class="mj-b mj-pri">Create Agency</button>
                     <button type="button" class="mj-b mj-sec" onclick="document.getElementById('mja-new-form').style.display='none'">Cancel</button>
@@ -215,6 +238,9 @@ class Maljani_Agencies_Admin {
                         <?php foreach ($agencies as $a):
                             $pr = $perf[$a->id] ?? null;
                             $disputed = $pr ? intval($pr->disputed) : 0;
+                            $agreement_ids = maybe_unserialize($a->insurer_agreement_ids ?? '');
+                            $agreement_ids = is_array($agreement_ids) ? array_map('intval', $agreement_ids) : [];
+                            $agreement_names = array_map(function($id) { return get_the_title($id); }, $agreement_ids);
                         ?>
                         <tr id="agv-<?php echo $a->id; ?>">
                             <td>
@@ -222,6 +248,8 @@ class Maljani_Agencies_Admin {
                                 <?php if (!empty($a->user_id)):?>
                                     <small style="color:#64748b">WP User #<?php echo $a->user_id; ?></small>
                                 <?php endif;?>
+                                <br><small><strong>IRA:</strong> <?php echo esc_html($a->ira_licence_number ?: 'Not provided'); ?></small>
+                                <br><small><strong>Agreements:</strong> <?php echo esc_html($agreement_names ? implode(', ', $agreement_names) : 'None'); ?></small>
                             </td>
                             <td>
                                 <?php echo esc_html($a->contact_name ?? '—'); ?><br>
@@ -274,8 +302,20 @@ class Maljani_Agencies_Admin {
                                         <div><label>Contact Name</label><input type="text" name="contact_name" value="<?php echo esc_attr($a->contact_name ?? ''); ?>"></div>
                                         <div><label>Contact Email</label><input type="email" name="contact_email" value="<?php echo esc_attr($a->contact_email ?? ''); ?>"></div>
                                         <div><label>Phone</label><input type="text" name="contact_phone" value="<?php echo esc_attr($a->contact_phone ?? ''); ?>"></div>
+                                        <div><label>IRA Licence Number</label><input type="text" name="ira_licence_number" value="<?php echo esc_attr($a->ira_licence_number ?? ''); ?>"></div>
                                         <div><label>Commission Rate (%)</label><input type="number" name="commission_rate" value="<?php echo esc_attr($a->commission_rate ?? $a->commission_percent ?? 0); ?>" step="0.01"></div>
                                         <div><label>Notes</label><textarea name="notes"><?php echo esc_textarea($a->notes ?? ''); ?></textarea></div>
+                                        <div style="grid-column:1/-1">
+                                            <label>Insurer Working Agreements</label>
+                                            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                                <?php foreach ($insurers as $insurer): ?>
+                                                    <label style="display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-weight:500">
+                                                        <input type="checkbox" name="insurer_agreement_ids[]" value="<?php echo esc_attr($insurer->ID); ?>" <?php checked(in_array($insurer->ID, $agreement_ids, true)); ?> style="width:auto">
+                                                        <?php echo esc_html($insurer->post_title); ?>
+                                                    </label>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                     <button type="submit" class="mj-b mj-pri">💾 Save</button>
                                     <button type="button" class="mj-b mj-sec cancel-ag" data-id="<?php echo $a->id; ?>">✕ Cancel</button>

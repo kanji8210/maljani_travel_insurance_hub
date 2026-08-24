@@ -130,6 +130,8 @@ class Maljani_Database_Tools {
                 commission_rate DECIMAL(5,2) DEFAULT 0.00,
                 contact_email VARCHAR(191),
                 contact_phone VARCHAR(32),
+                ira_licence_number VARCHAR(100),
+                insurer_agreement_ids LONGTEXT,
                 status VARCHAR(20) DEFAULT 'approved',
                 notes TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

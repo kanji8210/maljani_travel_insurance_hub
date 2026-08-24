@@ -28,6 +28,14 @@ class Maljani_Registration {
             return '<div class="mj-reg-notice">You are already logged in. <a href="' . home_url('/dashboard') . '">Go to Dashboard</a></div>';
         }
 
+        $insurers = get_posts([
+            'post_type' => 'insurer_profile',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'orderby' => 'title',
+            'order' => 'ASC',
+        ]);
+
         ob_start();
         ?>
         <div class="maljani-registration-portal">
@@ -72,6 +80,24 @@ class Maljani_Registration {
                             <label>Agency Name</label>
                             <input type="text" name="agency_name" placeholder="ABC Travels Ltd">
                         </div>
+                        <div id="agency-compliance-group" style="display:none;grid-column:1/-1;">
+                            <div class="form-group">
+                                <label>IRA Licence Number</label>
+                                <input type="text" name="ira_licence_number" placeholder="IRA/XX/00000/2026">
+                            </div>
+                            <fieldset style="margin-top:16px;padding:16px;border:1px solid #d1d5db;border-radius:8px;">
+                                <legend>Insurer Working Agreements</legend>
+                                <p>Select only insurers with whom your agency has an active selling agreement.</p>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+                                    <?php foreach ($insurers as $insurer): ?>
+                                        <label style="display:flex;align-items:center;gap:8px;">
+                                            <input type="checkbox" name="insurer_agreement_ids[]" value="<?php echo esc_attr($insurer->ID); ?>">
+                                            <?php echo esc_html($insurer->post_title); ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </fieldset>
+                        </div>
                         <div class="form-group">
                             <label>Phone Number</label>
                             <input type="tel" name="phone" required placeholder="+254...">
@@ -102,8 +128,10 @@ class Maljani_Registration {
                 
                 if (role === 'agent') {
                     $('#agency-name-group').slideDown();
+                    $('#agency-compliance-group').slideDown();
                 } else {
                     $('#agency-name-group').slideUp();
+                    $('#agency-compliance-group').slideUp();
                 }
             });
         });
@@ -120,6 +148,32 @@ class Maljani_Registration {
         $pass = $_POST['user_pass'];
         $name = sanitize_text_field($_POST['full_name']);
         $role = sanitize_text_field($_POST['account_type']);
+
+        $ira_licence_number = sanitize_text_field($_POST['ira_licence_number'] ?? '');
+        $agreement_ids = array_values(array_unique(array_filter(array_map('intval', $_POST['insurer_agreement_ids'] ?? []))));
+
+        if ($role === 'agent') {
+            if ($ira_licence_number === '') {
+                wp_die("IRA licence number is required. <a href='javascript:history.back()'>Go back</a>");
+            }
+            if (empty($agreement_ids)) {
+                wp_die("Select at least one insurer working agreement. <a href='javascript:history.back()'>Go back</a>");
+            }
+            $valid_insurer_ids = get_posts([
+                'post_type' => 'insurer_profile',
+                'post_status' => 'publish',
+                'post__in' => $agreement_ids,
+                'fields' => 'ids',
+                'numberposts' => -1,
+            ]);
+            $valid_insurer_ids = array_map('intval', $valid_insurer_ids);
+            sort($valid_insurer_ids);
+            $submitted_ids = $agreement_ids;
+            sort($submitted_ids);
+            if ($valid_insurer_ids !== $submitted_ids) {
+                wp_die("One or more selected insurers are invalid. <a href='javascript:history.back()'>Go back</a>");
+            }
+        }
         
         if (email_exists($email)) {
              wp_die("Email already exists. <a href='javascript:history.back()'>Go back</a>");
@@ -146,6 +200,8 @@ class Maljani_Registration {
                 'contact_phone' => sanitize_text_field($_POST['phone']),
                 'user_id' => $user_id,
                 'commission_rate' => 10.00,
+                'ira_licence_number' => $ira_licence_number,
+                'insurer_agreement_ids' => maybe_serialize($agreement_ids),
                 'status' => 'pending'
             ]);
         }

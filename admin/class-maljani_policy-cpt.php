@@ -237,6 +237,26 @@ class Policy_CPT {
             },
         ] );
 
+        register_graphql_field( 'Policy', 'agentHasInsurerAgreement', [
+            'type'        => 'Boolean',
+            'description' => 'Whether the authenticated agent has a recorded working agreement with this policy insurer.',
+            'resolve'     => function ( $post ) {
+                $user = wp_get_current_user();
+                if ( ! $user || ! in_array( 'agent', (array) $user->roles, true ) ) return true;
+
+                global $wpdb;
+                $stored = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT insurer_agreement_ids FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1",
+                    $user->ID
+                ) );
+                $agreement_ids = maybe_unserialize( $stored );
+                if ( ! is_array( $agreement_ids ) ) return false;
+
+                $insurer_id = intval( get_post_meta( $post->databaseId, '_policy_insurer', true ) );
+                return in_array( $insurer_id, array_map( 'intval', $agreement_ids ), true );
+            },
+        ] );
+
         // Insurer bio / profile description
         register_graphql_field( 'Policy', 'policyInsurerBio', [
             'type'        => 'String',
