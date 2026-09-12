@@ -416,7 +416,7 @@ textarea.mj-in { resize:vertical; }
                                     <option value="sandbox" <?php selected(get_option('maljani_pesapal_mode'), 'sandbox'); ?>>Sandbox (Testing)</option>
                                     <option value="live" <?php selected(get_option('maljani_pesapal_mode'), 'live'); ?>>Live (Production)</option>
                                 </select>
-                                <span class="hint">Sandbox orders charge a fixed KES 100 test amount and are marked fully paid after Pesapal confirms payment. Live orders always charge the full sale amount.</span>
+                                <span class="hint" style="color:#b91c1c;font-weight:700">TEST OVERRIDE ACTIVE: All Pesapal orders, including Live orders, charge KES 100 and are marked fully paid after Pesapal confirms payment.</span>
                             </div>
                             <div class="mj-sf">
                                 <label>IPN Registration ID</label>

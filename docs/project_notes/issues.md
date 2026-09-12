@@ -83,5 +83,5 @@ Log completed work and session progress here.
 
 ### 2026-09-12 - Pesapal Sandbox KES 100 Test Charge
 - **Status**: Completed
-- **Description**: Pesapal Sandbox orders now submit a fixed KES 100 charge for end-to-end testing while retaining the full policy value on the sale. A completed sandbox payment uses the normal IPN confirmation workflow and marks the sale fully paid. Live mode remains hard-wired to submit the full sale amount, and the settings screen explains the sandbox override.
+- **Description**: At the user's explicit request, all Pesapal orders now submit a forced KES 100 charge for end-to-end testing, including orders using Live mode, while retaining the full policy value on the sale. A completed payment uses the normal IPN confirmation workflow and marks the sale fully paid. The settings screen displays a prominent warning while this temporary override is active.
 

@@ -159,18 +159,16 @@ class Maljani_Pesapal_Gateway {
             $currency = 'KES';
         }
 
-        $order_amount = $amount;
-        if ($this->is_sandbox) {
-            $currency = 'KES';
-            $order_amount = 100.00;
-            error_log(sprintf(
-                'Maljani Pesapal sandbox test charge: sale_id=%d full_amount=%.2f charged_amount=%.2f currency=%s',
-                (int) $sale_id,
-                $amount,
-                $order_amount,
-                $currency
-            ));
-        }
+        $currency = 'KES';
+        $order_amount = 100.00;
+        error_log(sprintf(
+            'Maljani Pesapal forced test charge: sale_id=%d full_amount=%.2f charged_amount=%.2f currency=%s environment=%s',
+            (int) $sale_id,
+            $amount,
+            $order_amount,
+            $currency,
+            $this->is_sandbox ? 'sandbox' : 'live'
+        ));
 
         $body_array = [
             'id'               => $merchant_reference,
