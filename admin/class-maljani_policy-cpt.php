@@ -245,10 +245,20 @@ class Policy_CPT {
                 if ( ! $user || ! in_array( 'agent', (array) $user->roles, true ) ) return true;
 
                 global $wpdb;
-                $stored = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT insurer_agreement_ids FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1",
+                $agency = $wpdb->get_row( $wpdb->prepare(
+                    "SELECT id, insurer_agreement_ids FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1",
                     $user->ID
                 ) );
+                if ( ! $agency ) {
+                    $agency_id = intval( get_user_meta( $user->ID, 'agency_id', true ) );
+                    if ( $agency_id > 0 ) {
+                        $agency = $wpdb->get_row( $wpdb->prepare(
+                            "SELECT id, insurer_agreement_ids FROM {$wpdb->prefix}maljani_agencies WHERE id = %d LIMIT 1",
+                            $agency_id
+                        ) );
+                    }
+                }
+                $stored = $agency ? $agency->insurer_agreement_ids : '';
                 $agreement_ids = maybe_unserialize( $stored );
                 if ( ! is_array( $agreement_ids ) ) return false;
 

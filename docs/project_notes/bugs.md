@@ -22,3 +22,9 @@ Log recurring bugs, their solutions, and prevention notes here.
 - **Root Cause**: Gateway only read `$body->error->message`; Pesapal can return other response shapes such as `message`, `error_description`, plain text, invalid JSON, or just an HTTP status.
 - **Solution**: Trim saved credentials, validate HTTP status before accepting a token, centralize response error extraction, and add a settings-page button to test the saved Pesapal connection.
 - **Prevention**: Use the settings connection test after changing key, secret, or environment; token/IPN/order errors now include HTTP status and response message.
+
+### 2026-09-12 - Pesapal Amount Limit Returned With HTTP 200
+- **Issue**: Payment initiation showed `Order creation failed: HTTP 200: Transaction amount exceeds limit.Contact support for assistance`.
+- **Root Cause**: Pesapal accepted the HTTP request but rejected the order at the business layer because the amount exceeded the merchant account limit. The response had no `redirect_url`, which the API 3.0 guide requires for a successfully created order.
+- **Solution**: Require a non-empty `redirect_url`, classify the provider message as `pesapal_amount_limit`, return HTTP 422 with customer-safe guidance, and log sale ID, amount, currency, and environment for diagnosis without changing the charge.
+- **Prevention**: Confirm the logged amount and ISO currency before contacting Pesapal to raise the merchant transaction limit. The approved sandbox test workflow charges KES 100 while retaining the full sale value; live mode must never reduce or split the amount.

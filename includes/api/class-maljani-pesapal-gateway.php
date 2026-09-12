@@ -133,6 +133,15 @@ class Maljani_Pesapal_Gateway {
      * Create Order and Return Payment URL
      */
     public function create_order($sale_id, $amount, $description, $billing_info = []) {
+        $amount = (float) $amount;
+        if (!is_finite($amount) || $amount <= 0) {
+            return new WP_Error(
+                'invalid_payment_amount',
+                'The payment amount is invalid. Contact support for assistance.',
+                ['status' => 422]
+            );
+        }
+
         $token = $this->get_token();
         if (is_wp_error($token)) return $token;
 
@@ -150,10 +159,23 @@ class Maljani_Pesapal_Gateway {
             $currency = 'KES';
         }
 
+        $order_amount = $amount;
+        if ($this->is_sandbox) {
+            $currency = 'KES';
+            $order_amount = 100.00;
+            error_log(sprintf(
+                'Maljani Pesapal sandbox test charge: sale_id=%d full_amount=%.2f charged_amount=%.2f currency=%s',
+                (int) $sale_id,
+                $amount,
+                $order_amount,
+                $currency
+            ));
+        }
+
         $body_array = [
             'id'               => $merchant_reference,
             'currency'         => $currency,
-            'amount'           => (float)$amount,
+            'amount'           => $order_amount,
             'description'      => $description,
             'callback_url'     => home_url('/checkout-thank-you/'), // Fallback return URL
             'notification_id'  => $ipn_id,
@@ -186,12 +208,31 @@ class Maljani_Pesapal_Gateway {
             return new WP_Error('order_failed', 'Order creation failed: ' . $this->response_error_message($response));
         }
 
-        if (isset($body->redirect_url)) {
+        if (isset($body->redirect_url) && is_string($body->redirect_url) && trim($body->redirect_url) !== '') {
             return [
                 'redirect_url'        => $body->redirect_url,
                 'order_tracking_id'  => $body->order_tracking_id ?? '',
                 'merchant_reference' => $body->merchant_reference ?? $merchant_reference,
             ];
+        }
+
+        $provider_message = $this->response_error_message($response, 'No redirect URL returned.');
+        error_log(sprintf(
+            'Maljani Pesapal order rejected: sale_id=%d full_amount=%.2f charged_amount=%.2f currency=%s environment=%s response=%s',
+            (int) $sale_id,
+            $amount,
+            $order_amount,
+            $currency,
+            $this->is_sandbox ? 'sandbox' : 'live',
+            $provider_message
+        ));
+
+        if (stripos($provider_message, 'transaction amount exceeds limit') !== false) {
+            return new WP_Error(
+                'pesapal_amount_limit',
+                'Pesapal cannot process this payment because it exceeds the transaction limit for this merchant account. Contact support for assistance.',
+                ['status' => 422]
+            );
         }
 
         return new WP_Error('order_failed', 'Order creation failed: ' . $this->response_error_message($response, 'No redirect URL returned.'));

@@ -311,10 +311,15 @@ class Maljani_API_Endpoints {
 
         if (is_wp_error($order)) {
             error_log('Maljani Pesapal initiate-payment failed for Sale ID ' . $sale_id . ': ' . $order->get_error_message());
+            $error_data = $order->get_error_data();
+            $status = is_array($error_data) && isset($error_data['status'])
+                ? (int) $error_data['status']
+                : 502;
+
             return new WP_REST_Response([
                 'error' => $order->get_error_message(),
                 'code'  => $order->get_error_code(),
-            ], 502);
+            ], $status);
         }
 
         $wpdb->update($table,

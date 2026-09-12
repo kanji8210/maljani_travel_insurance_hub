@@ -77,3 +77,11 @@ Log completed work and session progress here.
 - **Status**: Completed
 - **Description**: Replaced silent CRM document moves with WordPress upload handling and checked file, URL, database insert, and policy transition results. Failed uploads now roll back stored files and rows, return actionable admin errors, and cannot activate a policy with an empty document location.
 
+### 2026-09-12 - Pesapal Amount-Limit Response Handling
+- **Status**: Completed
+- **Description**: Updated SubmitOrderRequest handling to follow Pesapal API 3.0 semantics: an order is successful only when a non-empty payment `redirect_url` is returned. HTTP 200 amount-limit rejections now produce a dedicated `pesapal_amount_limit` error with HTTP 422, while server logs capture the sale ID, original amount, normalized ISO currency, environment, and provider response for support diagnosis. Invalid non-positive amounts are rejected before submission, and payment amounts are never reduced or split automatically.
+
+### 2026-09-12 - Pesapal Sandbox KES 100 Test Charge
+- **Status**: Completed
+- **Description**: Pesapal Sandbox orders now submit a fixed KES 100 charge for end-to-end testing while retaining the full policy value on the sale. A completed sandbox payment uses the normal IPN confirmation workflow and marks the sale fully paid. Live mode remains hard-wired to submit the full sale amount, and the settings screen explains the sandbox override.
+
