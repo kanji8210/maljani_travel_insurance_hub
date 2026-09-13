@@ -124,10 +124,27 @@ class Maljani_Agencies_Admin {
         }
 
         // ── Data ─────────────────────────────────────────────────────────────
-        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : 'approved';
-        $agencies = $wpdb->get_results($wpdb->prepare("SELECT * FROM $tbl WHERE status = %s ORDER BY created_at DESC", $status_filter));
-        
-        $pending_count = $wpdb->get_var("SELECT COUNT(*) FROM $tbl WHERE status = 'pending'");
+        $allowed_statuses = ['all', 'pending', 'approved', 'rejected'];
+        $status_filter = isset($_GET['status']) ? sanitize_key($_GET['status']) : 'all';
+        if (!in_array($status_filter, $allowed_statuses, true)) {
+            $status_filter = 'all';
+        }
+        $agencies = $status_filter === 'all'
+            ? $wpdb->get_results("SELECT * FROM $tbl ORDER BY created_at DESC")
+            : $wpdb->get_results($wpdb->prepare("SELECT * FROM $tbl WHERE status = %s ORDER BY created_at DESC", $status_filter));
+
+        $status_counts = [
+            'all'      => (int) $wpdb->get_var("SELECT COUNT(*) FROM $tbl"),
+            'pending'  => 0,
+            'approved' => 0,
+            'rejected' => 0,
+        ];
+        $count_rows = $wpdb->get_results("SELECT status, COUNT(*) AS total FROM $tbl GROUP BY status");
+        foreach ($count_rows as $count_row) {
+            if (isset($status_counts[$count_row->status])) {
+                $status_counts[$count_row->status] = (int) $count_row->total;
+            }
+        }
 
         // Performance stats per agency (join with sales)
         $perf = [];
@@ -182,11 +199,14 @@ class Maljani_Agencies_Admin {
             <div class="mja-header">
                 <h1 style="margin:0">🏢 Manage Agencies</h1>
                 <div style="display:flex; gap:10px;">
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'pending'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='pending'?'mj-pri':'mj-sec'; ?>">
-                        ⏳ Pending Approvals <?php if($pending_count > 0) echo "<span style='background:#f43f5e; color:#fff; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:4px;'>$pending_count</span>"; ?>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'all'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='all'?'mj-pri':'mj-sec'; ?>">
+                        All <?php echo esc_html($status_counts['all']); ?>
                     </a>
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'approved'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='approved'?'mj-pri':'mj-sec'; ?>">✅ Approved</a>
-                    <a href="<?php echo esc_url(add_query_arg(['status'=>'rejected'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='rejected'?'mj-pri':'mj-sec'; ?>">❌ Rejected</a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'pending'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='pending'?'mj-pri':'mj-sec'; ?>">
+                        ⏳ Pending Approvals <?php if($status_counts['pending'] > 0) echo "<span style='background:#f43f5e; color:#fff; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:4px;'>" . esc_html($status_counts['pending']) . "</span>"; ?>
+                    </a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'approved'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='approved'?'mj-pri':'mj-sec'; ?>">✅ Approved <?php echo esc_html($status_counts['approved']); ?></a>
+                    <a href="<?php echo esc_url(add_query_arg(['status'=>'rejected'], admin_url('admin.php?page=maljani_agencies_admin'))); ?>" class="mj-b <?php echo $status_filter==='rejected'?'mj-pri':'mj-sec'; ?>">❌ Rejected <?php echo esc_html($status_counts['rejected']); ?></a>
                     <button type="button" class="mj-b mj-pri" onclick="document.getElementById('mja-new-form').style.display=document.getElementById('mja-new-form').style.display==='none'?'':'none'" style="margin-left:10px;">+ Add New Agency</button>
                 </div>
             </div>
@@ -224,7 +244,7 @@ class Maljani_Agencies_Admin {
 
             <!-- Agencies Table -->
             <div class="mja-card">
-                <div class="mja-card-head"><h3>All Agencies (<?php echo count($agencies); ?>)</h3></div>
+                <div class="mja-card-head"><h3><?php echo esc_html(ucfirst($status_filter)); ?> Agencies (<?php echo count($agencies); ?>)</h3></div>
                 <div class="mja-card-body" style="padding:0">
                     <table class="mja-tbl">
                         <thead><tr>
