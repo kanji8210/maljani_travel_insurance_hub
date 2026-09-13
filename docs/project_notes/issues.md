@@ -109,3 +109,7 @@ Log completed work and session progress here.
 - **Status**: Completed
 - **Description**: Added contextual View Policies, Message, and Email actions to the aggregated Manage Clients list. Standardized operational premiums, payments, settlements, commissions, and generated policy gross-premium labels to KES across admin and agency CRM views. Foreign currencies remain available for overseas claim amounts and USD benefit or coverage limits.
 
+### 2026-09-13 - Private Insurer Data Entry URL
+- **Status**: Completed
+- **Description**: Added a dedicated Data Entry Portal URL to the insurer profile's External Links tab. The URL is stored as protected insurer post meta, accepts only HTTP/HTTPS links, is not rendered publicly, and explicitly warns administrators not to embed credentials, tokens, or customer details.
+

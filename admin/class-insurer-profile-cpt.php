@@ -60,6 +60,7 @@ class Insurer_Profile_CPT {
         $feature_img_id = get_post_meta($post->ID, '_insurer_feature_img', true);
         $feature_img_url = $feature_img_id ? wp_get_attachment_url($feature_img_id) : '';
         $website = get_post_meta($post->ID, '_insurer_website', true);
+        $data_entry_url = get_post_meta($post->ID, '_insurer_data_entry_url', true);
         $linkedin = get_post_meta($post->ID, '_insurer_linkedin', true);
         $pesapal_id = get_post_meta($post->ID, '_insurer_pesapal_merchant_id', true);
         $usd_to_ksh_rate = get_post_meta($post->ID, '_insurer_usd_to_ksh_rate', true);
@@ -265,6 +266,12 @@ class Insurer_Profile_CPT {
                 </div>
 
                 <div class="mj-form-group">
+                    <label for="insurer_data_entry_url">Data Entry Portal URL</label>
+                    <input type="url" id="insurer_data_entry_url" name="insurer_data_entry_url" value="<?php echo esc_attr($data_entry_url); ?>" class="mj-input" placeholder="https://portal.insurer.com/login" autocomplete="off" />
+                    <p class="description">Admin-only link used by CRM staff to open the insurer's policy-entry portal. Do not include usernames, passwords, tokens, or customer details in this URL.</p>
+                </div>
+
+                <div class="mj-form-group">
                     <label for="insurer_linkedin">LinkedIn Page</label>
                     <input type="url" id="insurer_linkedin" name="insurer_linkedin" value="<?php echo esc_attr($linkedin); ?>" class="mj-input" placeholder="https://linkedin.com/company/insurer" />
                 </div>
@@ -453,6 +460,14 @@ class Insurer_Profile_CPT {
         }
         if (isset($_POST['insurer_website'])) {
             update_post_meta($post_id, '_insurer_website', esc_url_raw($_POST['insurer_website']));
+        }
+        if (isset($_POST['insurer_data_entry_url'])) {
+            $data_entry_url = esc_url_raw(wp_unslash($_POST['insurer_data_entry_url']), array('http', 'https'));
+            if ($data_entry_url !== '') {
+                update_post_meta($post_id, '_insurer_data_entry_url', $data_entry_url);
+            } else {
+                delete_post_meta($post_id, '_insurer_data_entry_url');
+            }
         }
         if (isset($_POST['insurer_linkedin'])) {
             update_post_meta($post_id, '_insurer_linkedin', esc_url_raw($_POST['insurer_linkedin']));
