@@ -132,7 +132,7 @@ class Maljani_Pesapal_Gateway {
     /**
      * Create Order and Return Payment URL
      */
-    public function create_order($sale_id, $amount, $description, $billing_info = []) {
+    public function create_order($sale_id, $amount, $description, $billing_info = [], $callback_url = '') {
         $amount = (float) $amount;
         if (!is_finite($amount) || $amount <= 0) {
             return new WP_Error(
@@ -175,7 +175,7 @@ class Maljani_Pesapal_Gateway {
             'currency'         => $currency,
             'amount'           => $order_amount,
             'description'      => $description,
-            'callback_url'     => home_url('/checkout-thank-you/'), // Fallback return URL
+            'callback_url'     => $callback_url ?: home_url('/checkout-thank-you/'),
             'notification_id'  => $ipn_id,
             'billing_address'  => array_merge([
                 'email_address' => '',
