@@ -85,3 +85,11 @@ Log completed work and session progress here.
 - **Status**: Completed
 - **Description**: At the user's explicit request, all Pesapal orders now submit a forced KES 100 charge for end-to-end testing, including orders using Live mode, while retaining the full policy value on the sale. A completed payment uses the normal IPN confirmation workflow and marks the sale fully paid. The settings screen displays a prominent warning while this temporary override is active.
 
+### 2026-09-12 - Pesapal Return Page and Customer Documents
+- **Status**: Completed
+- **Description**: Added a dedicated `/payment/return` frontend page that verifies Pesapal callback identifiers through an authenticated WordPress endpoint before showing payment success. Payment confirmation is idempotent and bound to the sale's stored tracking ID. Confirmed dashboard policies expose the official receipt and verification certificate; the insurer-uploaded policy PDF appears only after manual issuance and activation. Invoice access remains available before payment.
+
+### 2026-09-12 - Dynamic Invoice and Receipt Payment Details
+- **Status**: Completed
+- **Description**: Replaced the generic invoice payment instruction with structured provider, M-Pesa Paybill, and policy account-template settings. Policy invoices now resolve per-sale tokens such as `POL-{sale_id}`. Completed Pesapal status checks persist the actual method, masked account, confirmation code, currency, received amount, and payment date for receipts. Receipts distinguish the amount actually collected from the full invoiced value during the temporary KES 100 test override and correctly describe the policy as awaiting insurer processing.
+

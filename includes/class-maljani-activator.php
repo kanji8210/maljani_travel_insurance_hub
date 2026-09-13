@@ -67,6 +67,12 @@ class Maljani_Activator {
             insurer_payment_date DATETIME NULL,
             insurer_payment_note TEXT,
             payment_reference VARCHAR(191),
+            payment_method VARCHAR(64),
+            payment_account VARCHAR(191),
+            payment_confirmation_code VARCHAR(191),
+            payment_currency VARCHAR(8),
+            payment_received_amount DECIMAL(12,2),
+            payment_confirmed_at DATETIME NULL,
             payment_status ENUM('confirmed','failed','pending','paid','unconfirmed') DEFAULT 'pending',
             policy_status ENUM('approved','unconfirmed','confirmed','active','claimed','expired','archived','pending_review','cancelled') DEFAULT 'unconfirmed',
             workflow_status ENUM('draft','pending_review','submitted_to_insurer','approved','active') DEFAULT 'draft',
@@ -238,6 +244,20 @@ class Maljani_Activator {
 
         if (!in_array('insured_dob', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insured_dob` DATE DEFAULT NULL AFTER `insured_names`");
+        }
+
+        $payment_columns = [
+            'payment_method'            => "VARCHAR(64) DEFAULT NULL AFTER `payment_reference`",
+            'payment_account'           => "VARCHAR(191) DEFAULT NULL AFTER `payment_method`",
+            'payment_confirmation_code' => "VARCHAR(191) DEFAULT NULL AFTER `payment_account`",
+            'payment_currency'          => "VARCHAR(8) DEFAULT NULL AFTER `payment_confirmation_code`",
+            'payment_received_amount'   => "DECIMAL(12,2) DEFAULT NULL AFTER `payment_currency`",
+            'payment_confirmed_at'       => "DATETIME NULL AFTER `payment_received_amount`",
+        ];
+        foreach ($payment_columns as $column => $definition) {
+            if (!in_array($column, $columns, true)) {
+                $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `$column` $definition");
+            }
         }
 
         $claims_table = $wpdb->prefix . 'maljani_claim_requests';

@@ -71,6 +71,8 @@ class Maljani_Settings {
             'maljani_inv_city', 'maljani_inv_country', 'maljani_inv_phone', 'maljani_inv_email',
             'maljani_inv_website', 'maljani_inv_kra_pin', 'maljani_inv_etr_number',
             'maljani_inv_payment_inst', 'maljani_inv_footer', 'maljani_inv_currency',
+            'maljani_payment_provider_name', 'maljani_payment_paybill',
+            'maljani_payment_policy_account_template',
         ];
         foreach ($inv_fields as $f) register_setting('maljani_settings_group', $f, ['sanitize_callback' => 'sanitize_text_field']);
         register_setting('maljani_settings_group', 'maljani_inv_vat_enabled', ['type'=>'boolean','sanitize_callback'=>'rest_sanitize_boolean']);
@@ -572,10 +574,34 @@ textarea.mj-in { resize:vertical; }
 
                         </div>
 
-                        <div class="mj-sf" style="margin:16px 22px 0;padding-top:14px;border-top:1px solid #f1f5f9">
-                            <label for="inv_pay_inst">Payment Instructions (shown on invoice)</label>
-                            <textarea id="inv_pay_inst" name="maljani_inv_payment_inst" class="mj-in" rows="3"
-                                      placeholder="e.g. M-Pesa Paybill 123456, Account: Policy Number"><?php echo esc_textarea(get_option('maljani_inv_payment_inst', '')); ?></textarea>
+                        <div style="margin:16px 22px 0;padding-top:14px;border-top:1px solid #f1f5f9">
+                            <div class="mj-sf-grid-3">
+                                <div class="mj-sf">
+                                    <label for="payment_provider">Payment Provider</label>
+                                    <input id="payment_provider" type="text" name="maljani_payment_provider_name" class="mj-in"
+                                           value="<?php echo esc_attr(get_option('maljani_payment_provider_name', 'Pesapal')); ?>"
+                                           placeholder="Pesapal">
+                                </div>
+                                <div class="mj-sf">
+                                    <label for="payment_paybill">M-Pesa Paybill</label>
+                                    <input id="payment_paybill" type="text" name="maljani_payment_paybill" class="mj-in"
+                                           value="<?php echo esc_attr(get_option('maljani_payment_paybill', '')); ?>"
+                                           placeholder="Enter the Pesapal Paybill">
+                                </div>
+                                <div class="mj-sf">
+                                    <label for="policy_account_template">Policy Account Template</label>
+                                    <input id="policy_account_template" type="text" name="maljani_payment_policy_account_template" class="mj-in"
+                                           value="<?php echo esc_attr(get_option('maljani_payment_policy_account_template', 'POL-{sale_id}')); ?>"
+                                           placeholder="POL-{sale_id}">
+                                    <span class="hint">Available tokens: <code>{sale_id}</code>, <code>{policy_number}</code>, <code>{service}</code>.</span>
+                                </div>
+                            </div>
+                            <div class="mj-sf">
+                                <label for="inv_pay_inst">Additional Payment Notes</label>
+                                <textarea id="inv_pay_inst" name="maljani_inv_payment_inst" class="mj-in" rows="2"
+                                          placeholder="Optional instructions shown below the generated Paybill and account details."><?php echo esc_textarea(get_option('maljani_inv_payment_inst', '')); ?></textarea>
+                                <span class="hint">The invoice automatically inserts the provider, Paybill, service-specific account reference, and amount.</span>
+                            </div>
                         </div>
 
                         <div class="mj-sf" style="margin:10px 22px 22px;">

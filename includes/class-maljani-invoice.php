@@ -28,6 +28,9 @@ class Maljani_Invoice {
             'vat_enabled'     => (bool) get_option('maljani_inv_vat_enabled', false),
             'vat_rate'        => floatval(get_option('maljani_inv_vat_rate', 16)),
             'payment_instructions' => get_option('maljani_inv_payment_inst', ''),
+            'payment_provider' => get_option('maljani_payment_provider_name', 'Pesapal'),
+            'payment_paybill' => get_option('maljani_payment_paybill', ''),
+            'policy_account_template' => get_option('maljani_payment_policy_account_template', 'POL-{sale_id}'),
             'invoice_footer'  => get_option('maljani_inv_footer', 'This is a computer-generated document and requires no signature. Thank you for choosing Maljani Travel Insurance.'),
             'currency_symbol' => get_option('maljani_inv_currency', 'KSH'),
         ];
@@ -408,9 +411,41 @@ CSS;
     }
 
     private static function payment_section(array $cfg, bool $is_receipt = false, ?object $sale = null): string {
-        $method = $is_receipt && $sale ? (strtoupper($sale->payment_status) === 'CONFIRMED' ? 'Payment received' : '') : '';
-        $inst = nl2br(esc_html($cfg['payment_instructions']));
-        if (!$inst && !$is_receipt) $inst = 'Please make payment via M-Pesa, Bank Transfer, or Cash. Quote your Policy Number as payment reference.';
+        $account_template = trim((string) ($cfg['policy_account_template'] ?? 'POL-{sale_id}'));
+        $account_reference = strtr($account_template, [
+            '{sale_id}' => (string) ($sale->id ?? ''),
+            '{policy_number}' => (string) ($sale->policy_number ?? ''),
+            '{service}' => 'POLICY',
+        ]);
+        $provider = trim((string) ($cfg['payment_provider'] ?? 'Pesapal')) ?: 'Pesapal';
+        $paybill = trim((string) ($cfg['payment_paybill'] ?? ''));
+        $notes = trim((string) ($cfg['payment_instructions'] ?? ''));
+
+        if ($is_receipt) {
+            $actual_method = trim((string) ($sale->payment_method ?? '')) ?: $provider;
+            $actual_account = trim((string) ($sale->payment_account ?? ''));
+            $confirmation_code = trim((string) ($sale->payment_confirmation_code ?? ''));
+            $actual_amount = isset($sale->payment_received_amount) && $sale->payment_received_amount !== null
+                ? (float) $sale->payment_received_amount
+                : (float) ($sale->amount_paid ?? 0);
+            $actual_currency = trim((string) ($sale->payment_currency ?? '')) ?: (string) $cfg['currency_symbol'];
+            $inst = '<strong>Method:</strong> ' . esc_html($actual_method) . '<br>'
+                . ($actual_account ? '<strong>Payment account:</strong> ' . esc_html($actual_account) . '<br>' : '')
+                . ($confirmation_code ? '<strong>Confirmation code:</strong> ' . esc_html($confirmation_code) . '<br>' : '')
+                . '<strong>Amount received:</strong> ' . esc_html($actual_currency) . ' ' . number_format($actual_amount, 2)
+                . '<br><strong>Status:</strong> Confirmed';
+        } else {
+            $instruction_lines = ['<strong>Pay via:</strong> ' . esc_html($provider)];
+            if ($paybill !== '') {
+                $instruction_lines[] = '<strong>M-Pesa Paybill:</strong> ' . esc_html($paybill);
+            }
+            $instruction_lines[] = '<strong>Account:</strong> ' . esc_html($account_reference);
+            $instruction_lines[] = '<strong>Amount:</strong> ' . esc_html($cfg['currency_symbol']) . ' ' . number_format((float) ($sale->amount_paid ?? 0), 2);
+            if ($notes !== '') {
+                $instruction_lines[] = nl2br(esc_html($notes));
+            }
+            $inst = implode('<br>', $instruction_lines);
+        }
 
         $agent_fee = $sale ? self::get_agent_display_fee_amount($sale) : 0;
         $agent_fee_type = $sale->agent_display_fee_type ?? 'fixed';
@@ -438,8 +473,8 @@ CSS;
         return '
 <div class="doc-payment">
   <div class="pay-block">
-    <h4>Payment Instructions</h4>
-    <p>' . ($is_receipt ? 'Payment has been received and confirmed. No further action required.' : $inst) . '</p>
+        <h4>' . ($is_receipt ? 'Payment Details' : 'Payment Instructions') . '</h4>
+        <p>' . $inst . '</p>
   </div>
   <div class="pay-block">
     <h4>Policy Reference</h4>
@@ -493,7 +528,7 @@ CSS;
 
         $html  = self::doc_html_open('Official Receipt — ' . $sale->policy_number, $doc_num, $doc_date, $cfg);
         $html .= self::header_band('OFFICIAL RECEIPT', $doc_num, $doc_date, $cfg);
-        $html .= '<div class="doc-ribbon receipt">✅ &nbsp;PAYMENT CONFIRMED — Policy is now active</div>';
+        $html .= '<div class="doc-ribbon receipt">PAYMENT CONFIRMED &mdash; REQUEST SENT FOR PROCESSING</div>';
         $html .= self::parties_section($sale, $cfg, true);
 
         // Confirmed banner
@@ -502,7 +537,7 @@ CSS;
   <div class="rc-icon">✅</div>
   <div>
     <h3>Payment Received &amp; Confirmed</h3>
-    <p style="color:#166534;font-size:12px">Policy Number: <strong>' . esc_html($sale->policy_number) . '</strong> &nbsp;·&nbsp; Amount: <strong>' . esc_html($cfg['currency_symbol']) . ' ' . number_format($sale->amount_paid, 2) . '</strong></p>
+    <p style="color:#166534;font-size:12px">Request Reference: <strong>' . esc_html($sale->policy_number ?: 'POL-' . $sale->id) . '</strong> &nbsp;&middot;&nbsp; Your policy is being processed by the insurer.</p>
   </div>
 </div>';
 

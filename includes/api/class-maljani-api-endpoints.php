@@ -80,6 +80,21 @@ class Maljani_API_Endpoints {
             ],
         ]);
 
+        register_rest_route('maljani/v1', '/policy-document/(?P<sale_id>\d+)', [
+            'methods'             => 'GET',
+            'callback'            => [$this, 'serve_policy_document'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
+            'args' => [
+                'sale_id' => [
+                    'required'          => true,
+                    'validate_callback' => function($v) { return is_numeric($v) && $v > 0; },
+                    'sanitize_callback' => 'absint',
+                ],
+            ],
+        ]);
+
         // ── Initiate Pesapal payment ──────────────────────────────────────────
         register_rest_route('maljani/v1', '/initiate-payment', [
             'methods'             => 'POST',
@@ -219,9 +234,18 @@ class Maljani_API_Endpoints {
         $sale_id = (int)$ref_parts[0];
 
         if ($sale_id > 0) {
+            global $wpdb;
+            $stored_reference = (string) $wpdb->get_var($wpdb->prepare(
+                "SELECT payment_reference FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
+                $sale_id
+            ));
+            if ($stored_reference === '' || !hash_equals($stored_reference, (string) $tracking_id)) {
+                return new WP_REST_Response(['status' => 'error', 'message' => 'Payment reference mismatch'], 409);
+            }
+
             $status_code = (int)($status_data->status_code ?? -1);
             if ($status_code === 1) { // 1 = Completed
-                $this->confirm_pesapal_payment($sale_id, $tracking_id);
+                $this->confirm_pesapal_payment($sale_id, $tracking_id, $status_data);
             } elseif (in_array($status_code, [2, 3], true)) { // Failed / reversed
                 $this->mark_pesapal_payment_failed($sale_id, $tracking_id);
             }
@@ -290,6 +314,39 @@ class Maljani_API_Endpoints {
         return new WP_REST_Response( [ 'html' => $html ], 200 );
     }
 
+    public function serve_policy_document(WP_REST_Request $request) {
+        $sale_id = (int) $request->get_param('sale_id');
+        $user_id = get_current_user_id();
+
+        global $wpdb;
+        $sale = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, agent_id, payment_status, policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
+            $sale_id
+        ));
+
+        if (!$sale) {
+            return new WP_REST_Response(['error' => 'Sale not found'], 404);
+        }
+        if ((int) $sale->agent_id !== $user_id && !current_user_can('manage_options')) {
+            return new WP_REST_Response(['error' => 'Unauthorized'], 403);
+        }
+        if ($sale->payment_status !== 'confirmed' || !in_array($sale->policy_status, ['active', 'verification_ready'], true)) {
+            return new WP_REST_Response(['error' => 'Insurer document is still being prepared'], 409);
+        }
+
+        $document_url = $wpdb->get_var($wpdb->prepare(
+            "SELECT file_path FROM {$wpdb->prefix}maljani_documents WHERE policy_id = %d AND type = %s ORDER BY id DESC LIMIT 1",
+            $sale_id,
+            'policy_doc'
+        ));
+
+        if (!$document_url) {
+            return new WP_REST_Response(['error' => 'Insurer document is not available yet'], 404);
+        }
+
+        return new WP_REST_Response(['url' => esc_url_raw($document_url)], 200);
+    }
+
     /**
      * Initiate Pesapal payment for a pending sale.
      * POST /wp-json/maljani/v1/initiate-payment  { saleId: 123 }
@@ -322,7 +379,13 @@ class Maljani_API_Endpoints {
         $pesapal = new Maljani_Pesapal_Gateway();
 
         $callback_url = esc_url_raw((string) $request->get_param('callbackUrl'));
-        if (!$callback_url || !wp_http_validate_url($callback_url)) {
+        $callback_parts = wp_parse_url($callback_url);
+        if (
+            !$callback_url ||
+            empty($callback_parts['host']) ||
+            empty($callback_parts['scheme']) ||
+            !in_array(strtolower($callback_parts['scheme']), ['http', 'https'], true)
+        ) {
             return new WP_REST_Response(['error' => 'Invalid payment return URL'], 400);
         }
 
@@ -394,6 +457,11 @@ class Maljani_API_Endpoints {
             return new WP_REST_Response(['error' => 'Unauthorized'], 403);
         }
 
+        $stored_reference = (string) ($sale->payment_reference ?? '');
+        if ($stored_reference === '' || !hash_equals($stored_reference, $tracking_id)) {
+            return new WP_REST_Response(['error' => 'Payment reference mismatch'], 409);
+        }
+
         require_once plugin_dir_path(__FILE__) . 'class-maljani-pesapal-gateway.php';
         $pesapal = new Maljani_Pesapal_Gateway();
         $status_data = $pesapal->get_transaction_status($tracking_id);
@@ -403,8 +471,12 @@ class Maljani_API_Endpoints {
         }
 
         $status_code = (int) ($status_data->status_code ?? -1);
+        $provider_reference = (string) ($status_data->merchant_reference ?? '');
+        if ($provider_reference !== '' && !hash_equals($merchant_ref, $provider_reference)) {
+            return new WP_REST_Response(['error' => 'Merchant reference mismatch'], 409);
+        }
         if ($status_code === 1) {
-            $this->confirm_pesapal_payment($sale_id, $tracking_id);
+            $this->confirm_pesapal_payment($sale_id, $tracking_id, $status_data);
         } elseif (in_array($status_code, [2, 3], true)) {
             $this->mark_pesapal_payment_failed($sale_id, $tracking_id);
         }
@@ -417,7 +489,7 @@ class Maljani_API_Endpoints {
         ], 200);
     }
 
-    private function confirm_pesapal_payment($sale_id, $tracking_id) {
+    private function confirm_pesapal_payment($sale_id, $tracking_id, $status_data) {
         global $wpdb;
         $table = $wpdb->prefix . 'policy_sale';
 
@@ -425,22 +497,37 @@ class Maljani_API_Endpoints {
             "SELECT payment_status FROM {$table} WHERE id = %d LIMIT 1",
             $sale_id
         ));
-        if ($current_status === 'confirmed') {
-            return;
-        }
-        
-        $wpdb->update($table, 
-            [
-                'payment_status'    => 'confirmed', 
-                'payment_reference' => $tracking_id,
-                'insurer_payment_status' => 'due',
-                'policy_status'     => 'pending_review',
-                'workflow_status'   => 'pending_review',
-            ],
-            ['id' => $sale_id]
-        );
 
-        do_action('maljani_payment_confirmed', $sale_id);
+        $payment_date = null;
+        if (!empty($status_data->created_date)) {
+            $timestamp = strtotime((string) $status_data->created_date);
+            if ($timestamp !== false) {
+                $payment_date = gmdate('Y-m-d H:i:s', $timestamp);
+            }
+        }
+
+        $payment_data = [
+            'payment_status'            => 'confirmed',
+            'payment_reference'         => sanitize_text_field((string) $tracking_id),
+            'payment_method'            => sanitize_text_field((string) ($status_data->payment_method ?? '')),
+            'payment_account'           => sanitize_text_field((string) ($status_data->payment_account ?? '')),
+            'payment_confirmation_code' => sanitize_text_field((string) ($status_data->confirmation_code ?? '')),
+            'payment_currency'          => sanitize_text_field((string) ($status_data->currency ?? '')),
+            'payment_received_amount'   => isset($status_data->amount) ? (float) $status_data->amount : null,
+            'payment_confirmed_at'       => $payment_date ?: current_time('mysql', true),
+        ];
+
+        if ($current_status !== 'confirmed') {
+            $payment_data['insurer_payment_status'] = 'due';
+            $payment_data['policy_status'] = 'pending_review';
+            $payment_data['workflow_status'] = 'pending_review';
+        }
+
+        $wpdb->update($table, $payment_data, ['id' => $sale_id]);
+
+        if ($current_status !== 'confirmed') {
+            do_action('maljani_payment_confirmed', $sale_id);
+        }
     }
 
     private function mark_pesapal_payment_failed($sale_id, $tracking_id) {
