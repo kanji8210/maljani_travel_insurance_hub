@@ -249,7 +249,7 @@ class Maljani_Admin_Menu {
             ['⏳', 'Pending Moderation',  intval($pending_mod),         '#fef9c3', admin_url('admin.php?page=maljani_moderation')],
             ['✅', 'Active Policies',     intval($active_pol),          '#d1fae5', admin_url('admin.php?page=policy_sales&status=active')],
             ['⚠️','Disputed Commissions', intval($disputed),            '#fee2e2', admin_url('admin.php?page=policy_sales')],
-            ['💰', 'Total Premium',       '$'.number_format(floatval($tot_prem),0), '#f0fdf4', admin_url('admin.php?page=policy_sales')],
+            ['💰', 'Total Premium',       'KES '.number_format(floatval($tot_prem),0), '#f0fdf4', admin_url('admin.php?page=policy_sales')],
         ];
         // Resolve site logo — always use the known logo from uploads as primary
         $dash_logo_html = '';

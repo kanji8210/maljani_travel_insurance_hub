@@ -105,3 +105,7 @@ Log completed work and session progress here.
 - **Status**: Completed
 - **Description**: Exposed invoice printing for every agent-owned sale and receipt plus verification-certificate printing after payment confirmation in both agent policy views. Certificate QR codes now use a configurable front-end application URL and open `/verify` with a signed sale token. Added a public read-only token verification endpoint and automatic QR verification in the React portal without placing passport details in the URL.
 
+### 2026-09-13 - Client Actions and KES Operational Currency
+- **Status**: Completed
+- **Description**: Added contextual View Policies, Message, and Email actions to the aggregated Manage Clients list. Standardized operational premiums, payments, settlements, commissions, and generated policy gross-premium labels to KES across admin and agency CRM views. Foreign currencies remain available for overseas claim amounts and USD benefit or coverage limits.
+

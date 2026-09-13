@@ -113,7 +113,7 @@ class Maljani_CRM_Dashboard {
                     <span class="stat-icon">💰</span>
                     <div class="stat-data">
                         <span class="stat-label">Total Commission</span>
-                        <span class="stat-value">$<?php echo number_format($stats['total_commission'], 2); ?></span>
+                        <span class="stat-value">KES <?php echo number_format($stats['total_commission'], 2); ?></span>
                     </div>
                 </div>
                 <div class="crm-stat-card stagger-up">
@@ -204,7 +204,7 @@ class Maljani_CRM_Dashboard {
                             ?>
                         </div>
                         <div class="crm-form-group">
-                            <label>Premium ($)</label><input type="number" step="0.01" name="premium" required>
+                            <label>Premium (KES)</label><input type="number" step="0.01" name="premium" required>
                         </div>
                         <div class="crm-form-group">
                             <label>Duration (Days)</label><input type="number" name="days" value="7" required>

@@ -281,8 +281,8 @@ class Maljani_Agencies_Admin {
                                 <div class="perf-grid">
                                     <div class="perf-chip">📋 <?php echo $pr ? intval($pr->total_sales) : 0; ?> sales</div>
                                     <div class="perf-chip">✅ <?php echo $pr ? intval($pr->active) : 0; ?> active</div>
-                                    <div class="perf-chip">💰 $<?php echo $pr ? number_format(floatval($pr->total_premium), 0) : '0'; ?></div>
-                                    <div class="perf-chip">🤝 $<?php echo $pr ? number_format(floatval($pr->total_comm), 0) : '0'; ?> comm</div>
+                                    <div class="perf-chip">💰 KES <?php echo $pr ? number_format(floatval($pr->total_premium), 0) : '0'; ?></div>
+                                    <div class="perf-chip">🤝 KES <?php echo $pr ? number_format(floatval($pr->total_comm), 0) : '0'; ?> comm</div>
                                     <?php if ($disputed > 0): ?><div class="perf-chip red">⚠️ <?php echo $disputed; ?> disputed</div><?php endif; ?>
                                 </div>
                             </td>
@@ -366,8 +366,8 @@ class Maljani_Agencies_Admin {
                                     <tr>
                                         <td><code><?php echo esc_html($c->policy_number); ?></code></td>
                                         <td><?php echo esc_html($c->insured_names); ?></td>
-                                        <td>$<?php echo number_format(floatval($c->premium), 2); ?></td>
-                                        <td><strong>$<?php echo number_format(floatval($c->agent_commission_amount), 2); ?></strong></td>
+                                        <td>KES <?php echo number_format(floatval($c->premium), 2); ?></td>
+                                        <td><strong>KES <?php echo number_format(floatval($c->agent_commission_amount), 2); ?></strong></td>
                                         <td><span class="badge" style="background:<?php echo $bg;?>;color:<?php echo $col;?>"><?php echo strtoupper($cs); ?></span></td>
                                         <td><?php echo esc_html(date('d M Y', strtotime($c->created_at))); ?></td>
                                     </tr>

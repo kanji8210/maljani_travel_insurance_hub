@@ -69,11 +69,11 @@ class Maljani_CRM_Admin {
                 echo "<td>" . esc_html($p->agency_name ?: 'Direct/System') . "</td>";
                 echo "<td>" . esc_html($p->insured_names) . "<br/><small>" . esc_html($p->insured_email) . "</small></td>";
                 echo "<td>";
-                echo "<strong>Client Paid:</strong> $" . esc_html(number_format(floatval($p->amount_paid ?? 0), 2)) . "<br/>";
-                echo "<small>Net to Insurer: $" . esc_html(number_format(floatval($p->net_to_insurer ?? 0), 2)) . "</small><br/>";
-                echo "<small>TIC Revenue: $" . esc_html(number_format($tic_revenue, 2)) . "</small>";
+                echo "<strong>Client Paid:</strong> KES " . esc_html(number_format(floatval($p->amount_paid ?? 0), 2)) . "<br/>";
+                echo "<small>Net to Insurer: KES " . esc_html(number_format(floatval($p->net_to_insurer ?? 0), 2)) . "</small><br/>";
+                echo "<small>TIC Revenue: KES " . esc_html(number_format($tic_revenue, 2)) . "</small>";
                 if (floatval($p->agent_commission_amount ?? 0) > 0) {
-                    echo "<br/><small>Agency Comm: $" . esc_html(number_format(floatval($p->agent_commission_amount), 2)) . "</small>";
+                    echo "<br/><small>Agency Comm: KES " . esc_html(number_format(floatval($p->agent_commission_amount), 2)) . "</small>";
                 }
                 echo "</td>";
                 

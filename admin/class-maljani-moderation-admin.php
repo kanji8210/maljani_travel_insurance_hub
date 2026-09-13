@@ -127,19 +127,19 @@ class Maljani_Moderation_Admin {
                 ?>
                 <div class="mj-stat-box">
                     <span class="label">Total Premiums Sold</span>
-                    <span class="value">$<?php echo number_format($totals->total_premium, 2); ?></span>
+                    <span class="value">KES <?php echo number_format($totals->total_premium, 2); ?></span>
                 </div>
                 <div class="mj-stat-box">
                     <span class="label">Net to Insurer (Total Owed)</span>
-                    <span class="value">$<?php echo number_format($totals->total_net, 2); ?></span>
+                    <span class="value">KES <?php echo number_format($totals->total_net, 2); ?></span>
                 </div>
                 <div class="mj-stat-box">
                     <span class="label">Service Fees Earned</span>
-                    <span class="value">$<?php echo number_format($totals->total_fees, 2); ?></span>
+                    <span class="value">KES <?php echo number_format($totals->total_fees, 2); ?></span>
                 </div>
                 <div class="mj-stat-box highlight">
                     <span class="label">Maljani Net Revenue</span>
-                    <span class="value">$<?php echo number_format($totals->total_fees + $totals->total_comm, 2); ?></span>
+                    <span class="value">KES <?php echo number_format($totals->total_fees + $totals->total_comm, 2); ?></span>
                 </div>
             </div>
 
@@ -189,17 +189,17 @@ class Maljani_Moderation_Admin {
                                     $badge = $comm_badges[$comm_status] ?? $comm_badges['unpaid'];
                                     ?>
                                     <div class="mj-financial-breakdown">
-                                        <div class="mj-fb-row"><span>Premium (Base):</span> <strong>$<?php echo number_format($sale->premium, 2); ?></strong></div>
-                                        <div class="mj-fb-row"><small>Net to Insurer:</small> <strong>$<?php echo number_format($sale->net_to_insurer, 2); ?></strong></div>
-                                        <div class="mj-fb-row sub"><small>Aggregator Comm:</small> +$<?php echo number_format($sale->maljani_commission_amount, 2); ?></div>
+                                        <div class="mj-fb-row"><span>Premium (Base):</span> <strong>KES <?php echo number_format($sale->premium, 2); ?></strong></div>
+                                        <div class="mj-fb-row"><small>Net to Insurer:</small> <strong>KES <?php echo number_format($sale->net_to_insurer, 2); ?></strong></div>
+                                        <div class="mj-fb-row sub"><small>Aggregator Comm:</small> +KES <?php echo number_format($sale->maljani_commission_amount, 2); ?></div>
                                         <?php if ($sale->service_fee_amount > 0): ?>
-                                        <div class="mj-fb-row sub"><small>Service Fee:</small> +$<?php echo number_format($sale->service_fee_amount, 2); ?></div>
+                                        <div class="mj-fb-row sub"><small>Service Fee:</small> +KES <?php echo number_format($sale->service_fee_amount, 2); ?></div>
                                         <?php endif; ?>
-                                        <div class="mj-fb-row sub"><small>Client Paid:</small> $<?php echo number_format($sale->amount_paid, 2); ?></div>
+                                        <div class="mj-fb-row sub"><small>Client Paid:</small> KES <?php echo number_format($sale->amount_paid, 2); ?></div>
                                         <?php if ($sale->agent_commission_amount > 0): ?>
                                         <div class="mj-fb-row agency">
                                             <small>Agency Comm:</small>
-                                            <strong>$<?php echo number_format($sale->agent_commission_amount, 2); ?></strong>
+                                            <strong>KES <?php echo number_format($sale->agent_commission_amount, 2); ?></strong>
                                             <span class="comm-status" style="color:<?php echo $badge['color']; ?>">
                                                 (<?php echo $badge['label']; ?>)
                                             </span>

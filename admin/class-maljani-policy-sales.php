@@ -245,7 +245,7 @@ class Maljani_Policy_Sales_Admin {
     <div class="mjps-stat"><div class="mjps-icon" style="background:#ede9fe">📋</div><div><div class="mjps-val"><?php echo intval($today_c);?></div><div class="mjps-lbl">Today's Sales</div></div></div>
     <div class="mjps-stat"><div class="mjps-icon" style="background:#d1fae5">📅</div><div><div class="mjps-val"><?php echo intval($month_c);?></div><div class="mjps-lbl">This Month</div></div></div>
     <div class="mjps-stat"><div class="mjps-icon" style="background:#fef9c3">⏳</div><div><div class="mjps-val"><?php echo intval($pending);?></div><div class="mjps-lbl">Pending Review</div></div></div>
-    <div class="mjps-stat"><div class="mjps-icon" style="background:#dbeafe">💰</div><div><div class="mjps-val">$<?php echo number_format(floatval($tot_prem),0);?></div><div class="mjps-lbl">Total Premium</div></div></div>
+    <div class="mjps-stat"><div class="mjps-icon" style="background:#dbeafe">💰</div><div><div class="mjps-val">KES <?php echo number_format(floatval($tot_prem),0);?></div><div class="mjps-lbl">Total Premium</div></div></div>
 </div>
 <form method="get" class="mjps-filters">
     <input type="hidden" name="page" value="policy_sales">
@@ -279,7 +279,7 @@ class Maljani_Policy_Sales_Admin {
     <td><b><?php echo esc_html($s->insured_names);?></b><br><small><?php echo esc_html($s->insured_email);?></small><br><small style="color:#94a3b8"><?php echo esc_html($s->insured_phone);?></small></td>
     <td><b><?php echo esc_html($pt);?></b><br><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px"><?php echo esc_html($s->policy_number);?></code></td>
     <td><?php echo esc_html($s->departure);?>&nbsp;→<br><?php echo esc_html($s->return);?><br><small><?php echo intval($s->days);?> days</small></td>
-    <td style="font-weight:700">$<?php echo number_format(floatval($s->premium),2);?></td>
+    <td style="font-weight:700">KES <?php echo number_format(floatval($s->premium),2);?></td>
     <td><?php echo self::badge($pst,'policy');?><br><small style="color:#64748b"><?php echo esc_html($an);?></small></td>
     <td><?php echo self::badge($pay,'payment');?><?php if(floatval($s->agent_commission_amount??0)>0): echo '<br>'.self::badge($cst,'commission'); endif;?></td>
     <td><div class="mj-btns">
@@ -292,11 +292,11 @@ class Maljani_Policy_Sales_Admin {
 <!-- Financial row -->
 <tr id="sf-<?php echo $s->id;?>" class="fin-row" style="display:none"><td colspan="8">
     <div class="fin-grid">
-        <div class="fi"><label>Base Premium</label><span>$<?php echo number_format(floatval($s->premium),2);?></span></div>
-        <div class="fi"><label>Service Fee</label><span>$<?php echo number_format(floatval($s->service_fee_amount??0),2);?></span></div>
-        <div class="fi"><label>Client Paid</label><span>$<?php echo number_format(floatval($s->amount_paid??0),2);?></span></div>
-        <div class="fi"><label>Net to Insurer</label><span>$<?php echo number_format(floatval($s->net_to_insurer??0),2);?></span></div>
-        <div class="fi"><label>Agency Comm</label><span>$<?php echo number_format(floatval($s->agent_commission_amount??0),2);?></span></div>
+        <div class="fi"><label>Base Premium</label><span>KES <?php echo number_format(floatval($s->premium),2);?></span></div>
+        <div class="fi"><label>Service Fee</label><span>KES <?php echo number_format(floatval($s->service_fee_amount??0),2);?></span></div>
+        <div class="fi"><label>Client Paid</label><span>KES <?php echo number_format(floatval($s->amount_paid??0),2);?></span></div>
+        <div class="fi"><label>Net to Insurer</label><span>KES <?php echo number_format(floatval($s->net_to_insurer??0),2);?></span></div>
+        <div class="fi"><label>Agency Comm</label><span>KES <?php echo number_format(floatval($s->agent_commission_amount??0),2);?></span></div>
     </div>
     <form method="post" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
         <?php wp_nonce_field('maljani_quick_status_'.$s->id);?>

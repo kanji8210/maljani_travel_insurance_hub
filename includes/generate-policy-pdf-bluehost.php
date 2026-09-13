@@ -357,7 +357,7 @@ function build_policy_content($sale, $policy_title, $insurer, $region, $premium,
         <strong>Insurer:</strong> ' . esc_html($insurer) . '<br>
         <strong>Region:</strong> ' . esc_html($region) . '<br>
         <strong>Policy Amount</strong><br>
-        GROSS PREMIUM ' . esc_html($premium) . ' USD
+        GROSS PREMIUM KES ' . esc_html($premium) . '
     </td>
 </tr>
 </table>

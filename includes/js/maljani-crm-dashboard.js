@@ -79,7 +79,7 @@ jQuery(document).ready(function($) {
                 html += `<tr>
                     <td>#${p.id}</td>
                     <td>${p.first_name} ${p.last_name}</td>
-                    <td>$${p.premium}</td>
+                    <td>KES ${p.premium}</td>
                     <td><span class="crm-badge crm-badge-${p.workflow_status}">${p.workflow_status.replace(/_/g, ' ').toUpperCase()}</span></td>
                     <td>`;
                 
@@ -139,8 +139,8 @@ jQuery(document).ready(function($) {
                 const st = statusColors[p.status] || statusColors.unpaid;
                 html += `<tr>
                     <td>${p.policy_number}<br><small>${p.insured_names}</small></td>
-                    <td>$${parseFloat(p.premium).toFixed(2)}</td>
-                    <td><strong>$${parseFloat(p.amount).toFixed(2)}</strong></td>
+                    <td>KES ${parseFloat(p.premium).toFixed(2)}</td>
+                    <td><strong>KES ${parseFloat(p.amount).toFixed(2)}</strong></td>
                     <td><span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;color:${st.color}">${st.label}</span></td>
                     <td style="display:flex;gap:6px;flex-wrap:wrap;">`;
 

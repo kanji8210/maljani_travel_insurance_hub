@@ -40,6 +40,7 @@ class Maljani_Clients_Admin {
                 'agency_name'     => $client->agency_name ?: 'Direct',
                 'policy_count'    => 0,
                 'total_premium'   => 0,
+                'latest_sale_id'  => 0,
                 'latest_status'   => 'No policy yet',
                 'latest_date'     => $client->created_at,
             ];
@@ -56,6 +57,7 @@ class Maljani_Clients_Admin {
                     'agency_name'     => $sale->agency_name ?: 'Direct',
                     'policy_count'    => 0,
                     'total_premium'   => 0,
+                    'latest_sale_id'  => (int) $sale->sale_id,
                     'latest_status'   => $sale->policy_status,
                     'latest_date'     => $sale->created_at,
                 ];
@@ -66,6 +68,7 @@ class Maljani_Clients_Admin {
                 $clients[$identity]->latest_status = $sale->policy_status;
                 $clients[$identity]->latest_date = $sale->created_at;
                 $clients[$identity]->agency_name = $sale->agency_name ?: 'Direct';
+                $clients[$identity]->latest_sale_id = (int) $sale->sale_id;
             }
         }
         $clients = array_values($clients);
@@ -79,11 +82,11 @@ class Maljani_Clients_Admin {
         echo '<p>' . esc_html(count($clients)) . ' unique clients from CRM records and policy sales.</p>';
 
         echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr><th>Name</th><th>Email / Phone</th><th>Passport / ID</th><th>Agency</th><th>Policies</th><th>Latest Status</th></tr></thead>';
+        echo '<thead><tr><th>Name</th><th>Email / Phone</th><th>Passport / ID</th><th>Agency</th><th>Policies</th><th>Latest Status</th><th>Actions</th></tr></thead>';
         echo '<tbody>';
 
         if (empty($clients)) {
-            echo '<tr><td colspan="6">No clients found in CRM records or policy sales.</td></tr>';
+            echo '<tr><td colspan="7">No clients found in CRM records or policy sales.</td></tr>';
         } else {
             foreach ($clients as $c) {
                 echo '<tr>';
@@ -93,6 +96,18 @@ class Maljani_Clients_Admin {
                 echo '<td>' . esc_html($c->agency_name ?: 'Direct') . '</td>';
                 echo '<td><strong>' . intval($c->policy_count) . '</strong><br><small>KES ' . esc_html(number_format($c->total_premium, 2)) . '</small></td>';
                 echo '<td>' . esc_html(ucwords(str_replace('_', ' ', $c->latest_status))) . '<br><small>' . esc_html($c->latest_date ? date_i18n(get_option('date_format'), strtotime($c->latest_date)) : '') . '</small></td>';
+                echo '<td><div style="display:flex;gap:6px;flex-wrap:wrap">';
+                if ($c->policy_count > 0) {
+                    $search_value = $c->email ?: ($c->passport_number ?: ($c->phone ?: $c->name));
+                    echo '<a class="button button-small" href="' . esc_url(add_query_arg(['page' => 'policy_sales', 's' => $search_value], admin_url('admin.php'))) . '">View Policies</a>';
+                }
+                if ($c->latest_sale_id > 0) {
+                    echo '<a class="button button-small" href="' . esc_url(add_query_arg(['page' => 'maljani-live-chat', 'policy_id' => $c->latest_sale_id], admin_url('admin.php'))) . '">Message</a>';
+                }
+                if ($c->email) {
+                    echo '<a class="button button-small" href="mailto:' . esc_attr($c->email) . '">Email</a>';
+                }
+                echo '</div></td>';
                 echo '</tr>';
             }
         }
