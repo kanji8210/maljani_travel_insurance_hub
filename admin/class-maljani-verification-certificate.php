@@ -70,7 +70,17 @@ class Maljani_Verification_Certificate {
         }
 
         $token = Maljani_PDF_Generator::generate_verification_hash( $sale->id, $sale->policy_number, $sale->passport_number );
-        $verify_url = home_url( '/?verify_policy=1&sale_id=' . $sale->id . '&token=' . $token );
+        $frontend_url = untrailingslashit( (string) get_option( 'maljani_frontend_app_url', '' ) );
+        if ( '' === $frontend_url ) {
+            $frontend_url = untrailingslashit( home_url() );
+        }
+        $verify_url = add_query_arg(
+            [
+                'sale_id' => $sale->id,
+                'token'   => $token,
+            ],
+            $frontend_url . '/verify'
+        );
         $qr_url = Maljani_PDF_Generator::generate_qr_code_url( $verify_url );
 
         $insurer_id = get_post_meta( $sale->policy_id, '_policy_insurer', true );

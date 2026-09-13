@@ -37,6 +37,22 @@ class Maljani_API_Endpoints {
             ],
             'callback'            => [$this, 'verify_policy'],
         ]);
+        register_rest_route('maljani/v1', '/verify-certificate', [
+            'methods'             => 'GET',
+            'permission_callback' => '__return_true',
+            'args'                => [
+                'sale_id' => [
+                    'required'          => true,
+                    'validate_callback' => function($value) { return is_numeric($value) && $value > 0; },
+                    'sanitize_callback' => 'absint',
+                ],
+                'token' => [
+                    'required'          => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
+            'callback'            => [$this, 'verify_certificate'],
+        ]);
         register_rest_route('maljani/v1', '/my-policies', [
             'methods'             => 'GET',
             'callback'            => [$this, 'get_my_policies'],
@@ -210,6 +226,57 @@ class Maljani_API_Endpoints {
     }
 
     /**
+     * Verify a certificate QR link using its signed sale token.
+     */
+    public function verify_certificate( WP_REST_Request $request ) {
+        global $wpdb;
+
+        $sale_id = (int) $request->get_param( 'sale_id' );
+        $sale = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
+            $sale_id
+        ) );
+
+        if ( ! $sale ) {
+            return new WP_REST_Response( [ 'valid' => false, 'message' => 'Certificate not found.' ], 404 );
+        }
+
+        if ( ! class_exists( 'Maljani_PDF_Generator' ) ) {
+            require_once plugin_dir_path( dirname( __FILE__ ) ) . 'class-maljani-pdf.php';
+        }
+
+        $expected = Maljani_PDF_Generator::generate_verification_hash(
+            $sale->id,
+            $sale->policy_number,
+            $sale->passport_number
+        );
+        $token = (string) $request->get_param( 'token' );
+        if ( ! hash_equals( $expected, $token ) ) {
+            return new WP_REST_Response( [ 'valid' => false, 'message' => 'Invalid certificate verification token.' ], 403 );
+        }
+
+        $insurer_name = get_post_meta( $sale->policy_id, '_policy_insurer_name', true );
+        if ( ! $insurer_name ) {
+            $insurer_id = get_post_meta( $sale->policy_id, '_policy_insurer', true );
+            $insurer_name = $insurer_id ? get_post_meta( $insurer_id, '_insurer_name', true ) : '';
+        }
+
+        return new WP_REST_Response( [
+            'valid'          => true,
+            'policyNumber'   => $sale->policy_number ?: 'Pending insurer issuance',
+            'insuredName'    => $sale->insured_names,
+            'passportNumber' => $sale->passport_number,
+            'departure'      => $sale->departure,
+            'return'         => $sale->return,
+            'region'         => $sale->region,
+            'policyTitle'    => get_the_title( intval( $sale->policy_id ) ) ?: 'Travel Insurance Policy',
+            'insurer'        => $insurer_name ?: 'Authorized Insurer',
+            'policyStatus'   => $sale->policy_status,
+            'verifiedAt'     => gmdate( 'c' ),
+        ], 200 );
+    }
+
+    /**
      * Handle Pesapal IPN (Instant Payment Notification)
      */
     public function handle_pesapal_ipn($request) {
@@ -275,6 +342,11 @@ class Maljani_API_Endpoints {
         // Ownership check: user must own the sale or be admin
         if ((int) $sale->agent_id !== $user_id && !current_user_can('manage_options')) {
             return new WP_REST_Response(['error' => 'Unauthorized'], 403);
+        }
+
+        // Agent-generated documents must identify the authenticated selling agent.
+        if ((int) $sale->agent_id === $user_id) {
+            $sale = Maljani_Invoice::get_sale($sale_id, $user_id);
         }
 
         if ($doc_type === 'receipt' && $sale->payment_status !== 'confirmed') {

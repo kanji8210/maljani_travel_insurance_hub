@@ -37,7 +37,7 @@ class Maljani_Invoice {
     }
 
     // ── DB helpers ────────────────────────────────────────────────────────────
-    public static function get_sale(int $id): ?object {
+    public static function get_sale(int $id, ?int $issuer_user_id = null): ?object {
         global $wpdb;
         $sale = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
@@ -51,18 +51,42 @@ class Maljani_Invoice {
             $terms = get_the_terms($sale->policy_id, 'policy_region');
             $sale->region = (!is_wp_error($terms) && $terms) ? $terms[0]->name : '';
         }
-        // Agent display name
+        // Client-facing documents use the requesting owner when supplied.
         $sale->agent_display = '';
-        if ($sale->agent_id) {
-            $u = get_userdata($sale->agent_id);
+        $agent_user_id = $issuer_user_id ?: (int) $sale->agent_id;
+        if ($agent_user_id) {
+            $u = get_userdata($agent_user_id);
             $sale->agent_display = $u ? $u->display_name : '';
 
-            $issuer = (string) get_user_meta((int) $sale->agent_id, 'maljani_agent_receipt_issuer_name', true);
-            $fee_type = (string) get_user_meta((int) $sale->agent_id, 'maljani_agent_display_fee_type', true);
-            $fee_value = (float) get_user_meta((int) $sale->agent_id, 'maljani_agent_display_fee_value', true);
-            $show_processed = get_user_meta((int) $sale->agent_id, 'maljani_agent_show_processed_by_tick', true) !== '0';
+            $agency = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE user_id = %d LIMIT 1",
+                $agent_user_id
+            ));
+            if (!$agency) {
+                $agency_id = (int) get_user_meta($agent_user_id, 'agency_id', true);
+                if (!$agency_id) {
+                    $agency_id = (int) get_user_meta($agent_user_id, 'maljani_agency_id', true);
+                }
+                if ($agency_id) {
+                    $agency = $wpdb->get_row($wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}maljani_agencies WHERE id = %d LIMIT 1",
+                        $agency_id
+                    ));
+                }
+            }
 
-            $sale->receipt_issuer_name = sanitize_text_field($issuer);
+            $issuer = (string) get_user_meta($agent_user_id, 'maljani_agent_receipt_issuer_name', true);
+            $agency_name = $agency ? (string) ($agency->name ?: $agency->agency_name) : '';
+            $fee_type = (string) get_user_meta($agent_user_id, 'maljani_agent_display_fee_type', true);
+            $fee_value = (float) get_user_meta($agent_user_id, 'maljani_agent_display_fee_value', true);
+            $show_processed = get_user_meta($agent_user_id, 'maljani_agent_show_processed_by_tick', true) !== '0';
+
+            $sale->receipt_issuer_name = sanitize_text_field($issuer ?: $agency_name ?: $sale->agent_display);
+            $sale->issuer_email = sanitize_email($agency && $agency->contact_email ? $agency->contact_email : ($u ? $u->user_email : ''));
+            $sale->issuer_phone = sanitize_text_field($agency && $agency->contact_phone
+                ? $agency->contact_phone
+                : get_user_meta($agent_user_id, 'phone', true));
+            $sale->issuer_ira_licence = sanitize_text_field($agency ? $agency->ira_licence_number : '');
             $sale->agent_display_fee_type = in_array($fee_type, ['fixed', 'percent'], true) ? $fee_type : 'fixed';
             $sale->agent_display_fee_value = max(0, $fee_value);
             $sale->show_processed_by_tick = $show_processed;
@@ -303,6 +327,10 @@ CSS;
         $processed_note = $show_processed
             ? '<br><small style="display:inline-block;margin-top:4px;color:#64748b">Processed by TICK</small>'
             : '';
+        $issuer_phone = trim((string) ($sale->issuer_phone ?? '')) ?: $cfg['phone'];
+        $issuer_email = trim((string) ($sale->issuer_email ?? '')) ?: $cfg['email'];
+        $issuer_ira = trim((string) ($sale->issuer_ira_licence ?? ''));
+        $ira_badge = $issuer_ira ? '<span class="kra-badge">IRA Licence: ' . esc_html($issuer_ira) . '</span>' : '';
 
         $paid_date = $is_receipt && isset($sale->updated_at) ? date('d M Y', strtotime($sale->updated_at)) : date('d M Y');
 
@@ -314,11 +342,11 @@ CSS;
             <strong>' . esc_html($issuer_name) . '</strong><br>
       ' . esc_html($cfg['address_line1']) . ($cfg['address_line2'] ? '<br>' . esc_html($cfg['address_line2']) : '') . '<br>
       ' . esc_html($cfg['city']) . ', ' . esc_html($cfg['country']) . '<br>
-      ' . ($cfg['phone'] ? 'Tel: ' . esc_html($cfg['phone']) . '<br>' : '') . '
-      ' . esc_html($cfg['email']) . '
+            ' . ($issuer_phone ? 'Tel: ' . esc_html($issuer_phone) . '<br>' : '') . '
+            ' . esc_html($issuer_email) . '
             ' . $processed_note . '
     </p>
-    ' . $kra . ' ' . $etr . ' ' . $vat_no . '
+        ' . $ira_badge . ' ' . $kra . ' ' . $etr . ' ' . $vat_no . '
   </div>
   <div class="doc-party">
     <h3>Billed To</h3>

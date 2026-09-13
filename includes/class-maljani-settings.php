@@ -86,6 +86,7 @@ class Maljani_Settings {
         // GraphQL Security
         register_setting('maljani_settings_group', 'maljani_graphql_allowed_origins', ['sanitize_callback' => 'sanitize_textarea_field']);
         register_setting('maljani_settings_group', 'maljani_graphql_app_secret',      ['sanitize_callback' => 'sanitize_text_field']);
+        register_setting('maljani_settings_group', 'maljani_frontend_app_url',        ['sanitize_callback' => 'esc_url_raw']);
         register_setting('maljani_settings_group', 'maljani_security_max_login_retries', ['default'=>5, 'sanitize_callback'=>'intval']);
     }
 
@@ -444,6 +445,13 @@ textarea.mj-in { resize:vertical; }
                         </div>
                     </div>
                     <div class="mj-settings-card-body">
+                        <div class="mj-sf">
+                            <label for="frontend_app_url">Front-end Application URL</label>
+                            <input id="frontend_app_url" type="url" name="maljani_frontend_app_url" class="mj-in"
+                                   value="<?php echo esc_attr(get_option('maljani_frontend_app_url', '')); ?>"
+                                   placeholder="https://travel.example.com">
+                            <span class="hint">Certificate QR codes open the public verification page at this domain. Enter the base URL without a trailing path.</span>
+                        </div>
                         <div class="mj-sf">
                             <label for="gql_origins">Allowed Front-end Origins (CORS)</label>
                             <textarea id="gql_origins" name="maljani_graphql_allowed_origins" class="mj-in" rows="2" 

@@ -93,3 +93,11 @@ Log completed work and session progress here.
 - **Status**: Completed
 - **Description**: Replaced the generic invoice payment instruction with structured provider, M-Pesa Paybill, and policy account-template settings. Policy invoices now resolve per-sale tokens such as `POL-{sale_id}`. Completed Pesapal status checks persist the actual method, masked account, confirmation code, currency, received amount, and payment date for receipts. Receipts distinguish the amount actually collected from the full invoiced value during the temporary KES 100 test override and correctly describe the policy as awaiting insurer processing.
 
+### 2026-09-13 - Agent-Issued Client Documents
+- **Status**: Completed
+- **Description**: Agent-generated invoices and receipts now identify the authenticated selling agent in the client-facing “From” section. The document uses the agent's configured document issuer name, linked agency name, or WordPress display name, plus linked agency email, phone, and IRA licence where available. TICK remains an optional processor attribution. Admin-generated documents continue to resolve the agent assigned to the sale.
+
+### 2026-09-13 - Agent Document Printing and Frontend Certificate Verification
+- **Status**: Completed
+- **Description**: Exposed invoice printing for every agent-owned sale and receipt plus verification-certificate printing after payment confirmation in both agent policy views. Certificate QR codes now use a configurable front-end application URL and open `/verify` with a signed sale token. Added a public read-only token verification endpoint and automatic QR verification in the React portal without placing passport details in the URL.
+
