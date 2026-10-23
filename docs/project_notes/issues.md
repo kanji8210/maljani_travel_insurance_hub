@@ -9,6 +9,14 @@ Log completed work and session progress here.
 
 ---
 
+### 2026-10-23 - Print-Ready Travel Insurance Certificate
+- **Status**: Completed
+- **Description**: Redesigned the shared admin/REST certificate with a navy-and-teal A4 layout, separate TIC-Kenya and insurer logos, insurer-issued policy number, insured name/passport, travel validity dates and covered region. The recorded sale region takes precedence over current policy taxonomy. Coverage Details and Included Benefits are rendered from the selected policy through WordPress HTML sanitization, retaining medical limits and original currencies without hardcoded amounts. Missing data is explicit, pending requests do not invent policy numbers, and QR verification plus print-to-PDF remain available.
+
+### 2026-10-23 - Actionable Certificate Generation Errors
+- **Status**: Completed
+- **Description**: Replaced silent missing-policy certificate failures with structured errors in the shared renderer, REST endpoint, and admin print action. Added ID-only diagnostics and corrected misleading frontend payment logs. Production sale #31 still requires the correct plan to be restored or relinked; that sale does not exist in the local database.
+
 ### 2026-03-16 - Initialized Agentic AI Skills
 - **Status**: Completed
 - **Description**: Added `frontend-design` and `project-memory` skills. Set up the `docs/project_notes/` infrastructure.
@@ -112,4 +120,3 @@ Log completed work and session progress here.
 ### 2026-09-13 - Private Insurer Data Entry URL
 - **Status**: Completed
 - **Description**: Added a dedicated Data Entry Portal URL to the insurer profile's External Links tab. The URL is stored as protected insurer post meta, accepts only HTTP/HTTPS links, is not rendered publicly, and explicitly warns administrators not to embed credentials, tokens, or customer details.
-

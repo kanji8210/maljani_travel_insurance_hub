@@ -379,8 +379,14 @@ class Maljani_API_Endpoints {
         }
 
         $html = Maljani_Verification_Certificate::build_certificate_html( $sale );
-        if ( '' === $html ) {
-            return new WP_REST_Response( [ 'error' => 'Certificate unavailable' ], 500 );
+        if ( is_wp_error( $html ) ) {
+            return new WP_REST_Response(
+                [
+                    'error' => $html->get_error_message(),
+                    'code'  => $html->get_error_code(),
+                ],
+                $html->get_error_data()['status']
+            );
         }
 
         return new WP_REST_Response( [ 'html' => $html ], 200 );

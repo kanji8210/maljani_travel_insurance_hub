@@ -11,6 +11,13 @@ Log recurring bugs, their solutions, and prevention notes here.
 
 ---
 
+### 2026-10-23 - Certificate Endpoint Hid Missing Policy Records
+- **Issue**: Certificate requests returned HTTP 500 with only `Certificate unavailable`, while the frontend incorrectly logged a payment-initiation failure.
+- **Root Cause**: The certificate renderer returned an empty string when the sale's linked policy post could not be found. Both the admin print action and REST endpoint lacked an actionable error.
+- **Solution**: Return a structured error with HTTP 409 for missing policy links, log only sale/policy IDs, display repair guidance in REST and admin responses, and label frontend failures by the requested operation. Reject non-positive policy IDs before calling `get_post` so WordPress cannot substitute the current post.
+- **Repair**: On the affected WordPress installation, find the sale under Policy Sales and check its Policy selection. Restore the original deleted plan or relink the sale to the correct existing plan and save, then retry the certificate. Do not select an arbitrary replacement or change payment status. Local sale data may differ from production.
+- **Prevention**: Preserve policy records referenced by historical sales. Missing plan/provider data must not produce a success-shaped certificate.
+
 ### 2026-03-10 - Chat System Connection Errors
 - **Issue**: ERR_CERT_AUTHORITY_INVALID and 400 Bad Request in chat system.
 - **Root Cause**: SSL configuration on localhost and potential conflicts with REST API polling.
