@@ -482,6 +482,14 @@ class Maljani_GraphQL_Auth {
                 'insuredPhone'    => ['type' => 'String'],
                 'insuredEmail'    => ['type' => 'String'],
                 'insuredAddress'  => ['type' => 'String'],
+                'insuredOccupation' => ['type' => 'String'],
+                'permanentAddress' => ['type' => 'String'],
+                'postalAddress'   => ['type' => 'String'],
+                'travelPurpose'   => ['type' => 'String'],
+                'doctorDetails'   => ['type' => 'String'],
+                'dependantsJson'  => ['type' => 'String'],
+                'agentContactName' => ['type' => 'String'],
+                'agentContactDetails' => ['type' => 'String'],
                 'countryOfOrigin' => ['type' => 'String'],
                 'paymentReference'=> ['type' => 'String'],
             ],
@@ -513,6 +521,38 @@ class Maljani_GraphQL_Auth {
 
                 // Passengers
                 $passengers = max(1, intval($input['passengers'] ?? 1));
+                $dependants = json_decode($input['dependantsJson'] ?? '[]', true);
+                if (!is_array($dependants) || count($dependants) !== $passengers - 1) {
+                    ob_end_clean();
+                    throw new \GraphQL\Error\UserError(__('Please provide details for every travelling dependant.', 'maljani'));
+                }
+                foreach ($dependants as $dependant) {
+                    if (
+                        !is_array($dependant)
+                        || empty(trim($dependant['fullName'] ?? ''))
+                        || empty(trim($dependant['dob'] ?? ''))
+                        || empty(trim($dependant['passport'] ?? ''))
+                    ) {
+                        ob_end_clean();
+                        throw new \GraphQL\Error\UserError(__('Each dependant must have a full name, date of birth, and passport number.', 'maljani'));
+                    }
+                }
+
+                $required_travel_fields = [
+                    'insuredNames', 'insuredDob', 'passportNumber', 'insuredPhone',
+                    'insuredEmail', 'insuredOccupation', 'permanentAddress',
+                    'postalAddress', 'travelPurpose', 'doctorDetails',
+                ];
+                foreach ($required_travel_fields as $field) {
+                    if (empty(trim($input[$field] ?? ''))) {
+                        ob_end_clean();
+                        throw new \GraphQL\Error\UserError(__('Please complete all required travel and insured-person details.', 'maljani'));
+                    }
+                }
+                if (!is_email($input['insuredEmail'])) {
+                    ob_end_clean();
+                    throw new \GraphQL\Error\UserError(__('Please provide a valid email address.', 'maljani'));
+                }
 
                 try {
                     $d1 = new DateTime($input['departure']);
@@ -566,6 +606,13 @@ class Maljani_GraphQL_Auth {
 
                 $current_user = wp_get_current_user();
                 $is_agent = in_array('agent', (array)$current_user->roles);
+                if ($is_agent && (
+                    empty(trim($input['agentContactName'] ?? ''))
+                    || empty(trim($input['agentContactDetails'] ?? ''))
+                )) {
+                    ob_end_clean();
+                    throw new \GraphQL\Error\UserError(__('Please provide the agent name and contact details.', 'maljani'));
+                }
 
                 if ($is_agent) {
                     $insurer_id = intval(get_post_meta($policy_id, '_policy_insurer', true));
@@ -623,10 +670,24 @@ class Maljani_GraphQL_Auth {
                     'national_id' => sanitize_text_field($input['nationalId'] ?? ($input['passportNumber'] ?? '')),
                     'insured_phone' => sanitize_text_field($input['insuredPhone'] ?? ''),
                     'insured_email' => sanitize_email($input['insuredEmail'] ?? ''),
-                    'insured_address' => sanitize_text_field($input['insuredAddress'] ?? ''),
+                    'insured_address' => sanitize_textarea_field($input['permanentAddress'] ?? ($input['insuredAddress'] ?? '')),
+                    'insured_occupation' => sanitize_text_field($input['insuredOccupation'] ?? ''),
+                    'permanent_address' => sanitize_textarea_field($input['permanentAddress'] ?? ''),
+                    'postal_address' => sanitize_textarea_field($input['postalAddress'] ?? ''),
+                    'travel_purpose' => sanitize_textarea_field($input['travelPurpose'] ?? ''),
+                    'doctor_details' => sanitize_textarea_field($input['doctorDetails'] ?? ''),
+                    'dependants' => wp_json_encode(array_map(function ($dependant) {
+                        return [
+                            'fullName' => sanitize_text_field($dependant['fullName']),
+                            'dob' => sanitize_text_field($dependant['dob']),
+                            'passport' => sanitize_text_field($dependant['passport']),
+                        ];
+                    }, $dependants)),
                     'country_of_origin' => sanitize_text_field($input['countryOfOrigin'] ?? ''),
                     'agent_id' => get_current_user_id() ?: 0,
                     'agent_name' => $current_user->display_name ?: 'System',
+                    'agent_contact_name' => sanitize_text_field($input['agentContactName'] ?? ''),
+                    'agent_contact_details' => sanitize_text_field($input['agentContactDetails'] ?? ''),
                     'agency_id' => $is_agent ? $this->resolve_agency_id(get_current_user_id()) : null,
                     'amount_paid' => $amount_tot_client,
                     'service_fee_amount' => $service_fee_amount,
@@ -718,6 +779,14 @@ class Maljani_GraphQL_Auth {
                 'insuredDob'    => ['type' => 'String', 'description' => 'Date of birth'],
                 'nationalId'    => ['type' => 'String', 'description' => 'National ID number'],
                 'insuredAddress' => ['type' => 'String', 'description' => 'Address'],
+                'insuredOccupation' => ['type' => 'String', 'description' => 'Occupation'],
+                'permanentAddress' => ['type' => 'String', 'description' => 'Permanent address'],
+                'postalAddress' => ['type' => 'String', 'description' => 'Postal address'],
+                'travelPurpose' => ['type' => 'String', 'description' => 'Purpose of travel'],
+                'doctorDetails' => ['type' => 'String', 'description' => 'Doctor contact and related details'],
+                'dependantsJson' => ['type' => 'String', 'description' => 'JSON details for travelling dependants'],
+                'agentContactName' => ['type' => 'String', 'description' => 'Agent contact name'],
+                'agentContactDetails' => ['type' => 'String', 'description' => 'Agent contact information'],
                 'countryOfOrigin'=> ['type' => 'String', 'description' => 'Country of origin'],
                 'amountPaid'    => ['type' => 'Float',  'description' => 'Total amount paid'],
                 'paymentStatus' => ['type' => 'String', 'description' => 'Payment status'],
@@ -795,6 +864,14 @@ class Maljani_GraphQL_Auth {
                         'insuredDob'    => $row->insured_dob ?? '',
                         'nationalId'    => $row->national_id ?? '',
                         'insuredAddress' => $row->insured_address ?? '',
+                        'insuredOccupation' => $row->insured_occupation ?? '',
+                        'permanentAddress' => $row->permanent_address ?? '',
+                        'postalAddress' => $row->postal_address ?? '',
+                        'travelPurpose' => $row->travel_purpose ?? '',
+                        'doctorDetails' => $row->doctor_details ?? '',
+                        'dependantsJson' => $row->dependants ?? '[]',
+                        'agentContactName' => $row->agent_contact_name ?? '',
+                        'agentContactDetails' => $row->agent_contact_details ?? '',
                         'countryOfOrigin'=> $row->country_of_origin ?? '',
                         'amountPaid'    => (float) $row->amount_paid,
                         'paymentStatus' => $row->payment_status,

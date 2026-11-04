@@ -169,6 +169,8 @@ $html = $response->data['html'];
 certificate_check( count( $GLOBALS['certificate_sanitized'] ) === 2, 'Both policy rich-text fields must pass through the WordPress sanitizer.' );
 foreach ( [
     'logo-type.png',
+    '<div class="tick-logo">',
+    '.tick-logo { display: inline-block; padding: 12px 16px; border-radius: 4px; background: #142d3d;',
     'insurer-logo.png',
     'Test &amp; Insurance',
     'Worldwide excluding USA &amp; Canada',

@@ -51,10 +51,18 @@ class Maljani_Activator {
             insured_phone VARCHAR(32),
             insured_email VARCHAR(191),
             insured_address VARCHAR(191),
+            insured_occupation VARCHAR(191),
+            permanent_address TEXT,
+            postal_address TEXT,
+            travel_purpose TEXT,
+            doctor_details TEXT,
+            dependants LONGTEXT,
             country_of_origin VARCHAR(191),
             agent_id BIGINT UNSIGNED,
             agency_id BIGINT UNSIGNED DEFAULT NULL,
             agent_name VARCHAR(191),
+            agent_contact_name VARCHAR(191),
+            agent_contact_details VARCHAR(191),
             amount_paid DECIMAL(10,2),
             service_fee_amount DECIMAL(10,2) DEFAULT 0.00,
             maljani_commission_amount DECIMAL(10,2) DEFAULT 0.00,
@@ -244,6 +252,22 @@ class Maljani_Activator {
 
         if (!in_array('insured_dob', $columns)) {
             $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `insured_dob` DATE DEFAULT NULL AFTER `insured_names`");
+        }
+
+        $travel_requirement_columns = [
+            'insured_occupation' => "VARCHAR(191) DEFAULT NULL AFTER `insured_address`",
+            'permanent_address' => "TEXT DEFAULT NULL AFTER `insured_occupation`",
+            'postal_address' => "TEXT DEFAULT NULL AFTER `permanent_address`",
+            'travel_purpose' => "TEXT DEFAULT NULL AFTER `postal_address`",
+            'doctor_details' => "TEXT DEFAULT NULL AFTER `travel_purpose`",
+            'dependants' => "LONGTEXT DEFAULT NULL AFTER `doctor_details`",
+            'agent_contact_name' => "VARCHAR(191) DEFAULT NULL AFTER `agent_name`",
+            'agent_contact_details' => "VARCHAR(191) DEFAULT NULL AFTER `agent_contact_name`",
+        ];
+        foreach ($travel_requirement_columns as $column => $definition) {
+            if (!in_array($column, $columns, true)) {
+                $wpdb->query("ALTER TABLE `$table_name` ADD COLUMN `$column` $definition");
+            }
         }
 
         $payment_columns = [

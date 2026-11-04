@@ -9,6 +9,10 @@ Log completed work and session progress here.
 
 ---
 
+### 2026-10-23 - Certificate TIC-Kenya Logo Contrast
+- **Status**: Completed
+- **Description**: Added a padded navy background behind only the TIC-Kenya certificate logo, preserving the separate insurer branding and requesting exact background colors for printing/PDF.
+
 ### 2026-10-23 - Print-Ready Travel Insurance Certificate
 - **Status**: Completed
 - **Description**: Redesigned the shared admin/REST certificate with a navy-and-teal A4 layout, separate TIC-Kenya and insurer logos, insurer-issued policy number, insured name/passport, travel validity dates and covered region. The recorded sale region takes precedence over current policy taxonomy. Coverage Details and Included Benefits are rendered from the selected policy through WordPress HTML sanitization, retaining medical limits and original currencies without hardcoded amounts. Missing data is explicit, pending requests do not invent policy numbers, and QR verification plus print-to-PDF remain available.

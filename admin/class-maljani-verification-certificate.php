@@ -154,6 +154,7 @@ class Maljani_Verification_Certificate {
                 .header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid #cedbde; }
                 .brand img { display: block; max-width: 180px; max-height: 62px; object-fit: contain; }
                 .brand p { margin: 8px 0 0; color: #526973; font-size: 10px; }
+                .tick-logo { display: inline-block; padding: 12px 16px; border-radius: 4px; background: #142d3d; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
                 .insurer-brand { text-align: right; max-width: 45%; }
                 .insurer-brand img { margin-left: auto; max-width: 150px; max-height: 54px; }
                 .eyebrow, .detail-label { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 700; color: #526973; }
@@ -227,7 +228,9 @@ class Maljani_Verification_Certificate {
             <div class="certificate-container">
                 <header class="header">
                     <div class="brand">
-                        <img src="<?php echo esc_url( $cert_logo_src ); ?>" alt="TIC-Kenya - Travel Insurance Center-Kenya">
+                        <div class="tick-logo">
+                            <img src="<?php echo esc_url( $cert_logo_src ); ?>" alt="TIC-Kenya - Travel Insurance Center-Kenya">
+                        </div>
                         <p>Travel Insurance Center-Kenya</p>
                     </div>
                     <div class="brand insurer-brand">
