@@ -32,16 +32,6 @@ class Maljani_Users_Admin {
                     'agent' => 'Agency (Agent)',
                 ],
             ],
-            'insurers' => [
-                'label'    => 'Insurers',
-                'roles'    => ['insurer'],
-                'default'  => 'insurer',
-                'icon'     => '🏦',
-                'cap'      => 'manage_options',
-                'role_options' => [
-                    'insurer' => 'Insurer',
-                ],
-            ],
             'clients' => [
                 'label'    => 'Clients',
                 'roles'    => ['insured'],

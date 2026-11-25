@@ -181,14 +181,6 @@ class Maljani_Admin_Menu {
         );
         add_submenu_page(
             'maljani_travel',
-            'Insurers',
-            '🏦 Insurers',
-            'manage_options',
-            'maljani_users_insurers',
-            [$this, 'render_users_insurers']
-        );
-        add_submenu_page(
-            'maljani_travel',
             'Clients',
             '👤 Clients',
             'manage_options',
@@ -357,10 +349,6 @@ class Maljani_Admin_Menu {
     public function render_users_agencies() {
         $this->load_users_admin();
         Maljani_Users_Admin::render_page('agencies');
-    }
-    public function render_users_insurers() {
-        $this->load_users_admin();
-        Maljani_Users_Admin::render_page('insurers');
     }
     public function render_users_clients() {
         $this->load_users_admin();

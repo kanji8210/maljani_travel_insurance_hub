@@ -68,6 +68,27 @@ class Maljani_Policy_Sales_Admin {
                 'policy_status'   => $new_status,
                 'payment_status'  => sanitize_text_field($_POST['payment_status'] ?? 'pending'),
             ], ['id' => $sale_id]);
+
+            if (isset($_POST['policy_document_url'])) {
+                $doc_url = esc_url_raw(trim($_POST['policy_document_url']));
+                $docs_table = $wpdb->prefix . 'maljani_documents';
+                $existing_doc_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$docs_table} WHERE policy_id = %d AND type = 'policy_doc' LIMIT 1",
+                    $sale_id
+                ));
+                if ($doc_url !== '') {
+                    if ($existing_doc_id) {
+                        $wpdb->update($docs_table, ['file_path' => $doc_url, 'uploaded_by' => get_current_user_id()], ['id' => $existing_doc_id]);
+                    } else {
+                        $wpdb->insert($docs_table, [
+                            'policy_id'   => $sale_id,
+                            'type'        => 'policy_doc',
+                            'file_path'   => $doc_url,
+                            'uploaded_by' => get_current_user_id(),
+                        ]);
+                    }
+                }
+            }
             if ($old_row && $old_row->policy_status !== $new_status) {
                 do_action('maljani_admin_status_change', $sale_id, $old_row->policy_status, $new_status);
             }
@@ -273,11 +294,19 @@ class Maljani_Policy_Sales_Admin {
     $pay  = $s->payment_status ?: 'pending';
     $cst  = $s->agent_commission_status ?? 'unpaid';
     $arc  = wp_nonce_url(add_query_arg(['action'=>'archive_policy','sale_id'=>$s->id],$base_url),'maljani_archive_'.$s->id);
+    $s_doc_url = (string) $wpdb->get_var($wpdb->prepare(
+        "SELECT file_path FROM {$wpdb->prefix}maljani_documents WHERE policy_id = %d AND type = 'policy_doc' ORDER BY id DESC LIMIT 1",
+        $s->id
+    ));
 ?>
 <tr id="sv-<?php echo $s->id;?>" class="sale-vr">
     <td><b>#<?php echo esc_html($s->id);?></b><br><small style="color:#94a3b8"><?php echo esc_html(date('d M Y',strtotime($s->created_at)));?></small></td>
     <td><b><?php echo esc_html($s->insured_names);?></b><br><small><?php echo esc_html($s->insured_email);?></small><br><small style="color:#94a3b8"><?php echo esc_html($s->insured_phone);?></small></td>
-    <td><b><?php echo esc_html($pt);?></b><br><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px"><?php echo esc_html($s->policy_number);?></code></td>
+    <td><b><?php echo esc_html($pt);?></b><br><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px"><?php echo esc_html($s->policy_number ?: 'Not issued');?></code>
+    <?php if ($s_doc_url): ?>
+        <br><a href="<?php echo esc_url($s_doc_url); ?>" target="_blank" style="font-size:11px;color:#0284c7;font-weight:600;display:inline-block;margin-top:2px">📄 Document ↗</a>
+    <?php endif; ?>
+    </td>
     <td><?php echo esc_html($s->departure);?>&nbsp;→<br><?php echo esc_html($s->return);?><br><small><?php echo intval($s->days);?> days</small></td>
     <td style="font-weight:700">KES <?php echo number_format(floatval($s->premium),2);?></td>
     <td><?php echo self::badge($pst,'policy');?><br><small style="color:#64748b"><?php echo esc_html($an);?></small></td>
@@ -324,6 +353,7 @@ class Maljani_Policy_Sales_Admin {
             <div><label>Passport</label><input type="text" name="passport_number" value="<?php echo esc_attr($s->passport_number??'');?>"></div>
             <div><label>Policy</label><select name="policy_id" class="policy-select" data-sale="<?php echo esc_attr($s->id);?>"><?php foreach($policies as $pl):?><option value="<?php echo $pl->ID;?>" <?php selected($s->policy_id,$pl->ID);?>><?php echo esc_html($pl->post_title);?></option><?php endforeach;?></select></div>
             <div><label>Policy Number</label><input type="text" name="policy_number" value="<?php echo esc_attr($s->policy_number);?>"></div>
+            <div><label>Policy Document Link (Google Storage / Drive)</label><input type="url" name="policy_document_url" value="<?php echo esc_attr($s_doc_url);?>" placeholder="https://storage.googleapis.com/... or Google Drive URL"></div>
             <div><label>Departure</label><input type="date" name="departure" class="date-dep" data-sale="<?php echo esc_attr($s->id);?>" value="<?php echo esc_attr($s->departure);?>"></div>
             <div><label>Return</label><input type="date" name="return" class="date-ret" data-sale="<?php echo esc_attr($s->id);?>" value="<?php echo esc_attr($s->return);?>"></div>
             <div><label>Premium (auto)</label><input type="text" name="premium" class="premium-field" data-sale="<?php echo esc_attr($s->id);?>" value="<?php echo esc_attr($s->premium);?>" readonly></div>

@@ -66,6 +66,18 @@ class Maljani_Claims_Portal {
             'callback'            => [ $this, 'rest_submit_request' ],
             'permission_callback' => '__return_true',
         ] );
+
+        register_rest_route( 'maljani/v1', '/admin/claims', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [ $this, 'rest_get_admin_claims' ],
+            'permission_callback' => [ $this, 'can_manage_claims' ],
+        ] );
+
+        register_rest_route( 'maljani/v1', '/admin/claims/(?P<id>\d+)', [
+            'methods'             => WP_REST_Server::EDITABLE,
+            'callback'            => [ $this, 'rest_update_admin_claim' ],
+            'permission_callback' => [ $this, 'can_manage_claims' ],
+        ] );
     }
 
     public function rest_get_config( WP_REST_Request $request ) {
@@ -165,6 +177,106 @@ class Maljani_Claims_Portal {
             'reference' => $result['reference'],
             'checkout'  => $result['checkout'] ?? null,
         ], 201 );
+    }
+
+    public function can_manage_claims( WP_REST_Request $request ) {
+        if ( current_user_can( 'edit_maljani_policies' ) || current_user_can( 'manage_options' ) ) {
+            return true;
+        }
+        $app_secret = $request->get_header( 'X-Maljani-App-Secret' );
+        $configured_secret = defined( 'MALJANI_APP_SECRET' ) ? MALJANI_APP_SECRET : get_option( 'maljani_app_secret', '' );
+        if ( ! empty( $app_secret ) && ! empty( $configured_secret ) && hash_equals( (string) $configured_secret, (string) $app_secret ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    public function rest_get_admin_claims( WP_REST_Request $request ) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'maljani_claim_requests';
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return new WP_REST_Response( [ 'claims' => [] ], 200 );
+        }
+        $type = sanitize_key( (string) $request->get_param( 'type' ) );
+        $status = sanitize_text_field( (string) $request->get_param( 'status' ) );
+
+        $where = [];
+        $params = [];
+        if ( in_array( $type, [ 'claim', 'refund' ], true ) ) {
+            $where[] = 'request_type = %s';
+            $params[] = $type;
+        }
+        if ( ! empty( $status ) && $status !== 'all' ) {
+            $where[] = 'status = %s';
+            $params[] = $status;
+        }
+        $where_sql = ! empty( $where ) ? 'WHERE ' . implode( ' AND ', $where ) : '';
+        $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY created_at DESC LIMIT 200";
+        $rows = ! empty( $params ) ? $wpdb->get_results( $wpdb->prepare( $sql, ...$params ) ) : $wpdb->get_results( $sql );
+
+        $items = [];
+        foreach ( (array) $rows as $r ) {
+            $items[] = [
+                'id'                  => (int) $r->id,
+                'reference'           => $r->reference,
+                'requestType'         => $r->request_type,
+                'clientName'          => $r->client_name,
+                'clientEmail'         => $r->client_email,
+                'clientPhone'         => $r->client_phone,
+                'policyNumber'        => $r->policy_number,
+                'insurerName'         => $r->insurer_name,
+                'incidentDate'        => $r->incident_date,
+                'incidentType'        => $r->incident_type,
+                'refundReason'        => $r->refund_reason,
+                'payoutMethod'        => $r->payout_method,
+                'payoutAccountDetails'=> $r->payout_account_details,
+                'proofDocumentUrl'    => $r->proof_document_url,
+                'supportingDocsUrls'  => json_decode( (string) $r->supporting_docs_urls, true ) ?: [],
+                'requestedAmount'     => (float) $r->requested_amount,
+                'currency'            => $r->currency,
+                'description'         => $r->description,
+                'feeAmount'           => (float) $r->fee_amount,
+                'feeStatus'           => $r->fee_status,
+                'paymentStatus'       => $r->payment_status,
+                'status'              => $r->status,
+                'adminNotes'          => $r->admin_notes,
+                'createdAt'           => $r->created_at,
+                'updatedAt'           => $r->updated_at,
+            ];
+        }
+
+        return new WP_REST_Response( [ 'claims' => $items ], 200 );
+    }
+
+    public function rest_update_admin_claim( WP_REST_Request $request ) {
+        global $wpdb;
+        $id = absint( $request->get_param( 'id' ) );
+        $table = $wpdb->prefix . 'maljani_claim_requests';
+        $existing = $wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$table} WHERE id = %d LIMIT 1", $id ) );
+        if ( ! $existing ) {
+            return new WP_REST_Response( [ 'error' => 'Claim request not found' ], 404 );
+        }
+
+        $body = $request->get_json_params() ?: $request->get_params();
+        $update = [];
+        if ( isset( $body['status'] ) ) {
+            $update['status'] = sanitize_text_field( $body['status'] );
+        }
+        if ( isset( $body['feeStatus'] ) ) {
+            $update['fee_status'] = sanitize_key( $body['feeStatus'] );
+        }
+        if ( isset( $body['adminNotes'] ) ) {
+            $update['admin_notes'] = sanitize_textarea_field( $body['adminNotes'] );
+        }
+        if ( isset( $body['paymentReference'] ) ) {
+            $update['payment_reference'] = sanitize_text_field( $body['paymentReference'] );
+        }
+
+        if ( ! empty( $update ) ) {
+            $wpdb->update( $table, $update, [ 'id' => $id ] );
+        }
+
+        return new WP_REST_Response( [ 'success' => true, 'id' => $id ], 200 );
     }
 
     public function enqueue_assets() {

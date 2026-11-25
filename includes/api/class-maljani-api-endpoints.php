@@ -395,20 +395,24 @@ class Maljani_API_Endpoints {
     public function serve_policy_document(WP_REST_Request $request) {
         $sale_id = (int) $request->get_param('sale_id');
         $user_id = get_current_user_id();
+        $current_user = wp_get_current_user();
 
         global $wpdb;
         $sale = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, agent_id, payment_status, policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
+            "SELECT id, agent_id, insured_email, payment_status, policy_status FROM {$wpdb->prefix}policy_sale WHERE id = %d LIMIT 1",
             $sale_id
         ));
 
         if (!$sale) {
             return new WP_REST_Response(['error' => 'Sale not found'], 404);
         }
-        if ((int) $sale->agent_id !== $user_id && !current_user_can('manage_options')) {
+        $is_owner = ((int) $sale->agent_id === $user_id) ||
+                    (!empty($sale->insured_email) && !empty($current_user->user_email) && strtolower($sale->insured_email) === strtolower($current_user->user_email));
+
+        if (!$is_owner && !current_user_can('manage_options') && !current_user_can('edit_maljani_policies')) {
             return new WP_REST_Response(['error' => 'Unauthorized'], 403);
         }
-        if ($sale->payment_status !== 'confirmed' || !in_array($sale->policy_status, ['active', 'verification_ready'], true)) {
+        if ($sale->payment_status !== 'confirmed' || !in_array($sale->policy_status, ['active', 'verification_ready', 'approved'], true)) {
             return new WP_REST_Response(['error' => 'Insurer document is still being prepared'], 409);
         }
 

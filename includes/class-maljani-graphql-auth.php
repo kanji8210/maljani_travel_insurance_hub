@@ -798,6 +798,7 @@ class Maljani_GraphQL_Auth {
                 'serviceFeeAmount'        => ['type' => 'Float',  'description' => 'Service fee charged'],
                 'maljaniCommissionAmount' => ['type' => 'Float',  'description' => 'Platform commission'],
                 'netToInsurer'            => ['type' => 'Float',  'description' => 'Net amount to insurer'],
+                'policyDocumentUrl'       => ['type' => 'String', 'description' => 'External link or storage URL to policy document'],
             ],
         ]);
 
@@ -883,6 +884,10 @@ class Maljani_GraphQL_Auth {
                         'serviceFeeAmount'        => (float) ($row->service_fee_amount ?? 0),
                         'maljaniCommissionAmount' => (float) ($row->maljani_commission_amount ?? 0),
                         'netToInsurer'            => (float) ($row->net_to_insurer ?? 0),
+                        'policyDocumentUrl'       => (string) ($wpdb->get_var($wpdb->prepare(
+                            "SELECT file_path FROM {$wpdb->prefix}maljani_documents WHERE policy_id = %d AND type = 'policy_doc' ORDER BY id DESC LIMIT 1",
+                            $row->id
+                        )) ?: ''),
                     ];
                 }
                 return $sales;
@@ -892,25 +897,28 @@ class Maljani_GraphQL_Auth {
 
     /**
      * Register GraphQL mutation: updatePolicySale
-     * Allows editing an unpaid policy sale (departure, return, passengers, personal info).
+     * Allows editing a policy sale, updating underwriter policy numbers, document storage links, and travel info.
      */
     public function register_update_sale_mutation() {
         if (!function_exists('register_graphql_mutation')) return;
 
         register_graphql_mutation('updatePolicySale', [
             'inputFields' => [
-                'saleId'          => ['type' => 'Int',    'description' => 'ID of the sale to update'],
-                'departure'       => ['type' => 'String', 'description' => 'New departure date'],
-                'return'          => ['type' => 'String', 'description' => 'New return date'],
-                'passengers'      => ['type' => 'Int',    'description' => 'Number of passengers'],
-                'insuredNames'    => ['type' => 'String'],
-                'insuredDob'      => ['type' => 'String'],
-                'passportNumber'  => ['type' => 'String'],
-                'nationalId'      => ['type' => 'String'],
-                'insuredPhone'    => ['type' => 'String'],
-                'insuredEmail'    => ['type' => 'String'],
-                'insuredAddress'  => ['type' => 'String'],
-                'countryOfOrigin' => ['type' => 'String'],
+                'saleId'            => ['type' => 'Int',    'description' => 'ID of the sale to update'],
+                'departure'         => ['type' => 'String', 'description' => 'New departure date'],
+                'return'            => ['type' => 'String', 'description' => 'New return date'],
+                'passengers'        => ['type' => 'Int',    'description' => 'Number of passengers'],
+                'insuredNames'      => ['type' => 'String'],
+                'insuredDob'        => ['type' => 'String'],
+                'passportNumber'    => ['type' => 'String'],
+                'nationalId'        => ['type' => 'String'],
+                'insuredPhone'      => ['type' => 'String'],
+                'insuredEmail'      => ['type' => 'String'],
+                'insuredAddress'    => ['type' => 'String'],
+                'countryOfOrigin'   => ['type' => 'String'],
+                'policyNumber'      => ['type' => 'String', 'description' => 'Insurer policy number'],
+                'policyDocumentUrl' => ['type' => 'String', 'description' => 'External link (Google Storage / Drive) to policy document'],
+                'policyStatus'      => ['type' => 'String', 'description' => 'Updated policy status'],
             ],
             'outputFields' => [
                 'saleId'      => ['type' => 'Int'],
@@ -937,10 +945,12 @@ class Maljani_GraphQL_Auth {
                 if (!$sale) {
                     throw new \GraphQL\Error\UserError('Sale not found.');
                 }
-                if ((int) $sale->agent_id !== $user_id) {
+
+                $is_admin = current_user_can('manage_options') || current_user_can('edit_maljani_policies');
+                if (!$is_admin && (int) $sale->agent_id !== $user_id) {
                     throw new \GraphQL\Error\UserError('You can only edit your own policies.');
                 }
-                if ($sale->payment_status === 'confirmed') {
+                if (!$is_admin && $sale->payment_status === 'confirmed') {
                     throw new \GraphQL\Error\UserError('Cannot edit a paid policy.');
                 }
 
@@ -966,69 +976,102 @@ class Maljani_GraphQL_Auth {
                     $update['insured_email'] = sanitize_email($input['insuredEmail']);
                 }
 
-                // Handle date and passenger changes — recalculate premium
-                $departure  = isset($input['departure']) ? sanitize_text_field($input['departure']) : $sale->departure;
-                $return_d   = isset($input['return'])     ? sanitize_text_field($input['return'])    : $sale->return;
-                $passengers = isset($input['passengers']) ? intval($input['passengers'])              : (int) $sale->passengers;
-
-                $dep_ts = strtotime($departure);
-                $ret_ts = strtotime($return_d);
-                if (!$dep_ts || !$ret_ts || $ret_ts < $dep_ts) {
-                    throw new \GraphQL\Error\UserError('Invalid date range.');
+                // Allow updating policy number from insurer portal
+                if (isset($input['policyNumber'])) {
+                    $update['policy_number'] = sanitize_text_field($input['policyNumber']);
                 }
 
-                $days = (int)(($ret_ts - $dep_ts) / 86400) + 1;
-                $passengers = max(1, $passengers);
+                // Allow updating policy status
+                if ($is_admin && !empty($input['policyStatus'])) {
+                    $update['policy_status'] = sanitize_text_field($input['policyStatus']);
+                }
 
-                // Recalculate premium from policy brackets
-                $policy_id = (int) $sale->policy_id;
-                $brackets  = get_post_meta($policy_id, '_policy_day_premiums', true);
-                $premium   = 0;
-                if (is_array($brackets)) {
-                    foreach ($brackets as $b) {
-                        if ($days >= intval($b['min_days']) && $days <= intval($b['max_days'])) {
-                            $premium = floatval($b['premium_per_day']);
-                            break;
+                // Handle external policy document URL (Google Storage / Drive link)
+                if (isset($input['policyDocumentUrl'])) {
+                    $doc_url = esc_url_raw(trim($input['policyDocumentUrl']));
+                    $docs_table = $wpdb->prefix . 'maljani_documents';
+                    if ($wpdb->get_var("SHOW TABLES LIKE '{$docs_table}'") === $docs_table) {
+                        $existing_doc_id = $wpdb->get_var($wpdb->prepare(
+                            "SELECT id FROM {$docs_table} WHERE policy_id = %d AND type = 'policy_doc' LIMIT 1",
+                            $sale_id
+                        ));
+                        if ($doc_url !== '') {
+                            if ($existing_doc_id) {
+                                $wpdb->update($docs_table, ['file_path' => $doc_url, 'uploaded_by' => $user_id], ['id' => $existing_doc_id]);
+                            } else {
+                                $wpdb->insert($docs_table, [
+                                    'policy_id'   => $sale_id,
+                                    'type'        => 'policy_doc',
+                                    'file_path'   => $doc_url,
+                                    'uploaded_by' => $user_id,
+                                ]);
+                            }
                         }
                     }
                 }
 
-                $currency_context = $this->get_policy_currency_context($policy_id);
-                $premium = $this->normalize_premium_amount($premium, $currency_context);
+                // Only recalculate dates/passengers/premium if date or passenger count was explicitly supplied
+                $date_or_pax_changed = isset($input['departure']) || isset($input['return']) || isset($input['passengers']);
+                $amount_paid = floatval($sale->amount_paid);
 
-                if ($premium <= 0) {
-                    throw new \GraphQL\Error\UserError('No premium bracket found for ' . $days . ' days.');
+                if ($date_or_pax_changed) {
+                    $departure  = isset($input['departure']) ? sanitize_text_field($input['departure']) : $sale->departure;
+                    $return_d   = isset($input['return'])     ? sanitize_text_field($input['return'])    : $sale->return;
+                    $passengers = isset($input['passengers']) ? intval($input['passengers'])              : (int) $sale->passengers;
+
+                    $dep_ts = strtotime($departure);
+                    $ret_ts = strtotime($return_d);
+                    if ($dep_ts && $ret_ts && $ret_ts >= $dep_ts) {
+                        $days = (int)(($ret_ts - $dep_ts) / 86400) + 1;
+                        $passengers = max(1, $passengers);
+
+                        // Recalculate premium from policy brackets
+                        $policy_id = (int) $sale->policy_id;
+                        $brackets  = get_post_meta($policy_id, '_policy_day_premiums', true);
+                        $premium   = 0;
+                        if (is_array($brackets)) {
+                            foreach ($brackets as $b) {
+                                if ($days >= intval($b['min_days']) && $days <= intval($b['max_days'])) {
+                                    $premium = floatval($b['premium_per_day']);
+                                    break;
+                                }
+                            }
+                        }
+
+                        $currency_context = $this->get_policy_currency_context($policy_id);
+                        $premium = $this->normalize_premium_amount($premium, $currency_context);
+
+                        if ($premium > 0) {
+                            $total_premium = $premium * $passengers;
+                            $fee_type  = get_option('maljani_fee_service_type', 'fixed');
+                            $fee_value = floatval(get_option('maljani_fee_service_value', 0));
+                            $service_fee = ($fee_type === 'percentage')
+                                ? round($total_premium * $fee_value / 100, 2)
+                                : $fee_value;
+                            $amount_paid = $total_premium + $service_fee;
+
+                            $comm_type  = get_post_meta($policy_id, '_policy_aggregator_comm_type', true) ?: 'percentage';
+                            $comm_value = floatval(get_post_meta($policy_id, '_policy_aggregator_comm_value', true));
+                            $maljani_comm = ($comm_type === 'percentage')
+                                ? round($total_premium * $comm_value / 100, 2)
+                                : $comm_value;
+
+                            $update['departure']                 = $departure;
+                            $update['return']                    = $return_d;
+                            $update['days']                      = $days;
+                            $update['passengers']                = $passengers;
+                            $update['premium']                   = $premium;
+                            $update['amount_paid']               = $amount_paid;
+                            $update['service_fee_amount']         = $service_fee;
+                            $update['maljani_commission_amount']  = $maljani_comm;
+                            $update['net_to_insurer']            = $total_premium - $maljani_comm;
+                        }
+                    }
                 }
 
-                $total_premium = $premium * $passengers;
-
-                // Service fee
-                $fee_type  = get_option('maljani_fee_service_type', 'fixed');
-                $fee_value = floatval(get_option('maljani_fee_service_value', 0));
-                $service_fee = ($fee_type === 'percentage')
-                    ? round($total_premium * $fee_value / 100, 2)
-                    : $fee_value;
-
-                $amount_paid = $total_premium + $service_fee;
-
-                // Commissions
-                $comm_type  = get_post_meta($policy_id, '_policy_aggregator_comm_type', true) ?: 'percentage';
-                $comm_value = floatval(get_post_meta($policy_id, '_policy_aggregator_comm_value', true));
-                $maljani_comm = ($comm_type === 'percentage')
-                    ? round($total_premium * $comm_value / 100, 2)
-                    : $comm_value;
-
-                $update['departure']                 = $departure;
-                $update['return']                    = $return_d;
-                $update['days']                      = $days;
-                $update['passengers']                = $passengers;
-                $update['premium']                   = $premium;
-                $update['amount_paid']               = $amount_paid;
-                $update['service_fee_amount']         = $service_fee;
-                $update['maljani_commission_amount']  = $maljani_comm;
-                $update['net_to_insurer']            = $total_premium - $maljani_comm;
-
-                $wpdb->update($table, $update, ['id' => $sale_id]);
+                if (!empty($update)) {
+                    $wpdb->update($table, $update, ['id' => $sale_id]);
+                }
 
                 return [
                     'saleId'     => $sale_id,

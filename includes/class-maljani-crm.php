@@ -95,6 +95,7 @@ class Maljani_CRM {
         ]);
     }
 
+    //check access
     public function check_agency_permission() {
         return is_user_logged_in() && (current_user_can('maljani_agency_dashboard') || current_user_can('edit_maljani_policies')); 
     }
@@ -307,6 +308,7 @@ class Maljani_CRM {
             . '&token=' . rawurlencode( $token );
     }
 
+    // we nolonger need to generate dradts
     public function create_policy_draft(WP_REST_Request $request) {
         global $wpdb;
         $agency_id = $this->get_current_agency_id();
@@ -330,6 +332,7 @@ class Maljani_CRM {
             'client_id' => $client_id,
             'policy_id' => intval($request->get_param('policy_id')), // Base maljani policy ID
             'premium' => $premium,
+            //for future
             'agent_commission_amount' => $agent_commission_amount,
             'agent_commission_status' => 'unpaid',
             'days' => intval($request->get_param('days')),
